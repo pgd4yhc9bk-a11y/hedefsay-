@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Hedef",
+    "name": "Kelime ve İşlem",
     "slug": "hedef",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -24,6 +24,14 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "hedef",
-    "description": "Kelime ve işlem düellosu. Bu oyunun TV programıyla bağlantısı yoktur."
+    "description": "Kelime ve işlem düellosu. Bu oyunun TV programıyla bağlantısı yoktur.",
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Profil fotoğrafı seçmek için fotoğraflarına erişilir."
+        }
+      ]
+    ]
   }
 }

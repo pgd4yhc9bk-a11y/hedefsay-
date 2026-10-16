@@ -4,6 +4,7 @@ import { View } from "react-native";
 import H from "../cekirdek";
 import { IslemSonuc, IslemTuru, KelimeSonuc, KelimeTuru } from "../turlar";
 import { Dugme, Ekran, Karo, Metin, Sira, UstCubuk, up } from "../ui";
+import { OYUN_ADI } from "../marka";
 import { TUR_ADI, TurGirisi } from "./ortak";
 import { OyunSonu, TurOzeti, TurSonucu } from "./sonuc";
 
@@ -87,7 +88,7 @@ export function Pratik({ onMenu }: { onMenu: () => void }) {
     const baslik = kazanan === "ben" ? "Kazandın! 🏆" : kazanan === "rakip" ? "Bot kazandı" : "Berabere";
     const simgeler = turlar.map((x) => (x.ben > (x.rakip ?? 0) ? "🟩" : x.ben < (x.rakip ?? 0) ? "🟥" : "⬜")).join("");
     return <OyunSonu kazanan={kazanan} baslik={baslik} sen={toplam.ben} rakip={toplam.bot} rakipAd="Bot" rakipBot turlar={turlar}
-      paylasMetni={`Hedef Düello\n${simgeler} ${toplam.ben}–${toplam.bot} (bot)`}
+      paylasMetni={`${OYUN_ADI} · Düello\n${simgeler} ${toplam.ben}–${toplam.bot} (bot)`}
       onRovans={() => { setTur(0); setToplam({ ben: 0, bot: 0 }); setTurlar([]); turHazirla(0); }} onMenu={onMenu} />;
   }
   if (asama === "harf") return <HarfSec rr={() => rr.current()} ust={ust()} onTamam={(h) => { setVeri({ tip: "kelime", harfler: h, secici: "ben" }); setAsama("giris"); }} />;

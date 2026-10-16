@@ -66,10 +66,11 @@ async function turOyna(p, iyi) {
 
 (async () => {
   const hatalar = [];
-  const b = await chromium.launch();
+  const b = await chromium.launch({ });
   // Çekirdeği test sayfasına açmak için: uygulamanın kendi çekirdeğini window.__H olarak ver (yalnızca testte)
   const cekirdekEkle = (p) => p.addInitScript(() => { /* uygulama yüklendikten sonra eklenir */ });
 
+  if (OUT) { const { ctx, p } = await yeni(b, hatalar, "menu"); await T(p, "menu-pratik").waitFor(); await p.waitForTimeout(900); await p.screenshot({ path: OUT + "/yeni-menu.png" }); await ctx.close(); }
   // ---------- 0) Anahtarsız yapı: sunucu modları gizli, pratik açık ----------
   {
     const { ctx, p } = await yeni(b, hatalar, "anahtarsiz", APP_ANAHTARSIZ);
@@ -110,7 +111,7 @@ async function turOyna(p, iyi) {
     await T(p, "rovans").waitFor();
     const s = await metin(p);
     assert.match(s, /Kazandın|Bot kazandı|Berabere/);
-    assert.match(await T(p, "paylas").innerText(), /Hedef Düello/);
+    assert.match(await T(p, "paylas").innerText(), /Kelime ve İşlem · Düello/);
     if (OUT) await p.screenshot({ path: OUT + "/expo-pratik-son.png" });
     await ctx.close();
   }
@@ -149,14 +150,24 @@ async function turOyna(p, iyi) {
   // ---------- 3) Canlı düello: iki oyuncu ----------
   const A = await yeni(b, hatalar, "ayse-duello"), B = await yeni(b, hatalar, "mehmet-duello");
   await hazirla(A.p); await hazirla(B.p);
-  const kayit = async (p, nick, il) => {
+  // 1x1 PNG (fotoğraf yükleme denemesi için)
+  const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  const kayit = async (p, nick, il, izin = false, foto = false) => {
     await T(p, "menu-canli").click(); await T(p, "nick").waitFor();
-    await T(p, "nick").fill(nick); await T(p, "il-sec").click(); await T(p, "il-" + il).click(); await T(p, "kaydet").click();
+    if (foto) {
+      const [fc] = await Promise.all([p.waitForEvent("filechooser"), T(p, "foto-sec").click()]);
+      await fc.setFiles({ name: "a.png", mimeType: "image/png", buffer: PNG });
+      await p.waitForSelector('[data-testid="avatar-foto"]', { timeout: 15000 });
+    }
+    await T(p, "nick").fill(nick); await T(p, "il-sec").click(); await T(p, "il-" + il).click();
+    if (izin) await T(p, "kayit-izni").click();
+    if (OUT && foto) await p.screenshot({ path: OUT + "/yeni-profil.png" });
+    await T(p, "kaydet").click();
   };
   // A zaten günlükte kayıtlı olabilir (farklı bağlam): yeni bağlamlar yeni kullanıcı
-  await kayit(A.p, "ali", "Ankara");
+  await kayit(A.p, "ali", "Ankara", true, true);   // izin + fotoğraf
   await p_bekle(A.p, "Rakip aranıyor");
-  await kayit(B.p, "veli", "İzmir");
+  await kayit(B.p, "veli", "İzmir", true);
   const oyna = async (X, iyi, ad) => {
     for (let r = 1; r <= 4; r++) {
       await turOyna(X.p, iyi);
@@ -182,21 +193,43 @@ async function turOyna(p, iyi) {
   if (OUT) await A.p.screenshot({ path: OUT + "/expo-duello-son.png" });
   await A.ctx.close(); await B.ctx.close();
 
-  // ---------- 4) Rakip yok → Bot ----------
+  // fotoğraf ve izin sunucuya yazıldı
+  {
+    const d = await (await fetch(SUNUCU + "/__test/db")).json();
+    const ali = d.players.find((x) => x.nick === "ali"), veli = d.players.find((x) => x.nick === "veli");
+    assert.strictEqual(ali.kayit_izni, true); assert.strictEqual(veli.kayit_izni, true);
+    assert.ok(ali.avatar_url && ali.avatar_url.includes("/storage/v1/object/public/avatarlar/" + ali.id + "/"), "ali'nin fotoğraf adresi kendi klasöründe olmalı");
+    assert.strictEqual(veli.avatar_url, null);
+  }
+
+  // ---------- 4) Rakip yok → kayıtlı oyun (izin veren ali/veli) ----------
   {
     const { ctx, p } = await yeni(b, hatalar, "can-duello");
     await hazirla(p);
     await kayit(p, "can", "Ankara");
     await p_bekle(p, "Rakip aranıyor");
-    assert.match(await T(p, "bekle-bilgi").innerText(), /yapay zekâ/);
+    assert.match(await T(p, "bekle-bilgi").innerText(), /kayıtlı oyun/);
     await fetch(SUNUCU + "/__test/maci_geri?sn=20");
+    if (OUT) { await p.waitForFunction(() => /Herkes aynı anda başlıyor/.test(document.body.innerText), null, { timeout: 15000 }); await p.screenshot({ path: OUT + "/yeni-kayitli-sayim.png" }); }
     for (let r = 1; r <= 4; r++) {
       await turOyna(p, true);
-      assert.match(await metin(p), /Yapay zekâ/, "rakip açıkça yapay zekâ olarak etiketlenmeli");
+      const m = await metin(p);
+      assert.match(m, /Kayıtlı oyun/, "rakip açıkça kayıtlı oyun olarak etiketlenmeli");
+      assert.match(m, /ali|veli/, "kayıtlı rakibin gerçek adı görünmeli");
+      if (OUT && r === 1) await p.screenshot({ path: OUT + "/yeni-kayitli-sonuc.png" });
       await T(p, "ileri").click();
     }
     await T(p, "rovans").waitFor({ timeout: 25000 });
     assert.match(await metin(p), /Kazandın|kazandı|Berabere/);
+    // Profilim: izin sonradan açılıp kapatılabilir (KVKK: geri alınabilir)
+    await T(p, "menu").click(); await T(p, "menu-profilim").click(); await T(p, "kayit-izni").waitFor();
+    await T(p, "kayit-izni").click();
+    await p.waitForTimeout(800);
+    let dd = await (await fetch(SUNUCU + "/__test/db")).json();
+    assert.strictEqual(dd.players.find((x) => x.nick === "can").kayit_izni, true, "Profilim'den izin açılabilmeli");
+    await T(p, "kayit-izni").click(); await p.waitForTimeout(800);
+    dd = await (await fetch(SUNUCU + "/__test/db")).json();
+    assert.strictEqual(dd.players.find((x) => x.nick === "can").kayit_izni, false, "izin geri alınabilmeli");
     await ctx.close();
   }
 

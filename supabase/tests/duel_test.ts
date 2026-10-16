@@ -221,3 +221,62 @@ Deno.test("yapay zekâ kişilikleri: 100 farklı ad, deterministik, beceri aral�
   const adlar = new Set(Array.from({ length: 200 }, (_, i) => H.botPersona("t" + i).nick));
   dogru(adlar.size > 40, "çeşitli adlar seçilmeli: " + adlar.size);
 });
+
+/** A ve B'yi eşleştirip 4 turu oynatır (A en iyi cevapları, B boş) ve biten maçın id'sini döner */
+async function macBitir(a = "A", b = "B") {
+  const mid = await esles(a, b);
+  for (let r = 1; r <= 4; r++) {
+    const t = await baslat(a, mid, r); await baslat(b, mid, r);
+    await cagir(a, { action: "submit", match_id: mid, round: r, answer: enIyiCevap({ kind: t.kind, payload: t.payload }) });
+    await cagir(b, { action: "submit", match_id: mid, round: r, answer: "" });
+  }
+  esit((await cagir(a, { action: "status", match_id: mid })).j.bitti, true);
+  return mid;
+}
+async function botIste(kim: string) {
+  const q = (await cagir(kim, { action: "queue" })).j;
+  db.matches.find((m) => m.id === q.match_id)!.created_at = new Date(Date.now() - 20000).toISOString();
+  return (await cagir(kim, { action: "bot", match_id: q.match_id })).j;
+}
+
+Deno.test("kayıtlı rakip: izin veren oyuncunun eski maçı, adı/fotoğrafıyla, aynı bulmaca ve kayıtlı puanlarla oynatılır", async () => {
+  hazirla("A", "B", "C");
+  db.players.find((p) => p.id === "A")!.kayit_izni = true;
+  db.players.find((p) => p.id === "A")!.avatar_url = "https://x/storage/v1/object/public/avatarlar/A/avatar.jpg";
+  db.players.find((p) => p.id === "B")!.kayit_izni = true;
+  const eski = await macBitir();
+  const eskiMac = db.matches.find((m) => m.id === eski)!;
+  const eskiTurlar = db.match_rounds.filter((r) => r.match_id === eski).map((r) => JSON.stringify(r.payload));
+  const eskiHamle = (oyuncu: string, tur: number) => db.match_moves.find((m) => m.match_id === eski && m.player_id === oyuncu && m.round === tur)!.payload;
+
+  const g = await botIste("C");
+  esit(g.state, "active");
+  esit(g.rakip.kayitli, true, "kayıtlı rakip etiketi"); esit(g.rakip.bot, false, "yapay zekâ değil, kayıtlı gerçek oyuncu");
+  dogru(["oyuncu-A", "oyuncu-B"].includes(g.rakip.nick), "gerçek oyuncu adı: " + g.rakip.nick);
+  const yeniMac = db.matches.find((m) => m.id === g.match_id)!;
+  const rakipId = yeniMac.ghost_player as string;
+  esit(yeniMac.seed, eskiMac.seed, "aynı bulmacalar için tohum eski maçınki"); esit(yeniMac.ghost_of, eski);
+  if (rakipId === "A") esit(g.rakip.avatar_url, "https://x/storage/v1/object/public/avatarlar/A/avatar.jpg", "fotoğraf görünmeli");
+
+  for (let r = 1; r <= 4; r++) {
+    const t = await baslat("C", g.match_id, r);
+    esit(JSON.stringify(t.payload), eskiTurlar[r - 1], "aynı bulmaca (tur " + r + ")");
+    const s = await cagir("C", { action: "submit", match_id: g.match_id, round: r, answer: "" });
+    esit(s.j.sonuclar.length, r, "kayıtlı rakipte tur, ben gönderince biter");
+    esit(s.j.sonuclar[r - 1].rakip.score, eskiHamle(rakipId, r).score, "kayıtlı puan (tur " + r + ")");
+  }
+  esit(tum.some((t) => t.includes(eskiMac.seed)), false, "tohum sızmamalı");
+});
+
+Deno.test("kayıtlı rakip: izin yoksa yapay zekâ; kendi oynadığım maçtaki oyuncu rakip olarak çıkmaz", async () => {
+  hazirla("A", "B", "C");
+  await macBitir();                                  // izin verilmemiş (varsayılan kapalı)
+  const g1 = await botIste("C");
+  esit(g1.rakip.bot, true, "izin yoksa yapay zekâ"); esit(g1.rakip.kayitli, undefined);
+
+  hazirla("A", "B");
+  db.players.forEach((p) => { p.kayit_izni = true; });
+  await macBitir();
+  const g2 = await botIste("A");                     // A o maçın tarafı: aynı bulmacaları görmüş, rakip olamaz
+  esit(g2.rakip.bot, true, "kendi maçımdaki oyuncu kayıtlı rakip olmamalı");
+});

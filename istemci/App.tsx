@@ -7,13 +7,14 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import H from "./src/cekirdek";
 import { Duello } from "./src/oyun/Duello";
 import { Gunluk } from "./src/oyun/Gunluk";
+import { Profilim } from "./src/oyun/ortak";
 import { Pratik } from "./src/oyun/Pratik";
 import * as S from "./src/sunucu";
 import { FONT } from "./src/tema";
 import { Belir, Dugme, Ekran, Karo, Kart, Logo, Metin, Sira, useTema } from "./src/ui";
 import { bugun } from "./src/zaman";
 
-type Ekranlar = "menu" | "pratik" | "gunluk" | "duello";
+type Ekranlar = "menu" | "pratik" | "gunluk" | "duello" | "profilim";
 
 function ModKarti({ baslik, alt, ikon, onPress, vurgulu, testID }: { baslik: string; alt: string; ikon: string; onPress: () => void; vurgulu?: boolean; testID: string }) {
   const t = useTema();
@@ -68,7 +69,7 @@ function Menu({ git }: { git: (e: Ekranlar) => void }) {
     <Ekran ortala>
       <Belir stil={{ alignItems: "center", marginBottom: 26 }}>
         <Logo />
-        <Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 15, marginTop: 8 }}>Kelime ve işlem düellosu</Text>
+        <Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 15, marginTop: 8 }}>Zekâ düellosu</Text>
       </Belir>
       <Belir gecikme={120}>
         {sunucu && <ModKarti testID="menu-canli" vurgulu ikon="⚔️" baslik="Canlı düello" alt="Gerçek rakiple, 4 tur" onPress={() => git("duello")} />}
@@ -77,6 +78,7 @@ function Menu({ git }: { git: (e: Ekranlar) => void }) {
       </Belir>
       <Belir gecikme={240}>
         <Dugme testID="kurallar" hayalet baslik="Nasıl oynanır?" onPress={() => setKurallar(true)} />
+        {sunucu && <Dugme testID="menu-profilim" hayalet baslik="Profilim" onPress={() => git("profilim")} />}
         <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 12, textAlign: "center", marginTop: 14, lineHeight: 18 }}>
           Sözlük: {H.getDictionarySize().toLocaleString("tr")} kelime · kaynak: VikiSözlük (CC BY-SA).{"\n"}Bu oyunun TV programıyla bağlantısı yoktur.
         </Text>
@@ -99,6 +101,7 @@ export default function App() {
       {ekran === "pratik" && <Pratik onMenu={menu} />}
       {ekran === "gunluk" && <Gunluk onMenu={menu} />}
       {ekran === "duello" && <Duello onMenu={menu} />}
+      {ekran === "profilim" && <Profilim onMenu={menu} />}
     </SafeAreaProvider>
   );
 }
