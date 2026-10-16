@@ -14,7 +14,10 @@
 
   function istek(yol, ayar) {
     ayar = ayar || {};
-    var h = { apikey: cfg.anonKey, "content-type": "application/json", Authorization: "Bearer " + (ayar.jwt || cfg.anonKey) };
+    // Yeni tür herkese açık anahtarlar (sb_publishable_…) JWT değildir: yalnızca `apikey` başlığında gider.
+    // Authorization yalnızca kullanıcı oturumu (JWT) varken eklenir.
+    var h = { apikey: cfg.anonKey, "content-type": "application/json" };
+    if (ayar.jwt) h.Authorization = "Bearer " + ayar.jwt;
     for (var k in (ayar.headers || {})) h[k] = ayar.headers[k];
     return fetch(cfg.url + yol, { method: ayar.method || "GET", headers: h, body: ayar.body === undefined ? undefined : JSON.stringify(ayar.body) })
       .then(function (r) {

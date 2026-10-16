@@ -11,14 +11,13 @@ npx expo start            # telefonda Expo Go veya `w` ile web
 npx tsc --noEmit          # tip denetimi
 ```
 
-Sunucu modları için herkese açık (anon/publishable) anahtar gerekir; **`service_role` ASLA**:
+Sunucu modları `hedef-dev` projesinin herkese açık (publishable) anahtarıyla varsayılan olarak açıktır (`src/ayar.ts`); **`service_role` ASLA**. Başka projeye bağlamak için:
 
 ```bash
-EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-anahtar> npx expo start
-# URL'yi değiştirmek için EXPO_PUBLIC_SUPABASE_URL (varsayılan: hedef-dev projesi)
+EXPO_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co EXPO_PUBLIC_SUPABASE_ANON_KEY=<publishable-anahtar> npx expo start
 ```
 
-Anahtar yoksa menüde yalnızca pratik görünür.
+`EXPO_PUBLIC_SUPABASE_ANON_KEY=` (boş) verilirse menüde yalnızca pratik görünür.
 
 ## Çekirdeği güncelleme
 

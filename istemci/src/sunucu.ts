@@ -16,9 +16,10 @@ let bellek: Oturum | null = null;
 export const hazir = () => !!(AYAR.url && AYAR.anonKey);
 
 async function istek(yol: string, ayar: { method?: string; body?: unknown; jwt?: string; headers?: Record<string, string> } = {}) {
-  const h: Record<string, string> = {
-    apikey: AYAR.anonKey, "content-type": "application/json", Authorization: "Bearer " + (ayar.jwt ?? AYAR.anonKey), ...(ayar.headers ?? {}),
-  };
+  // Yeni tür herkese açık anahtarlar (sb_publishable_…) JWT değildir: yalnızca `apikey` başlığında gider.
+  // Authorization yalnızca kullanıcı oturumu (JWT) varken eklenir.
+  const h: Record<string, string> = { apikey: AYAR.anonKey, "content-type": "application/json", ...(ayar.headers ?? {}) };
+  if (ayar.jwt) h.Authorization = "Bearer " + ayar.jwt;
   const r = await fetch(AYAR.url + yol, { method: ayar.method ?? "GET", headers: h, body: ayar.body === undefined ? undefined : JSON.stringify(ayar.body) });
   const t = await r.text();
   let j: any = null;

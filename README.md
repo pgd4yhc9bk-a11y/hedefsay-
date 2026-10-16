@@ -19,7 +19,7 @@ Expo SDK 58 / React Native, TypeScript: pratik, günlük mücadele ve canlı dü
 
 Şema, RLS, günlük bulmaca üretimi ve skor doğrulama: [supabase/README.md](supabase/README.md).
 
-**Prototipi sunucuya bağlama:** `prototip/config.js` içindeki `anonKey` alanına Supabase paneli → Project Settings → API'deki **anon / publishable** anahtarı yaz (herkese açık anahtardır; `service_role` ASLA). Doluysa günlük mod sunucudan oynanır: oyuncu kartı (takma ad + il), bulmaca ve puan sunucudan, süre sunucu damgasıyla, bugünün sıralaması ve il ligi. Boşsa günlük mod yerelde, sıralamasız çalışır. **Canlı düello** de sunucudan oynanır: gerçek rakip aranır, 15 sn içinde bulunamazsa açıkça "Bot" adıyla bot oynar; harfleri sistem seçer, süre bonusu yoktur. Pratik (bota karşı) her zaman yereldir.
+**Sunucuya bağlanma:** `prototip/config.js` ve `istemci/src/ayar.ts` `hedef-dev` projesinin **herkese açık (publishable)** anahtarıyla gelir (herkese açık anahtardır; `service_role` ASLA depoya girmez). Yeni tür `sb_publishable_…` anahtarlar JWT değildir: istemciler bunu yalnızca `apikey` başlığında gönderir, `Authorization` yalnızca kullanıcı oturumu varken eklenir. Anahtar doluyken günlük mod sunucudan oynanır: oyuncu kartı (takma ad + il), bulmaca ve puan sunucudan, süre sunucu damgasıyla, bugünün sıralaması ve il ligi. Boşsa günlük mod yerelde, sıralamasız çalışır. **Canlı düello** de sunucudan oynanır: gerçek rakip aranır, 15 sn içinde bulunamazsa açıkça "Bot" adıyla bot oynar; harfleri sistem seçer, süre bonusu yoktur. Pratik (bota karşı) her zaman yereldir.
 
 ## Prototipte sabitlenen / karar bekleyen değerler
 
