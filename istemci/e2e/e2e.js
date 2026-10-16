@@ -14,7 +14,7 @@ async function yeni(b, hatalar, ad, url = APP) {
   const ctx = await b.newContext({ viewport: { width: 420, height: 900 } });
   const p = await ctx.newPage();
   p.on("pageerror", (e) => hatalar.push(ad + " pageerror: " + e.message));
-  p.on("console", (m) => m.type() === "error" && !/favicon/.test(m.text()) && hatalar.push(ad + " console: " + m.text()));
+  p.on("console", (m) => m.type() === "error" && !/favicon/.test(m.text()) && !(ad === "can-duello" && /status of 400/.test(m.text())) && hatalar.push(ad + " console: " + m.text()));
   await p.goto(url);
   return { ctx, p };
 }
@@ -148,7 +148,7 @@ async function turOyna(p, iyi) {
   }
 
   // ---------- 3) Canlı düello: iki oyuncu ----------
-  const A = await yeni(b, hatalar, "ayse-duello"), B = await yeni(b, hatalar, "mehmet-duello");
+  let A = await yeni(b, hatalar, "ayse-duello"), B = await yeni(b, hatalar, "mehmet-duello");
   await hazirla(A.p); await hazirla(B.p);
   // 1x1 PNG (fotoğraf yükleme denemesi için)
   const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
@@ -191,6 +191,7 @@ async function turOyna(p, iyi) {
   assert.match(sA, /Kazandın/, "ali kazanmalı: " + sA);
   assert.match(sB, /ali kazandı/, "veli kaybetmeli: " + sB);
   if (OUT) await A.p.screenshot({ path: OUT + "/expo-duello-son.png" });
+  const durumA = await A.ctx.storageState();   // ali'nin oturumu (arkadaşlık testi için)
   await A.ctx.close(); await B.ctx.close();
 
   // fotoğraf ve izin sunucuya yazıldı
@@ -230,6 +231,32 @@ async function turOyna(p, iyi) {
     await T(p, "kayit-izni").click(); await p.waitForTimeout(800);
     dd = await (await fetch(SUNUCU + "/__test/db")).json();
     assert.strictEqual(dd.players.find((x) => x.nick === "can").kayit_izni, false, "izin geri alınabilmeli");
+
+    // Arkadaşlar: kodla istek → kabul → silme
+
+    const kodum = (await T(p, "arkadas-kodum").innerText()).trim();
+    assert.match(kodum, /^[A-Z2-9]{6}$/, "kendi arkadaş kodu görünmeli");
+    const ali = dd.players.find((x) => x.nick === "ali");
+    await T(p, "kod-gir").fill(kodum); await T(p, "kod-ekle").click();
+    await p_bekle(p, "kendi kodun");
+    await T(p, "kod-gir").fill("ZZZZZZ"); await T(p, "kod-ekle").click();
+    await p_bekle(p, "bulunamadı");
+    await T(p, "kod-gir").fill(ali.arkadas_kodu.toLowerCase()); await T(p, "kod-ekle").click();
+    await p_bekle(p, "İstek gönderildi");
+    await T(p, "geri-ali").waitFor();
+    if (OUT) await p.screenshot({ path: OUT + "/arkadaslar-giden.png", fullPage: true });
+    const ctxA = await b.newContext({ viewport: { width: 420, height: 900 }, storageState: durumA });
+    A = { ctx: ctxA, p: await ctxA.newPage() }; await A.p.goto(APP);
+    await T(A.p, "menu-profilim").waitFor({ timeout: 15000 }); await T(A.p, "menu-profilim").click();
+    await T(A.p, "kabul-can").waitFor({ timeout: 15000 });
+    await T(A.p, "kabul-can").click();
+    await T(A.p, "sil-can").waitFor();
+    if (OUT) await A.p.screenshot({ path: OUT + "/arkadaslar-kabul.png", fullPage: true });
+    await T(p, "menu").click(); await T(p, "menu-profilim").click();
+    await T(p, "sil-ali").waitFor({ timeout: 15000 });
+    await T(p, "sil-ali").click();
+    await p_bekle(p, "Henüz arkadaşın yok");
+    await ctxA.close();
     await ctx.close();
   }
 
