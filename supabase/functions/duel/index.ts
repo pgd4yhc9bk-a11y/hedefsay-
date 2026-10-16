@@ -12,8 +12,9 @@ import { admin, cors, H, json, kullanici } from "../_shared/ortak.ts";
 const env = (k: string, d: number) => Number(Deno.env.get(k) ?? d);
 const SURE_MS = H.GUNLUK_SURE * 1000;                       // tur süresi
 const TOLERANS_MS = 3000;                                   // ağ gecikmesi payı
-const GERI_SAYIM_MS = env("DUELLO_GERI_SAYIM_MS", 5000);    // iki taraf da aynı anda başlasın
-const BOT_BEKLEME_MS = env("DUELLO_BOT_BEKLEME_MS", 15000); // doküman: bekleme < 15 sn, yoksa bota düş
+const GERI_SAYIM_MS = env("DUELLO_GERI_SAYIM_MS", 3000);    // iki taraf da aynı anda başlasın
+const BOT_BEKLEME_MS = env("DUELLO_BOT_BEKLEME_MS", 6000);  // gerçek rakip bulunamazsa yapay zekâ rakibe düş (açıkça etiketlenir)
+const RAKIP_BEKLEME_MS = env("DUELLO_RAKIP_BEKLEME_MS", 20000); // biri bitirince diğerine kalan en fazla süre
 const BEKLEYEN_OMUR_MS = 30000;                             // bundan eski bekleyen maça katılınmaz
 const TERK_MS = 120000;                                     // bekleyen maç bu süreden sonra terk sayılır
 const AKTIF_OMUR_MS = 30 * 60000;
@@ -73,19 +74,33 @@ async function katil(pid: string, benimMacim: Satir | null): Promise<Satir | nul
   return null;
 }
 
+/** İlk gönderimin sunucu zamanı (başlangıç + geçen süre) */
+function ilkGonderim(satir: Satir, hamleler: Satir[]): number | null {
+  const z = hamleler.filter((h) => h.round === satir.round).map((h) => ms(satir.started_at) + (h.payload?.elapsed_ms ?? 0));
+  return z.length ? Math.min(...z) : null;
+}
+/** Tur kapanma anı: süre sonu; biri bitirdiyse onun ardından RAKIP_BEKLEME_MS (hangisi önceyse) */
+function turKapanis(satir: Satir, hamleler: Satir[]): number {
+  const sonSaat = ms(satir.started_at) + SURE_MS + TOLERANS_MS;
+  const ilk = ilkGonderim(satir, hamleler);
+  return ilk === null ? sonSaat : Math.min(sonSaat, ilk + RAKIP_BEKLEME_MS);
+}
 function turBitmisMi(satir: Satir, hamleler: Satir[], mac: Satir, pid: string, an: number): boolean {
   const ben = hamleler.find((h) => h.round === satir.round && h.player_id === pid);
   const rakip = hamleler.find((h) => h.round === satir.round && h.player_id !== pid);
-  const sonSaat = ms(satir.started_at) + SURE_MS + TOLERANS_MS;
-  return mac.is_bot ? !!ben || an > sonSaat : (!!ben && !!rakip) || an > sonSaat;
+  if (mac.is_bot) return !!ben || an > ms(satir.started_at) + SURE_MS + TOLERANS_MS;
+  return (!!ben && !!rakip) || an > turKapanis(satir, hamleler);
 }
 
 /** İstemciye giden görünüm (rakibin açıklanmamış cevabı ve bulmaca sızmaz) */
 async function gorunum(mac: Satir, pid: string): Promise<Response> {
   const an = simdi();
   const rakipId = mac.a === pid ? mac.b : mac.a;
-  let rakip: Satir = { bot: true, nick: "Bot" };
-  if (!mac.is_bot) {
+  let rakip: Satir = { bot: true, nick: "Yapay zekâ" };
+  if (mac.is_bot) {
+    const k = H.botPersona(mac.seed);   // her zaman bot=true: arayüz "yapay zekâ" diye etiketler
+    rakip = { bot: true, nick: k.nick, city: k.city };
+  } else {
     const o = rakipId ? await tek("players", { id: rakipId }) : null;
     rakip = o ? { bot: false, nick: o.nick, city: o.city ?? null } : { bot: false, nick: null };
   }
@@ -128,6 +143,7 @@ async function gorunum(mac: Satir, pid: string): Promise<Response> {
   return json({
     ...base, bitti: false, tur: guncel, sonuclar, toplam, ben_gonderdim: benGonderdim,
     tur_basladi_ms: t ? ms(t.started_at) - an : null,   // <0: başladı, >0: geri sayım
+    rakip_kalan_ms: t && benGonderdim && !mac.is_bot ? Math.max(0, turKapanis(t, hamleler) - an) : null,   // rakibe kalan süre
     sure_ms: SURE_MS,
   });
 }

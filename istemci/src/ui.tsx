@@ -104,7 +104,7 @@ export function Dugme({ baslik, onPress, birincil, buyuk, pasif, hayalet, testID
 }
 
 // ---------- harf karosu (3 boyutlu) ----------
-export function Karo({ harf, kullanildi, joker, bos, onPress, testID, boyut = "b", pop }: { harf?: string; kullanildi?: boolean; joker?: boolean; bos?: boolean; onPress?: () => void; testID?: string; boyut?: "b" | "o" | "k"; pop?: boolean }) {
+export function Karo({ harf, kullanildi, joker, bos, onPress, testID, boyut = "b", pop, secili }: { harf?: string; kullanildi?: boolean; joker?: boolean; bos?: boolean; onPress?: () => void; testID?: string; boyut?: "b" | "o" | "k"; pop?: boolean; secili?: boolean }) {
   const t = useTema();
   const [w, h, f] = boyut === "b" ? [58, 66, 28] : boyut === "o" ? [48, 56, 24] : [40, 48, 20];
   const yuz = bos ? "transparent" : joker ? t.joker : kullanildi ? t.karoKul : t.karo;
@@ -113,6 +113,7 @@ export function Karo({ harf, kullanildi, joker, bos, onPress, testID, boyut = "b
     <Pressable testID={testID} disabled={!onPress || kullanildi} onPress={onPress}
       style={({ pressed }) => [{ width: w, height: h, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: yuz,
         borderBottomWidth: bos ? 2 : 5, borderBottomColor: alt, borderWidth: bos ? 2 : 0, borderColor: alt, borderStyle: bos ? "dashed" : "solid" },
+        secili && { borderWidth: 3, borderColor: t.vurgu, backgroundColor: "#FFE9A8", transform: [{ translateY: -4 }] },
         !bos && !kullanildi && { shadowColor: t.golge, shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
         pressed && { transform: [{ translateY: 3 }], borderBottomWidth: 2 }]}>
       <Text style={{ fontFamily: FONT.siyah, fontSize: f, color: kullanildi ? t.karoKulYazi : t.karoYazi }}>{bos ? "" : joker && !harf ? "★" : up(harf ?? "")}</Text>

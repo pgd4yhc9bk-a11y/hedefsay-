@@ -26,6 +26,19 @@ async function tusla(p, kelime) {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   }, kelime);
 }
+// İşlem turunu TV'deki gibi oynar: sayı + işlem + sayı; her adımda yeni sonuç karosu oluşur. adimSayisi verilirse ilk N adım.
+async function islemCoz(p, ifade, adimSayisi, baslangic) {
+  const adimlar = await p.evaluate((e) => window.__H.expressionSteps(e), ifade);
+  const loc = (v) => p.locator(`[data-testid="sayi-${v}"]`);
+  for (const [i, s] of adimlar.entries()) {
+    if (adimSayisi !== undefined && i >= adimSayisi) break;
+    if (baslangic !== undefined && i < baslangic) continue;
+    await loc(s.a).first().click();
+    await T(p, "op-" + s.op).click();
+    await (s.a === s.b ? loc(s.b).nth(1) : loc(s.b).first()).click();
+  }
+  return adimlar;
+}
 // Tur ekranında iyi/kötü oyna; sonuç ekranında (#ileri) durur
 async function turOyna(p, iyi) {
   await T(p, "bitir").waitFor({ timeout: 25000 });
@@ -41,8 +54,12 @@ async function turOyna(p, iyi) {
     const hedef = +(await T(p, "hedef").innerText());
     const sayilar = await p.$$eval('[data-testid^="sayi-"]', (e) => e.map((x) => +x.getAttribute("data-testid").slice(5)));
     const ifade = await p.evaluate(([n, t]) => window.__H.solve(n).get(t).e, [sayilar, hedef]);
-    await T(p, "ifade").fill(ifade);
-    await T(p, "gonder").click();       // tam isabet: tur kendiliğinden biter
+    const adimlar = await islemCoz(p, ifade, 1);   // ilk adım: parantezsiz, "a op b = r" biçiminde yeni karo
+    if (adimlar.length) {
+      assert.match(await T(p, "adim").last().innerText(), /^\d+ [+−×÷] \d+ = \d+$/, "adımlar parantezsiz gösterilmeli");
+      assert.ok((await T(p, "adim").allInnerTexts()).every((x) => !/[()]/.test(x)), "işlem adımlarında parantez olmamalı");
+    }
+    await islemCoz(p, ifade, undefined, adimlar.length ? 1 : 0);   // kalan adımlar; tam isabet: tur kendiliğinden biter
   } else await T(p, "bitir").click();
   await T(p, "ileri").waitFor({ timeout: 25000 });
 }
@@ -171,15 +188,15 @@ async function turOyna(p, iyi) {
     await hazirla(p);
     await kayit(p, "can", "Ankara");
     await p_bekle(p, "Rakip aranıyor");
-    assert.match(await T(p, "bekle-bilgi").innerText(), /Bot/);
+    assert.match(await T(p, "bekle-bilgi").innerText(), /yapay zekâ/);
     await fetch(SUNUCU + "/__test/maci_geri?sn=20");
     for (let r = 1; r <= 4; r++) {
       await turOyna(p, true);
-      assert.match(await metin(p), /Bot/, "rakip açıkça 'Bot' görünmeli");
+      assert.match(await metin(p), /Yapay zekâ/, "rakip açıkça yapay zekâ olarak etiketlenmeli");
       await T(p, "ileri").click();
     }
     await T(p, "rovans").waitFor({ timeout: 25000 });
-    assert.match(await metin(p), /Kazandın|Bot kazandı|Berabere/);
+    assert.match(await metin(p), /Kazandın|kazandı|Berabere/);
     await ctx.close();
   }
 

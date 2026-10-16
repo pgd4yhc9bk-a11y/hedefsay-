@@ -300,6 +300,28 @@
     }
   }
 
+  // Bir ifadeyi değerlendirme sırasıyla adımlarına ayırır: "(7+3)×8" -> [{a:7,op:"+",b:3,r:10},{a:10,op:"×",b:8,r:80}].
+  // Parantez göstermeden "7 + 3 = 10, 10 × 8 = 80" biçiminde sunmak için. Geçersiz ifadede null.
+  function expressionSteps(text) {
+    var s = String(text).replace(/[*xX·]/g, "×").replace(/\//g, "÷").replace(/[-–—]/g, "−");
+    var tokens = s.match(/\d+|[+−×÷()]/g) || [], pos = 0, steps = [];
+    function factor() {
+      var t = tokens[pos];
+      if (t === "(") { pos++; var v = expr(); if (tokens[pos] !== ")") throw 0; pos++; return v; }
+      if (t !== undefined && /^\d+$/.test(t)) { pos++; return parseInt(t, 10); }
+      throw 0;
+    }
+    function uygula(a, op, b) {
+      var r = op === "+" ? a + b : op === "−" ? a - b : op === "×" ? a * b : a / b;
+      steps.push({ a: a, op: op, b: b, r: r });
+      return r;
+    }
+    function term() { var l = factor(); while (tokens[pos] === "×" || tokens[pos] === "÷") { var op = tokens[pos++]; l = uygula(l, op, factor()); } return l; }
+    function expr() { var l = term(); while (tokens[pos] === "+" || tokens[pos] === "−") { var op = tokens[pos++]; l = uygula(l, op, term()); } return l; }
+    try { expr(); if (pos < tokens.length) return null; return steps; } catch (e) { return null; }
+  }
+  function stepText(st) { return st.a + " " + st.op + " " + st.b + " = " + st.r; }
+
   function numberScore(target, value) {
     var d = Math.abs(target - value);
     if (d === 0) return 10;
@@ -309,15 +331,18 @@
   }
 
   // ---------- Bot rakip ----------
-  function botWord(letters, rng) {
+  // skill 0..1 (varsayılan 0.5): yüksek beceri en iyi kelimeye / tam isabete daha sık ulaşır
+  function botWord(letters, rng, skill) {
+    skill = skill == null ? 0.5 : skill;
     var list = allWords(letters);
     if (!list.length) return null;
-    var idx = Math.floor(Math.pow(rng(), 3) * Math.min(list.length, 12));
+    var idx = Math.floor(Math.pow(rng(), 1 + 4 * (1 - skill)) * Math.min(list.length, 12));
     return list[idx];
   }
-  function botNumber(round, rng) {
+  function botNumber(round, rng, skill) {
+    skill = skill == null ? 0.5 : skill;
     var target = round.target, found = round.found;
-    if (rng() < 0.45) return { value: target, expr: found.get(target).e };
+    if (rng() < 0.15 + 0.6 * skill) return { value: target, expr: found.get(target).e };
     var d = 1 + randInt(rng, 12), yon = rng() < 0.5 ? 1 : -1;
     for (var k = 0; k < 200; k++) {
       var cands = [target + yon * (d + k), target - yon * (d + k)];
@@ -353,12 +378,12 @@
 
   // Bot rakibin i. turdaki hamlesi; maç tohumundan deterministik (r: roundFromSeed sonucu)
   function botMove(seed, i, r) {
-    var rng = makeRng("bot|" + seed + "|" + i);
+    var rng = makeRng("bot|" + seed + "|" + i), skill = botPersona(seed).skill;
     if (r.kind === "kelime") {
-      var bw = botWord(r.payload.letters, rng);
+      var bw = botWord(r.payload.letters, rng, skill);
       return { answer: bw ? bw.word : "", score: bw ? bw.score : 0 };
     }
-    var bn = botNumber({ target: r.payload.target, found: r.found }, rng);
+    var bn = botNumber({ target: r.payload.target, found: r.found }, rng, skill);
     return { answer: bn.expr, score: numberScore(r.payload.target, bn.value) };
   }
 
@@ -379,14 +404,29 @@
     return { score: puan, valid: true, detail: "= " + ev.value };
   }
 
+  // Yapay zekâ rakip kişilikleri: ad, il ve beceri maç tohumundan deterministik seçilir.
+  // Arayüz bunları HER ZAMAN "yapay zekâ" olarak etiketler; gerçek oyuncu gibi gösterilmez.
+  var BOT_ADLARI = ("elif_k mehmet.y kelimeci34 zeynep06 can_ozt ayse.n bulmacaci mert_35 deniz.a selin1990 kaan_t ece.k hedef_avcisi " +
+    "burak.d gizem_s oguz07 pelin.m tolga_c nehir.b okan.y sibel_a yigit16 melis.t arda_k buse.n emre_44 dilara.s baran_g " +
+    "irem_u kerem.a asli34 cem_y naz.o umut_b hande.k sarp_e yasemin_d berk01 tuba.c onur_h ceren_a efe.m gul_ay0 halil.i " +
+    "ipek_n kadir_z leyla.t murat_b nur_an orhan.d pinar_e recep_k seda.u tarik_s ulku.y volkan_m yagmur.a zafer_i " +
+    "akin_o bahar.e cansu_d dogan.k eylul_y ferhat_a gamze.s hakan_t ilker.n jale_b kubra.c levent_r mine_a necati.o " +
+    "oya_dm polat_s rana.k sinan_e tugce.n utku_a vedat.b yildiz_m zehra.d alper_k banu.t cagri_e derya.s ege_nur " +
+    "fikret.a gokhan_y hilal_c ismail.t jülide_k kemal_b lale.n metin_d nazli.e ozan_s pervin_a rifat.k sevgi_o tunc_m").split(" ");
+  var BOT_ILLERI = ["Ankara", "İstanbul", "İzmir", "Bursa", "Antalya", "Konya", "Adana", "Gaziantep", "Kayseri", "Trabzon", "Samsun", "Eskişehir", "Mersin", "Diyarbakır", "Denizli", "Muğla", "Sakarya", "Balıkesir", "Manisa", "Hatay"];
+  function botPersona(seed) {
+    var r = makeRng("kisilik|" + seed);
+    return { nick: BOT_ADLARI[randInt(r, BOT_ADLARI.length)], city: BOT_ILLERI[randInt(r, BOT_ILLERI.length)], skill: Math.round((0.3 + 0.6 * r()) * 100) / 100, bot: true };
+  }
+
   var Hedef = {
     SESLI: SESLI, SESSIZ: SESSIZ, ALFABE: ALFABE, MIN_SESLI: MIN_SESLI, HARF_SAYISI: HARF_SAYISI,
     trLower: trLower, makeRng: makeRng, randInt: randInt,
     setDictionary: setDictionary, getDictionarySize: function () { return sozlukListe.length; },
     drawLetter: drawLetter, completeRack: completeRack, generateRack: generateRack, generateRackAuto: generateRackAuto, randomTypes: randomTypes,
     wordInfo: wordInfo, allWords: allWords, hasLong: hasLong,
-    solve: solve, generateNumberRound: generateNumberRound, evaluate: evaluate, numberScore: numberScore,
-    botWord: botWord, botNumber: botNumber,
+    solve: solve, generateNumberRound: generateNumberRound, evaluate: evaluate, expressionSteps: expressionSteps, stepText: stepText, numberScore: numberScore,
+    botWord: botWord, botNumber: botNumber, botPersona: botPersona, BOT_ADLARI: BOT_ADLARI,
     GUNLUK_TURLAR: GUNLUK_TURLAR, GUNLUK_SURE: GUNLUK_SURE, timeBonus: timeBonus, roundFromSeed: roundFromSeed, dailyRound: dailyRound, botMove: botMove, scoreRound: scoreRound
   };
   if (typeof module !== "undefined" && module.exports) module.exports = Hedef;

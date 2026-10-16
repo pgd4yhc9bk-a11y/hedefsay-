@@ -78,7 +78,7 @@ function Menu({ git }: { git: (e: Ekranlar) => void }) {
       <Belir gecikme={240}>
         <Dugme testID="kurallar" hayalet baslik="Nasıl oynanır?" onPress={() => setKurallar(true)} />
         <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 12, textAlign: "center", marginTop: 14, lineHeight: 18 }}>
-          Deneme sözlüğü: {H.getDictionarySize()} kelime (geçici).{"\n"}Bu oyunun TV programıyla bağlantısı yoktur.
+          Sözlük: {H.getDictionarySize().toLocaleString("tr")} kelime · kaynak: VikiSözlük (CC BY-SA).{"\n"}Bu oyunun TV programıyla bağlantısı yoktur.
         </Text>
       </Belir>
       <Kurallar acik={kurallar} kapat={() => setKurallar(false)} />

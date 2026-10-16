@@ -131,8 +131,9 @@ Deno.test("bot: erken çağrı reddedilir; süre dolunca bot başlar; bot hamles
   esit((await cagir("A", { action: "bot", match_id: q.match_id })).s, 409, "erken bot");
   db.matches[0].created_at = new Date(Date.now() - 20000).toISOString();
   const b = (await cagir("A", { action: "bot", match_id: q.match_id })).j;
-  esit(b.state, "active"); esit(b.rakip.bot, true); esit(b.rakip.nick, "Bot");
   const seed = db.matches[0].seed;
+  esit(b.state, "active"); esit(b.rakip.bot, true, "bot rakip her zaman bot=true olmalı");
+  esit(b.rakip.nick, H.botPersona(seed).nick, "kişilik seed'den gelmeli"); esit(b.rakip.city, H.botPersona(seed).city);
   for (let r = 1; r <= 4; r++) {
     const t = await baslat("A", q.match_id, r);
     const g = await cagir("A", { action: "submit", match_id: q.match_id, round: r, answer: enIyiCevap({ kind: t.kind, payload: t.payload }) });
@@ -192,4 +193,31 @@ Deno.test("terk: eski bekleyen maç kapatılır, yeni maç açılır; aktif maç
   esit(b.match_id, yeni.match_id);
   esit((await cagir("A", { action: "queue" })).j.match_id, yeni.match_id, "yeniden bağlanınca aynı maç");
   esit((await cagir("B", { action: "queue" })).j.match_id, yeni.match_id);
+});
+
+Deno.test("tur arası bekleme: biri bitirince rakibe en fazla 20 sn kalır; ondan önce tur kapanmaz; kalan süre bildirilir", async () => {
+  hazirla("A", "B");
+  const mid = await esles();
+  const t = await baslat("A", mid, 1); await baslat("B", mid, 1);
+  const g = await cagir("A", { action: "submit", match_id: mid, round: 1, answer: enIyiCevap({ kind: t.kind, payload: t.payload }) });
+  esit(g.j.sonuclar.length, 0, "rakip bitirmedi: tur açık");
+  dogru(g.j.rakip_kalan_ms > 15000 && g.j.rakip_kalan_ms <= 20000, "rakibe kalan süre ~20 sn olmalı: " + g.j.rakip_kalan_ms);
+  // A 10 sn önce göndermiş gibi göster: hâlâ açık
+  db.match_rounds[0].started_at = new Date(Date.now() - 12000).toISOString();
+  db.match_moves[0].payload.elapsed_ms = 2000;   // A, başlangıçtan 2 sn sonra göndermiş -> kapanış başlangıç+22 sn
+  esit((await cagir("A", { action: "status", match_id: mid })).j.sonuclar.length, 0, "12. sn: tur açık");
+  db.match_rounds[0].started_at = new Date(Date.now() - 23000).toISOString();   // kapanış geçti
+  const s = (await cagir("A", { action: "status", match_id: mid })).j;
+  esit(s.sonuclar.length, 1, "ilk gönderimden 20 sn sonra tur kapanmalı");
+  esit(s.sonuclar[0].rakip.score, 0);
+  dogru((await baslat("A", mid, 2)).payload, "2. tur başlayabilmeli");
+});
+
+Deno.test("yapay zekâ kişilikleri: 100 farklı ad, deterministik, beceri aralığı, tek maçta tutarlı", () => {
+  esit(new Set(H.BOT_ADLARI).size, 100);
+  const k1 = H.botPersona("tohum-1"), k2 = H.botPersona("tohum-1");
+  esit(JSON.stringify(k1), JSON.stringify(k2));
+  dogru(k1.bot === true && k1.skill >= 0.3 && k1.skill <= 0.9, "beceri aralığı");
+  const adlar = new Set(Array.from({ length: 200 }, (_, i) => H.botPersona("t" + i).nick));
+  dogru(adlar.size > 40, "çeşitli adlar seçilmeli: " + adlar.size);
 });

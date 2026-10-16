@@ -1,6 +1,7 @@
 // Tur sonucu, oyun sonu, sıralama ve paylaşım ekranları.
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Platform, Share, Text, View } from "react-native";
+import H from "../cekirdek";
 import { FONT } from "../tema";
 import { Avatar, Belir, Dugme, Ekran, Karo, Kart, Metin, Pop, SayiSayaci, Sira, up, useTema } from "../ui";
 
@@ -16,36 +17,59 @@ export async function paylas(metin: string): Promise<boolean> {
   return false;
 }
 
-function Cevap({ tip, cevap, deger }: { tip: "kelime" | "islem"; cevap: string; deger?: number | null }) {
+/** İşlem cevabını parantezsiz adımlar olarak gösterir: "30 × 2 = 60" */
+function Adimlar({ ifade, boyut = 15, ortala = true }: { ifade: string; boyut?: number; ortala?: boolean }) {
   const t = useTema();
-  if (!cevap) return <Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 15 }}>—</Text>;
-  if (tip === "kelime") return <Sira ortala bosluk={3}>{up(cevap).split("").map((c, i) => <Karo key={i} boyut="k" harf={c.toLocaleLowerCase("tr")} />)}</Sira>;
+  const st = H.expressionSteps(ifade);
+  const satirlar = st && st.length ? st.map(H.stepText) : [ifade];
   return (
-    <View style={{ alignItems: "center" }}>
-      <Text style={{ color: t.yazi, fontFamily: FONT.kalin, fontSize: 15, textAlign: "center" }}>{cevap}</Text>
-      {deger != null && <Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 13 }}>= {deger}</Text>}
+    <View style={{ alignItems: ortala ? "center" : "flex-start" }}>
+      {satirlar.map((x, i) => (
+        <Text key={i} style={{ color: i === satirlar.length - 1 ? t.yazi : t.soluk, fontFamily: i === satirlar.length - 1 ? FONT.siyah : FONT.kalin, fontSize: boyut }}>{x}</Text>
+      ))}
     </View>
   );
 }
 
-export interface TarafSonuc { ad: string; puan: number; cevap: string; deger?: number | null }
+function Cevap({ tip, cevap }: { tip: "kelime" | "islem"; cevap: string; deger?: number | null }) {
+  const t = useTema();
+  if (!cevap) return <Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 15 }}>—</Text>;
+  if (tip === "kelime") return <Sira ortala bosluk={3}>{up(cevap).split("").map((c, i) => <Karo key={i} boyut="k" harf={c.toLocaleLowerCase("tr")} />)}</Sira>;
+  return <Adimlar ifade={cevap} />;
+}
 
-export function TurSonucu({ ust, tur, tip, sen, rakip, enIyi, onIleri, ileriBaslik, ek }: {
+/** Rakip adı: yapay zekâ ise her zaman açıkça etiketlenir */
+export const rakipAdi = (r: { nick: string; bot?: boolean }) => (r.bot ? `🤖 ${r.nick}` : r.nick);
+
+export interface TarafSonuc { ad: string; puan: number; cevap: string; deger?: number | null; bot?: boolean }
+
+export function TurSonucu({ ust, tur, tip, sen, rakip, enIyi, onIleri, ileriBaslik, ek, otomatikSn }: {
   ust: React.ReactNode; tur: number; tip: "kelime" | "islem"; sen: TarafSonuc; rakip?: TarafSonuc;
   enIyi: { baslik: string; cevap: string; ayrinti: string; kelime?: boolean }; onIleri: () => void; ileriBaslik: string; ek?: React.ReactNode;
+  otomatikSn?: number;   // verilirse bu süre sonunda kendiliğinden ilerler (düello: tur arası beklemeyi kısaltır)
 }) {
   const t = useTema();
+  const [kalan, setKalan] = useState(otomatikSn ?? 0);
+  const ilerledi = useRef(false);
+  const ileri = () => { if (ilerledi.current) return; ilerledi.current = true; onIleri(); };
+  useEffect(() => {
+    if (!otomatikSn) return;
+    const id = setInterval(() => setKalan((k) => k - 1), 1000);
+    return () => clearInterval(id);
+  }, [otomatikSn]);
+  useEffect(() => { if (otomatikSn && kalan <= 0) ileri(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [kalan]);
   const kazanSen = rakip ? sen.puan > rakip.puan : false, kazanRakip = rakip ? rakip.puan > sen.puan : false;
   const taraf = (x: TarafSonuc, kazandi: boolean, benMi: boolean) => (
     <View style={{ flex: 1, alignItems: "center", paddingVertical: 14, paddingHorizontal: 8, borderRadius: 18, borderWidth: kazandi ? 2 : 1, borderColor: kazandi ? t.vurgu : t.cizgi, backgroundColor: kazandi ? t.iyiZemin : "transparent" }}>
       <Avatar ad={benMi ? "Sen" : x.ad} boyut={40} />
-      <Text numberOfLines={1} style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 13, marginTop: 6 }}>{benMi ? "Sen" : x.ad}</Text>
+      <Text numberOfLines={1} style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 13, marginTop: 6 }}>{benMi ? "Sen" : rakipAdi({ nick: x.ad, bot: x.bot })}</Text>
+      {!benMi && x.bot && <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 11 }}>Yapay zekâ</Text>}
       <SayiSayaci deger={x.puan} v="dev" renk={kazandi ? t.iyi : t.yazi} />
       <View style={{ minHeight: 56, justifyContent: "center" }}><Cevap tip={tip} cevap={x.cevap} deger={x.deger} /></View>
     </View>
   );
   return (
-    <Ekran ust={ust} alt={<Dugme testID="ileri" birincil buyuk baslik={ileriBaslik} onPress={onIleri} />}>
+    <Ekran ust={ust} alt={<Dugme testID="ileri" birincil buyuk baslik={otomatikSn && kalan > 0 ? `${ileriBaslik} (${kalan})` : ileriBaslik} onPress={ileri} />}>
       <Belir>
         <Metin v="baslik" ortala stil={{ marginBottom: 14 }}>Tur {tur + 1} sonucu</Metin>
         {rakip
@@ -58,7 +82,7 @@ export function TurSonucu({ ust, tur, tip, sen, rakip, enIyi, onIleri, ileriBasl
             <Metin v="etiket" soluk stil={{ marginBottom: 8 }}>{enIyi.baslik}</Metin>
             {enIyi.kelime
               ? <Sira bosluk={4}>{up(enIyi.cevap).split("").map((c, i) => <Karo key={i} boyut="k" harf={c.toLocaleLowerCase("tr")} />)}</Sira>
-              : <Text style={{ color: t.yazi, fontFamily: FONT.kalin, fontSize: 18 }}>{enIyi.cevap}</Text>}
+              : <Adimlar ifade={enIyi.cevap} boyut={17} ortala={false} />}
             <Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 14, marginTop: 8 }}>{enIyi.ayrinti}</Text>
           </View>
         </Kart>
@@ -94,8 +118,8 @@ export function Siralama({ gen, il }: { gen: { rank: number; nick: string; city:
 
 export interface TurOzeti { ben: number; rakip?: number; simge?: string }
 
-export function OyunSonu({ kazanan, baslik, sen, rakip, rakipAd, turlar, paylasMetni, onRovans, onMenu, ek }: {
-  kazanan: "ben" | "rakip" | "berabere" | "gunluk"; baslik: string; sen: number; rakip?: number; rakipAd?: string; turlar: TurOzeti[];
+export function OyunSonu({ kazanan, baslik, sen, rakip, rakipAd, rakipBot, turlar, paylasMetni, onRovans, onMenu, ek }: {
+  kazanan: "ben" | "rakip" | "berabere" | "gunluk"; baslik: string; sen: number; rakip?: number; rakipAd?: string; rakipBot?: boolean; turlar: TurOzeti[];
   paylasMetni: string; onRovans?: () => void; onMenu: () => void; ek?: React.ReactNode;
 }) {
   const t = useTema();
@@ -114,7 +138,7 @@ export function OyunSonu({ kazanan, baslik, sen, rakip, rakipAd, turlar, paylasM
           <SayiSayaci deger={sen} renk={renk} />
           {rakip !== undefined && <><Text style={{ color: t.soluk, fontFamily: FONT.siyah, fontSize: 32 }}>–</Text><SayiSayaci deger={rakip} renk={t.soluk} /></>}
         </View>
-        <Metin v="etiket" soluk>{rakip !== undefined ? `SEN · ${(rakipAd ?? "RAKİP").toLocaleUpperCase("tr")}` : "PUAN"}</Metin>
+        <Metin v="etiket" soluk>{rakip !== undefined ? `SEN · ${rakipBot ? "🤖 " : ""}${(rakipAd ?? "RAKİP").toLocaleUpperCase("tr")}${rakipBot ? " (YAPAY ZEKÂ)" : ""}` : "PUAN"}</Metin>
       </View>
       <Belir gecikme={250} stil={{ marginTop: 18 }}>
         <Sira ortala bosluk={8}>

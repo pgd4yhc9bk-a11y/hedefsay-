@@ -12,6 +12,19 @@ const tusla = (p, k, enter) => p.evaluate(([k, e]) => {
   for (const ch of k) document.dispatchEvent(new KeyboardEvent("keydown", { key: ch, bubbles: true }));
   if (e) document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 }, [k, enter]);
+// İşlem turunu TV'deki gibi oynar: sayı + işlem + sayı; her adımda yeni sonuç karosu oluşur. adimSayisi verilirse ilk N adım.
+async function islemCoz(p, ifade, adimSayisi, baslangic) {
+  const adimlar = await p.evaluate((e) => window.__H.expressionSteps(e), ifade);
+  const loc = (v) => p.locator(`[data-testid="sayi-${v}"]`);
+  for (const [i, s] of adimlar.entries()) {
+    if (adimSayisi !== undefined && i >= adimSayisi) break;
+    if (baslangic !== undefined && i < baslangic) continue;
+    await loc(s.a).first().click();
+    await T(p, "op-" + s.op).click();
+    await (s.a === s.b ? loc(s.b).nth(1) : loc(s.b).first()).click();
+  }
+  return adimlar;
+}
 let sayac = 0;
 const foto = async (p, ad) => { await p.waitForTimeout(1100); await p.screenshot({ path: `${OUT}/${ONEK}-${String(++sayac).padStart(2, "0")}-${ad}.png` }); };
 const yeni = async (b) => {
@@ -38,14 +51,16 @@ const harfler = (p) => p.$$eval('[data-testid^="harf-"]', (e) => e.map((x) => x.
   const hedef = +(await T(p, "hedef").innerText());
   const sayilar = await p.$$eval('[data-testid^="sayi-"]', (e) => e.map((x) => +x.getAttribute("data-testid").slice(5)));
   const ifade = await p.evaluate(([n, t]) => window.__H.solve(n).get(t).e, [sayilar, hedef]);
-  await T(p, "ifade").fill("1+1"); await T(p, "gonder").click();
-  await T(p, "ifade").fill(ifade.slice(0, Math.max(3, ifade.length - 3))); await foto(p, "islem-turu");
-  await T(p, "ifade").fill(ifade); await T(p, "gonder").click(); await T(p, "ileri").waitFor(); await foto(p, "islem-sonuc");
+  const adimlar = await p.evaluate((e) => window.__H.expressionSteps(e), ifade);
+  await islemCoz(p, ifade, Math.max(1, adimlar.length - 2));
+  const ilk = adimlar[Math.max(1, adimlar.length - 2)]; await p.locator(`[data-testid="sayi-${ilk.a}"]`).first().click(); await foto(p, "islem-turu");
+  await p.locator(`[data-testid="sayi-${ilk.a}"]`).first().click();
+  await islemCoz(p, ifade, undefined, Math.max(1, adimlar.length - 2)); await T(p, "ileri").waitFor(); await foto(p, "islem-sonuc");
   for (let tur = 2; tur < 4; tur++) {
     await T(p, "ileri").click(); await T(p, "go").click();
     if (tur === 2) { await T(p, "bitir").waitFor(); const hh = await harfler(p); const e2 = await p.evaluate((x) => window.__H.allWords(x)[0], hh); await tusla(p, e2.word, true); await T(p, "bitir").click(); }
     else { await T(p, "hedef").waitFor(); const hd = +(await T(p, "hedef").innerText()); const sy = await p.$$eval('[data-testid^="sayi-"]', (e) => e.map((x) => +x.getAttribute("data-testid").slice(5)));
-      await T(p, "ifade").fill(await p.evaluate(([n, t]) => window.__H.solve(n).get(t).e, [sy, hd])); await T(p, "gonder").click(); }
+      await islemCoz(p, await p.evaluate(([n, t]) => window.__H.solve(n).get(t).e, [sy, hd])); }
     await T(p, "ileri").waitFor();
   }
   await T(p, "ileri").click(); await p.getByText("Bugünün sıralaması").waitFor(); await foto(p, "gunluk-son");
@@ -73,7 +88,7 @@ const harfler = (p) => p.$$eval('[data-testid^="harf-"]', (e) => e.map((x) => x.
     await T(p, "ileri").click(); await T(p, "bitir").waitFor({ timeout: 25000 });
     if (await p.locator('[data-testid^="harf-"]').count()) { const hh = await harfler(p); const e3 = await p.evaluate((x) => window.__H.allWords(x)[0], hh); await tusla(p, e3.word, true); await T(p, "bitir").click(); }
     else { const hd2 = +(await T(p, "hedef").innerText()); const sy = await p.$$eval('[data-testid^="sayi-"]', (e) => e.map((x) => +x.getAttribute("data-testid").slice(5)));
-      await T(p, "ifade").fill(await p.evaluate(([n, t]) => window.__H.solve(n).get(t).e, [sy, hd2])); await T(p, "gonder").click(); }
+      await islemCoz(p, await p.evaluate(([n, t]) => window.__H.solve(n).get(t).e, [sy, hd2])); }
     await T(p, "ileri").waitFor({ timeout: 25000 });
   }
   await T(p, "ileri").click(); await T(p, "rovans").waitFor({ timeout: 25000 }); await foto(p, "duello-son");

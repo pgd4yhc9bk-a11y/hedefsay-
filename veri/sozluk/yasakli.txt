@@ -1,0 +1,26 @@
+# Oyunda kabul edilmeyecek kaba / küfürlü sözcükler (kök biçimleri). Satır başına bir sözcük; # yorum.
+sik
+sikmek
+siktir
+sikik
+sikiş
+orospu
+piç
+göt
+yarak
+yarrak
+amcık
+ibne
+puşt
+kahpe
+pezevenk
+gavat
+bok
+sıçmak
+sürtük
+fahişe
+kaltak
+oç
+gerizekalı
+dangalak
+embesil
