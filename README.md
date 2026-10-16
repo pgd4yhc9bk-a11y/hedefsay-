@@ -13,7 +13,9 @@ Derleme gerekmez: `prototip/index.html` dosyasını tarayıcıda aç.
 
 ## Sunucu (`supabase/`)
 
-Şema, RLS, günlük bulmaca üretimi ve skor doğrulama iskeleti: [supabase/README.md](supabase/README.md). Henüz bir projeye uygulanmadı.
+Şema, RLS, günlük bulmaca üretimi ve skor doğrulama: [supabase/README.md](supabase/README.md).
+
+**Prototipi sunucuya bağlama:** `prototip/config.js` içindeki `anonKey` alanına Supabase paneli → Project Settings → API'deki **anon / publishable** anahtarı yaz (herkese açık anahtardır; `service_role` ASLA). Doluysa günlük mod sunucudan oynanır: oyuncu kartı (takma ad + il), bulmaca ve puan sunucudan, süre sunucu damgasıyla, bugünün sıralaması ve il ligi. Boşsa günlük mod yerelde, sıralamasız çalışır. Düello (bota karşı) her zaman yereldir.
 
 ## Prototipte sabitlenen / karar bekleyen değerler
 

@@ -16,6 +16,7 @@ begin
 end $$;
 grant execute on function pg_temp.expect_error(text), pg_temp.expect_count(text, int) to public;
 
+select (now() at time zone 'Europe/Istanbul')::date as bugun \gset
 -- ---- hazırlık ----
 -- Gerçekte kullanıcıları Supabase Auth oluşturur; testte süper kullanıcıyla ekliyoruz.
 insert into auth.users (id) values (:A), (:B), (:C);
@@ -23,10 +24,10 @@ set role service_role;
 select pg_temp.expect_count('select 1 from public.cities', 81);
 insert into public.players (id, nick, city) values (:A, 'ayse', 'Ankara'), (:B, 'mehmet', 'Ankara'), (:C, 'zeynep', 'İzmir');
 insert into public.daily_puzzles (date, round, kind, payload) values
-  (current_date, 1, 'kelime', '{"letters":["a","b"]}'),
-  (current_date + 1, 1, 'kelime', '{"letters":["c","d"]}'),
-  ((now() at time zone 'Europe/Istanbul')::date, 2, 'islem', '{"nums":[1],"target":101}');
-insert into public.daily_solutions values (current_date, 1, 9, 'gizli');
+  (:'bugun', 1, 'kelime', '{"letters":["a","b"]}'),
+  (:'bugun'::date + 1, 1, 'kelime', '{"letters":["c","d"]}'),
+  (:'bugun'::date - 1, 1, 'kelime', '{"letters":["e","f"]}');
+insert into public.daily_solutions values (:'bugun', 1, 9, 'gizli');
 -- A ve C 4 tur bitirdi; B yalnızca 3
 insert into public.daily_scores (date, player_id, round, score, answer)
   select current_date, p, r, 10, 'cevapA' from (values (:A::uuid), (:C::uuid)) a(p), generate_series(1, 4) r;
@@ -40,7 +41,7 @@ insert into public.match_moves (match_id, round, player_id, payload) select id, 
 -- ---- A olarak ----
 reset role; set role authenticated; set request.jwt.claim.sub = :A;
 select pg_temp.expect_count('select 1 from public.players', 3);                                  -- oyuncular herkese açık
-select pg_temp.expect_count('select 1 from public.daily_puzzles', 2);                             -- yarının bulmacası görünmez
+select pg_temp.expect_count('select 1 from public.daily_puzzles', 1);                             -- bugün ve yarın görünmez, yalnızca dün (arşiv)
 select pg_temp.expect_error('select * from public.daily_solutions');                              -- cevaplar kapalı
 select pg_temp.expect_error('select * from public.daily_round_starts');
 select pg_temp.expect_error('insert into public.daily_scores (date, player_id, round, score) values (current_date, ' || quote_literal(:A) || ', 1, 99)');
