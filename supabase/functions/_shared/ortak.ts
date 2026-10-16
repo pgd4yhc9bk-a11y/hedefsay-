@@ -35,3 +35,10 @@ export function yarin(): string {
   d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().slice(0, 10);
 }
+
+/** Authorization başlığındaki kullanıcı JWT'sinden kullanıcıyı bulur; yoksa null. */
+export async function kullanici(req: Request): Promise<{ id: string } | null> {
+  const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer /, "");
+  const { data: { user }, error } = await admin.auth.getUser(jwt);
+  return error || !user ? null : { id: user.id };
+}

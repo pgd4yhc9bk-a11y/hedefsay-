@@ -334,9 +334,10 @@
 
   function timeBonus(kalanSn) { return Math.floor(Math.max(0, kalanSn) / SURE_BONUS_BOLEN); }
 
-  // i: 0..3. Aynı tarih ve tur her zaman aynı bulmacayı üretir.
-  function dailyRound(date, i) {
-    var rr = makeRng("gunluk-" + date + "|" + i), kind = GUNLUK_TURLAR[i];
+  // Tohumdan i. turun bulmacası (i: 0..3). Aynı tohum ve tur her zaman aynı bulmacayı üretir.
+  // Tohum gizli tutulmazsa bulmaca önceden hesaplanabilir: sunucu tohuma gizli bir tuz / rastgele değer katar.
+  function roundFromSeed(seed, i) {
+    var rr = makeRng(seed + "|" + i), kind = GUNLUK_TURLAR[i];
     if (kind === "kelime") {
       var letters = generateRackAuto(rr), en = allWords(letters)[0];
       return { kind: kind, payload: { letters: letters }, best: { score: en ? en.score : 0, solution: en ? en.word : "" } };
@@ -345,8 +346,25 @@
     return { kind: kind, payload: { nums: r.nums, target: r.target }, best: { score: 10, solution: r.found.get(r.target).e }, found: r.found };
   }
 
+  // Günlük: tuz verilirse tohuma katılır (sunucu). Tuzsuz çağrı yalnızca yerel/çevrimdışı mod içindir.
+  function dailyRound(date, i, salt) {
+    return roundFromSeed("gunluk-" + date + (salt ? "|" + salt : ""), i);
+  }
+
+  // Bot rakibin i. turdaki hamlesi; maç tohumundan deterministik (r: roundFromSeed sonucu)
+  function botMove(seed, i, r) {
+    var rng = makeRng("bot|" + seed + "|" + i);
+    if (r.kind === "kelime") {
+      var bw = botWord(r.payload.letters, rng);
+      return { answer: bw ? bw.word : "", score: bw ? bw.score : 0 };
+    }
+    var bn = botNumber({ target: r.payload.target, found: r.found }, rng);
+    return { answer: bn.expr, score: numberScore(r.payload.target, bn.value) };
+  }
+
   // Sunucudaki puan hesabı: istemci yalnızca cevabı gönderir.
-  function scoreRound(kind, payload, answer, elapsedMs, limitSn) {
+  // secenek.bonus === false: süre bonusu yok (düello; bonus yalnızca tek oyunculu modda)
+  function scoreRound(kind, payload, answer, elapsedMs, limitSn, secenek) {
     limitSn = limitSn || GUNLUK_SURE;
     if (elapsedMs > (limitSn + SURE_TOLERANSI) * 1000) return { score: 0, valid: false, detail: "Süre aşıldı" };
     answer = String(answer == null ? "" : answer);
@@ -357,7 +375,7 @@
     var ev = evaluate(answer, payload.nums);
     if (!ev.ok) return { score: 0, valid: false, detail: ev.error };
     var puan = numberScore(payload.target, ev.value);
-    if (ev.value === payload.target) puan += timeBonus(limitSn - elapsedMs / 1000);
+    if (ev.value === payload.target && !(secenek && secenek.bonus === false)) puan += timeBonus(limitSn - elapsedMs / 1000);
     return { score: puan, valid: true, detail: "= " + ev.value };
   }
 
@@ -369,7 +387,7 @@
     wordInfo: wordInfo, allWords: allWords, hasLong: hasLong,
     solve: solve, generateNumberRound: generateNumberRound, evaluate: evaluate, numberScore: numberScore,
     botWord: botWord, botNumber: botNumber,
-    GUNLUK_TURLAR: GUNLUK_TURLAR, GUNLUK_SURE: GUNLUK_SURE, timeBonus: timeBonus, dailyRound: dailyRound, scoreRound: scoreRound
+    GUNLUK_TURLAR: GUNLUK_TURLAR, GUNLUK_SURE: GUNLUK_SURE, timeBonus: timeBonus, roundFromSeed: roundFromSeed, dailyRound: dailyRound, botMove: botMove, scoreRound: scoreRound
   };
   if (typeof module !== "undefined" && module.exports) module.exports = Hedef;
   root.Hedef = Hedef;

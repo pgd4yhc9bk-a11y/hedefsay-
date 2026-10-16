@@ -15,7 +15,7 @@ Derleme gerekmez: `prototip/index.html` dosyasını tarayıcıda aç.
 
 Şema, RLS, günlük bulmaca üretimi ve skor doğrulama: [supabase/README.md](supabase/README.md).
 
-**Prototipi sunucuya bağlama:** `prototip/config.js` içindeki `anonKey` alanına Supabase paneli → Project Settings → API'deki **anon / publishable** anahtarı yaz (herkese açık anahtardır; `service_role` ASLA). Doluysa günlük mod sunucudan oynanır: oyuncu kartı (takma ad + il), bulmaca ve puan sunucudan, süre sunucu damgasıyla, bugünün sıralaması ve il ligi. Boşsa günlük mod yerelde, sıralamasız çalışır. Düello (bota karşı) her zaman yereldir.
+**Prototipi sunucuya bağlama:** `prototip/config.js` içindeki `anonKey` alanına Supabase paneli → Project Settings → API'deki **anon / publishable** anahtarı yaz (herkese açık anahtardır; `service_role` ASLA). Doluysa günlük mod sunucudan oynanır: oyuncu kartı (takma ad + il), bulmaca ve puan sunucudan, süre sunucu damgasıyla, bugünün sıralaması ve il ligi. Boşsa günlük mod yerelde, sıralamasız çalışır. **Canlı düello** de sunucudan oynanır: gerçek rakip aranır, 15 sn içinde bulunamazsa açıkça "Bot" adıyla bot oynar; harfleri sistem seçer, süre bonusu yoktur. Pratik (bota karşı) her zaman yereldir.
 
 ## Prototipte sabitlenen / karar bekleyen değerler
 
@@ -26,7 +26,8 @@ Derleme gerekmez: `prototip/index.html` dosyasını tarayıcıda aç.
 | Tam isabette süre bonusu | yalnızca günlük modda: kalan her 10 sn için +1 (`SURE_BONUS_BOLEN`, çekirdekte) |
 | Günlükte süre | iki tur de 60 sn sabit (ayar yalnızca düelloda; adalet için) |
 | Bot gücü | işlemde %45 tam isabet, aksi halde 1–12 fark; kelimede en iyi 12 kelimeden ağırlıklı seçim |
-| Düello eşzamanlılığı | yok; bot sonucu tur bitince hesaplanır (gerçek düello Faz 4) |
+| Pratik düello | bot sonucu tur bitince hesaplanır, yerel |
+| Canlı düello | durum sunucuda; istemci ~1,2 sn'de bir `status` sorgular (Realtime kanalı yerine polling: bağlantı kopmasına doğal dayanıklı, test edilebilir); harfleri sistem seçer; 5 sn geri sayım; süre bonusu yok |
 
 ## Sözlük lisansı (Faz 0 notu)
 

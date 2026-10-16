@@ -111,6 +111,29 @@ t("scoreRound: kelime, işlem, süre bonusu, süre aşımı", () => {
   assert.strictEqual(H.scoreRound("islem", i.payload, null, 1000).score, 0);
 });
 
+t("tuz: günlük bulmaca tuzla değişir; tuzsuz eskisiyle aynı", () => {
+  const a = H.dailyRound("2026-10-17", 1), b = H.dailyRound("2026-10-17", 1, "tuz1"), c = H.dailyRound("2026-10-17", 1, "tuz2");
+  assert.deepStrictEqual(a.payload, H.roundFromSeed("gunluk-2026-10-17", 1).payload);
+  assert.notDeepStrictEqual(a.payload, b.payload);
+  assert.notDeepStrictEqual(b.payload, c.payload);
+  assert.deepStrictEqual(b.payload, H.dailyRound("2026-10-17", 1, "tuz1").payload);
+});
+
+t("düello: seed'den bulmaca ve bot hamlesi deterministik; bonus yok", () => {
+  const r = [0, 1, 2, 3].map(i => H.roundFromSeed("duello-abc", i));
+  const r2 = [0, 1, 2, 3].map(i => H.roundFromSeed("duello-abc", i));
+  assert.deepStrictEqual(r.map(x => x.payload), r2.map(x => x.payload));
+  assert.notDeepStrictEqual(r[0].payload, H.roundFromSeed("duello-xyz", 0).payload);
+  for (let i = 0; i < 4; i++) {
+    const m1 = H.botMove("abc", i, r[i]), m2 = H.botMove("abc", i, r2[i]);
+    assert.deepStrictEqual(m1, m2);
+    const sk = H.scoreRound(r[i].kind, r[i].payload, m1.answer, 10000, 60, { bonus: false });
+    assert.strictEqual(sk.score, m1.score, "bot puanı sunucu puanıyla tutarlı olmalı (tur " + i + ")");
+  }
+  const tam = H.scoreRound("islem", r[1].payload, r[1].best.solution, 5000, 60, { bonus: false });
+  assert.strictEqual(tam.score, 10, "düelloda süre bonusu olmamalı");
+});
+
 t("supabase/functions/_shared kopyaları güncel (scripts/senkronla.sh)", () => {
   const fs = require("fs"), path = require("path");
   for (const f of ["oyun.js", "sozluk.js"]) {

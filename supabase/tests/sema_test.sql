@@ -47,8 +47,9 @@ select pg_temp.expect_error('select * from public.daily_round_starts');
 select pg_temp.expect_error('insert into public.daily_scores (date, player_id, round, score) values (current_date, ' || quote_literal(:A) || ', 1, 99)');
 select pg_temp.expect_error('update public.daily_scores set score = 99');
 select pg_temp.expect_count('select 1 from public.daily_scores', 4);                              -- yalnızca kendi satırları
-select pg_temp.expect_count('select 1 from public.matches', 1);                                   -- yalnızca A–B maçı
-select pg_temp.expect_count('select 1 from public.match_moves', 1);
+select pg_temp.expect_error('select * from public.matches');                                      -- düello yalnızca fonksiyondan: seed ve rakip cevabı sızmaz
+select pg_temp.expect_error('select * from public.match_moves');
+select pg_temp.expect_error('select * from public.match_rounds');
 select pg_temp.expect_error('insert into public.matches (a, seed) values (' || quote_literal(:A) || ', ''hile'')');
 select pg_temp.expect_error('select * from public.daily_totals');
 select pg_temp.expect_error('insert into public.players (id, nick) values (' || quote_literal(:B) || ', ''baska'')');
@@ -65,7 +66,7 @@ select pg_temp.expect_count('select 1 from public.city_league where city = ''İz
 
 -- ---- B olarak: yalnızca kendi maçları ----
 reset role; set role authenticated; set request.jwt.claim.sub = :B;
-select pg_temp.expect_count('select 1 from public.matches', 2);
+select pg_temp.expect_error('select * from public.matches');
 select pg_temp.expect_count('select 1 from public.daily_scores', 3);
 delete from public.players where id = :B;                                                         -- hesap silme
 reset role; set role service_role;
