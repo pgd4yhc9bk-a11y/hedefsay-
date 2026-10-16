@@ -68,6 +68,8 @@
 <div id="app"></div>
 <script src="sozluk.js"></script>
 <script src="oyun.js"></script>
+<script src="config.js"></script>
+<script src="sunucu.js"></script>
 <script>
 (function () {
   "use strict";
@@ -82,7 +84,6 @@
   var timer = null;      // aktif tur sayacı
   var onKey = null;      // aktif turun klavye işleyicisi
   var bitisAn = 0;       // aktif turun bitiş zamanı (ms)
-  var SURE_BONUS_BOLEN = 10; // tam isabette her 10 sn kalan için +1 (yalnızca günlük/tek oyunculu; değer ayarlanacak)
   var tickFn = null;     // sayaç çubuğunu hemen yenilemek için
   var ayar = { islemSure: 60 };
 
@@ -93,11 +94,27 @@
     try { return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" }); }
     catch (e) { return new Date().toISOString().slice(0, 10); }
   }
+  function haftaBasi() {
+    var d = new Date(bugun() + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+    return d.toISOString().slice(0, 10);
+  }
+  var S = window.Sunucu;
+  function sunucuAcik() { return !!(S && S.hazir()); }
+  function hataEkrani(mesaj, yeniden) {
+    durdur();
+    app.innerHTML = '<div class="card"><h2>Bağlantı sorunu</h2><p>' + esc(mesaj) + '</p><div class="row">' +
+      (yeniden ? '<button class="primary" id="yeniden">Yeniden dene</button>' : "") +
+      '<button id="cevrimdisi">Çevrimdışı oyna (sıralamasız)</button><button id="menu">Menü</button></div></div>';
+    if (yeniden) document.getElementById("yeniden").onclick = yeniden;
+    document.getElementById("cevrimdisi").onclick = function () { basla("gunluk"); };
+    document.getElementById("menu").onclick = menu;
+  }
   function depoOku(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function depoYaz(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* özel pencere vb. */ } }
   function durdur() { if (timer) clearInterval(timer); timer = null; onKey = null; tickFn = null; }
-  function sayacBaslat(sure, bitir) {
-    var bitis = bitisAn = Date.now() + sure * 1000;
+  function sayacBaslat(sure, bitir, kalanSn) {
+    var bitis = bitisAn = Date.now() + (kalanSn == null ? sure : kalanSn) * 1000;
     function tick() {
       var kalan = Math.max(0, bitis - Date.now());
       var bar = document.getElementById("bar"), tm = document.getElementById("tm");
@@ -137,7 +154,7 @@
       '<p class="foot">Deneme sözlüğü: ' + H.getDictionarySize() + ' kelime (geçici). ' +
       'Bu oyunun TV programıyla bağlantısı yoktur.</p>';
     document.getElementById("oyna").onclick = function () { basla("oyun"); };
-    var g = document.getElementById("gunluk"); if (g) g.onclick = function () { basla("gunluk"); };
+    var g = document.getElementById("gunluk"); if (g) g.onclick = function () { sunucuAcik() ? gunlukSunucu() : basla("gunluk"); };
     document.getElementById("islemSure").onchange = function (e) { ayar.islemSure = parseInt(e.target.value, 10); };
     var k = document.getElementById("kopyala");
     if (k) k.onclick = function () { kopyala(JSON.parse(gSonuc).paylas, k); };
@@ -149,10 +166,97 @@
     else window.prompt("Kopyala:", metin);
   }
 
+  // ---------- sunucu destekli günlük ----------
+  function simgeKey() { return "hedef-gunluk-simge-" + bugun(); }
+  function simgeOku() { try { return JSON.parse(depoOku(simgeKey()) || "[]"); } catch (e) { return []; } }
+
+  function gunlukSunucu() {
+    app.innerHTML = '<div class="card">Bağlanıyor…</div>';
+    S.oyuncu().then(function (o) {
+      if (!o) return profilEkrani();
+      return S.skorlar(bugun()).then(function (sk) {
+        var simgeler = simgeOku();
+        G = { mod: "gunluk", sunucu: true, tur: sk.length, toplam: { ben: 0, bot: 0 }, islemSure: H.GUNLUK_SURE, oyuncu: o,
+          sonuclar: sk.map(function (x, i) { return { tip: TURLAR[i], ben: x.score, bot: null, simge: simgeler[i] || "🟨" }; }) };
+        sk.forEach(function (x) { G.toplam.ben += x.score; });
+        if (sk.length >= 4) return oyunSonu();
+        turGir();
+      });
+    }).catch(function (e) { hataEkrani(e.message, gunlukSunucu); });
+  }
+
+  function profilEkrani() {
+    app.innerHTML = '<div class="card"><h2>Oyuncu kartı</h2><p class="sub" style="margin:0 0 8px">Sıralamada görünecek takma ad. İl isteğe bağlı; il ligine katılırsın.</p>' +
+      '<div class="row"><input type="text" id="nick" maxlength="20" placeholder="Takma ad (2–20 harf)">' +
+      '<select id="il"><option value="">İl (isteğe bağlı)</option></select></div>' +
+      '<div class="msg bad" id="pmesaj"></div><div class="row"><button class="primary" id="kaydet">Kaydet ve başla</button><button id="menu">Menü</button></div></div>';
+    document.getElementById("menu").onclick = menu;
+    S.iller().then(function (iller) {
+      document.getElementById("il").innerHTML += iller.map(function (n) { return '<option>' + esc(n) + '</option>'; }).join("");
+    }).catch(function () { /* il listesi alınamazsa il seçmeden devam */ });
+    document.getElementById("kaydet").onclick = function () {
+      var nick = document.getElementById("nick").value.trim(), il = document.getElementById("il").value, m = document.getElementById("pmesaj");
+      if (nick.length < 2 || nick.length > 20) { m.textContent = "Takma ad 2–20 karakter olmalı"; return; }
+      S.oyuncuKaydet(nick, il).then(gunlukSunucu).catch(function (e) { m.textContent = "Kaydedilemedi: " + e.message; });
+    };
+  }
+
+  // Sunucuya cevabı gönderir, puanı sunucudan alıp tur sonucunu gösterir
+  function sunucuTurBitti(sonuc) {
+    var t = G.tur_, i = G.tur;
+    var cevap = t.tip === "kelime" ? (sonuc.kelime ? sonuc.kelime.word : "") : (sonuc.islem ? sonuc.islem.expr : "");
+    app.innerHTML = '<div class="card">Puanlanıyor…</div>';
+    function gonder() {
+      S.tur("submit", i + 1, cevap).then(function (r) {
+        var ben = r.score, en = r.best_score;
+        var simge = t.tip === "kelime" ? (ben >= en ? "🎯" : ben >= en * 0.6 ? "🟨" : "⬜") : (ben >= 10 ? "🎯" : ben > 0 ? "🟨" : "⬜");
+        G.toplam.ben += ben;
+        G.sonuclar.push({ tip: t.tip, ben: ben, bot: null, simge: simge });
+        depoYaz(simgeKey(), JSON.stringify(G.sonuclar.map(function (x) { return x.simge; })));
+        var html = ustBilgi() + '<div class="card"><h2>Tur ' + (i + 1) + ' sonucu</h2><div class="grid"><span class="h"></span><span class="h">Sen</span></div>';
+        if (t.tip === "kelime") {
+          html += satir("Kelime", cevap ? up(cevap) : "—", null) + satir("Puan", ben, null) +
+            '<p class="sub" style="margin:12px 0 0">Bu harflerle en iyi: <b>' + (r.best_solution ? up(r.best_solution) + " (" + en + " puan)" : "—") + '</b></p>';
+        } else {
+          html += satir("Sonuç", sonuc.islem ? sonuc.islem.value : "—", null) + satir("Puan", ben, null) +
+            '<p class="sub" style="margin:12px 0 0">Hedef <b>' + t.target + '</b> · bilgisayarın çözümü: <b>' + esc(r.best_solution || "—") + ' = ' + t.target + '</b></p>';
+        }
+        if (!r.valid) html += '<p class="sub" style="margin:4px 0 0">' + esc(r.detail) + '</p>';
+        html += '<button class="primary big" id="ileri" style="margin-top:12px">' + (i < 3 ? "Sonraki tur" : "Sonucu gör") + '</button></div>';
+        app.innerHTML = html;
+        document.getElementById("ileri").onclick = function () { if (i < 3) { G.tur++; turGir(); } else oyunSonu(); };
+      }).catch(function (e) {
+        if (e.status === 409) return gunlukSunucu();   // zaten kaydedilmiş: sunucudaki duruma dön
+        hataEkrani(e.message, gonder);
+      });
+    }
+    gonder();
+  }
+
+  // Sunucudan turu başlatır (bulmaca ve süre damgası gelir), sonra turu oynatır
+  function sunucuTurBaslat() {
+    var i = G.tur, go = document.getElementById("go");
+    if (go) go.disabled = true;
+    S.tur("start", i + 1).then(function (r) {
+      var kalanSn = r.limit_sec - (Date.parse(r.server_now) - Date.parse(r.started_at)) / 1000;
+      if (r.kind === "kelime") {
+        G.tur_ = { tip: "kelime", harfler: r.payload.letters, secici: "sistem", sunucu: true };
+        kelimeTuru({ sure: r.limit_sec, kalanSn: kalanSn });
+      } else {
+        G.tur_ = { tip: "islem", nums: r.payload.nums, target: r.payload.target, sunucu: true };
+        G.islemSure = r.limit_sec;
+        islemTuru({ sure: r.limit_sec, kalanSn: kalanSn });
+      }
+    }).catch(function (e) {
+      if (e.status === 409) return gunlukSunucu();
+      hataEkrani(e.message, function () { turGiris(); });
+    });
+  }
+
   // ---------- oyun akışı ----------
   function basla(mod) {
     var tohum = mod === "gunluk" ? "gunluk-" + bugun() : "oyun-" + Math.random() + "-" + Date.now();
-    G = { mod: mod, tohum: tohum, tur: 0, sonuclar: [], toplam: { ben: 0, bot: 0 }, islemSure: ayar.islemSure };
+    G = { mod: mod, tohum: tohum, tur: 0, sonuclar: [], toplam: { ben: 0, bot: 0 }, islemSure: mod === "gunluk" ? H.GUNLUK_SURE : ayar.islemSure };
     turGir();
   }
 
@@ -161,12 +265,17 @@
     var i = G.tur, tip = TURLAR[i], rr = H.makeRng(G.tohum + "|" + i);
     G.rng = rr;
     G.botRng = H.makeRng(G.tohum + "|bot|" + i);
+    if (G.sunucu) { G.tur_ = { tip: tip, sunucu: true }; return turGiris(); }
+    if (G.mod === "gunluk") {
+      var d = H.dailyRound(bugun(), i);
+      G.tur_ = tip === "kelime" ? { tip: "kelime", harfler: d.payload.letters, secici: "sistem" }
+        : { tip: "islem", nums: d.payload.nums, target: d.payload.target, found: d.found };
+      return turGiris();
+    }
     if (tip === "kelime") {
-      var secici = G.mod === "oyun" ? (i === 0 ? "ben" : "bot") : "sistem";
+      var secici = i === 0 ? "ben" : "bot";
       if (secici === "ben") return harfSec(rr);
-      var tipler = secici === "bot" ? H.randomTypes(G.botRng) : null;
-      var harfler = secici === "bot" ? H.generateRack(rr, tipler) : H.generateRackAuto(rr);
-      G.tur_ = { tip: "kelime", harfler: harfler, secici: secici };
+      G.tur_ = { tip: "kelime", harfler: H.generateRack(rr, H.randomTypes(G.botRng)), secici: secici };
       return turGiris();
     }
     G.tur_ = Object.assign({ tip: "islem" }, H.generateNumberRound(rr));
@@ -222,7 +331,10 @@
   function turGiris() {
     var t = G.tur_;
     var html = ustBilgi() + '<div class="card">';
-    if (t.tip === "kelime") {
+    if (t.sunucu) {
+      html += '<h2>' + (t.tip === "kelime" ? "Kelime" : "İşlem") + ' turu</h2><p class="sub" style="margin:0">Herkese aynı bulmaca. Süreyi başlatınca ' +
+        (t.tip === "kelime" ? "harfler açılır" : "sayılar ve hedef açılır") + ' ve süre sunucuda işlemeye başlar (' + H.GUNLUK_SURE + ' sn).</p>';
+    } else if (t.tip === "kelime") {
       var kim = t.secici === "ben" ? "Harfleri sen seçtin." : t.secici === "bot" ? "Bu turun harflerini rakip seçti." : "Herkese aynı harfler.";
       html += '<h2>Kelime turu</h2><p class="sub" style="margin:0">' + kim + ' En uzun geçerli kelimeyi kur. Süre: ' + KELIME_SURE + ' sn.</p>' +
         '<div class="tiles">' + t.harfler.map(function (h) { return '<div class="tile">' + esc(up(h)) + '</div>'; }).join("") + '<div class="tile joker">★</div></div>';
@@ -231,11 +343,15 @@
     }
     html += '<button class="primary big" id="go" style="margin-top:12px">Süreyi başlat</button></div>';
     app.innerHTML = html;
-    document.getElementById("go").onclick = t.tip === "kelime" ? kelimeTuru : islemTuru;
+    document.getElementById("go").onclick = function () {
+      if (t.sunucu) return sunucuTurBaslat();
+      t.tip === "kelime" ? kelimeTuru() : islemTuru();
+    };
   }
 
   // ---------- kelime turu ----------
-  function kelimeTuru() {
+  function kelimeTuru(opts) {
+    opts = opts || {};
     var t = G.tur_;
     var harfler = t.harfler;
     var giris = [];            // {ch, joker}
@@ -298,7 +414,7 @@
     function bitir() { if (bittiMi) return; bittiMi = true; durdur(); turBitti({ kelime: enIyi }); }
 
     ciz();
-    sayacBaslat(KELIME_SURE, bitir);
+    sayacBaslat(opts.sure || KELIME_SURE, bitir, opts.kalanSn);
     onKey = function (e) {
       if (picker || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "Enter") { e.preventDefault(); gonder(); }
@@ -311,7 +427,8 @@
   }
 
   // ---------- işlem turu ----------
-  function islemTuru() {
+  function islemTuru(opts) {
+    opts = opts || {};
     var t = G.tur_;
     var enIyi = null, bittiMi = false;
     var html = ustBilgi() + '<div class="card"><div class="timer"><div id="bar"></div></div><div class="time" id="tm"></div>' +
@@ -338,7 +455,7 @@
       var r = H.evaluate(inp.value, t.nums);
       if (!r.ok) { mesajEl.className = "msg bad"; mesajEl.textContent = r.error; return; }
       var puan = H.numberScore(t.target, r.value), fark = Math.abs(t.target - r.value);
-      var bonus = fark === 0 && G.mod === "gunluk" ? Math.floor(Math.max(0, bitisAn - Date.now()) / 1000 / SURE_BONUS_BOLEN) : 0;
+      var bonus = fark === 0 && G.mod === "gunluk" ? H.timeBonus((bitisAn - Date.now()) / 1000) : 0;
       puan += bonus;
       mesajEl.className = "msg " + (puan ? "good" : "bad");
       mesajEl.textContent = "= " + r.value + (fark ? " (fark " + fark + ")" : " — tam isabet!") + " · " + puan + " puan" + (bonus ? " (süre bonusu +" + bonus + ")" : "");
@@ -355,11 +472,12 @@
     document.getElementById("bitir").onclick = bitir;
     inp.oninput = sayilariBoya;
     onKey = function (e) { if (e.key === "Enter") { e.preventDefault(); gonder(); } };
-    sayacBaslat(G.islemSure, bitir);
+    sayacBaslat(opts.sure || G.islemSure, bitir, opts.kalanSn);
   }
 
   // ---------- tur sonu ----------
   function turBitti(sonuc) {
+    if (G.sunucu) return sunucuTurBitti(sonuc);
     var t = G.tur_, i = G.tur, ben, bot = null, ek = {}, simge;
     var bots = G.mod === "oyun";
     if (t.tip === "kelime") {
@@ -400,6 +518,22 @@
     return '<div class="grid"><span>' + ad + '</span><b class="score">' + a + '</b>' + (b !== null ? '<b class="score">' + b + '</b>' : "") + '</div>';
   }
 
+  function siralamaYukle() {
+    Promise.all([S.siralama(bugun()), S.ilLigi(haftaBasi())]).then(function (r) {
+      var gen = r[0], il = r[1], html = '<div class="card"><h2>Bugünün sıralaması</h2>';
+      html += gen.length ? gen.map(function (x) {
+        return '<div class="grid"><span>' + x.rank + '. ' + esc(x.nick) + (x.city ? ' <span class="sub">(' + esc(x.city) + ')</span>' : "") + '</span><b class="score">' + x.total + '</b></div>';
+      }).join("") : '<p class="sub">Henüz kimse bitirmedi.</p>';
+      html += '</div><div class="card"><h2>İl ligi (bu hafta)</h2>';
+      html += il.length ? il.map(function (x, i) {
+        return '<div class="grid"><span>' + (i + 1) + '. ' + esc(x.city) + ' <span class="sub">(' + x.players + ' oyuncu)</span></span><b class="score">' + x.total + '</b></div>';
+      }).join("") : '<p class="sub">Henüz il verisi yok.</p>';
+      document.getElementById("sira").innerHTML = html + '</div>';
+    }).catch(function () {
+      var el = document.getElementById("sira"); if (el) el.innerHTML = '<div class="card sub">Sıralama şu an alınamadı.</div>';
+    });
+  }
+
   function oyunSonu() {
     durdur();
     var bots = G.mod === "oyun";
@@ -412,7 +546,9 @@
       '<div class="card"><div class="total score">' + G.toplam.ben + ' puan' + (bots ? ' <span class="sub">— Bot ' + G.toplam.bot + '</span>' : "") + '</div>' +
       '<pre class="share">' + esc(paylas) + '</pre>' +
       '<div class="row"><button id="kopyala">Sonucu kopyala</button>' +
-      (bots ? '<button class="primary" id="rovans">Rövanş</button>' : "") + '<button id="menu">Menü</button></div></div>';
+      (bots ? '<button class="primary" id="rovans">Rövanş</button>' : "") + '<button id="menu">Menü</button></div></div>' +
+      (G.sunucu ? '<div id="sira"><div class="card">Sıralama yükleniyor…</div></div>' : "");
+    if (G.sunucu) siralamaYukle();
     document.getElementById("kopyala").onclick = function (e) { kopyala(paylas, e.target); };
     var r = document.getElementById("rovans"); if (r) r.onclick = function () { basla("oyun"); };
     document.getElementById("menu").onclick = menu;
