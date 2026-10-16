@@ -4,8 +4,6 @@
 name: Android APK
 on:
   workflow_dispatch:
-  push:
-    branches: [apk-derleme]   # derleme ayarı denenirken; birleşince kaldırılabilir
 
 permissions:
   contents: write
