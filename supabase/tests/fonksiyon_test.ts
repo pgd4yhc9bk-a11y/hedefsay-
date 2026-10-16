@@ -105,3 +105,19 @@ Deno.test("bulmaca yoksa 404; geçersiz cevap 0 puan ama kaydedilir", async () =
   const s = await (await oyun("user:A", { action: "submit", round: 1, answer: "zzzzqq" })).json();
   esit(s.score, 0); esit(db.daily_scores.length, 1);
 });
+
+Deno.test("PUZZLE_SALT: yoksa uyarır, varsa bulmaca tuzla üretilir (tarihten tahmin edilemez)", async () => {
+  sifirla();
+  const gun = "2031-01-05";
+  const r1 = await (await istek("generate-daily-puzzle", { date: gun }, { "x-cron-secret": "gizli" })).json();
+  if (!String(r1.uyari).includes("PUZZLE_SALT")) throw new Error("tuz yokken uyarı beklenir: " + JSON.stringify(r1));
+  esit(JSON.stringify(db.daily_puzzles[0].payload), JSON.stringify(H.dailyRound(gun, 0).payload), "tuzsuz = herkesin hesaplayabildiği bulmaca");
+
+  sifirla();
+  Deno.env.set("PUZZLE_SALT", "cok-gizli-tuz");
+  const r2 = await (await istek("generate-daily-puzzle", { date: gun }, { "x-cron-secret": "gizli" })).json();
+  esit(r2.uyari, undefined, "tuz varken uyarı olmamalı");
+  esit(JSON.stringify(db.daily_puzzles[1].payload), JSON.stringify(H.dailyRound(gun, 1, "cok-gizli-tuz").payload));
+  if (JSON.stringify(db.daily_puzzles[1].payload) === JSON.stringify(H.dailyRound(gun, 1).payload)) throw new Error("tuzlu bulmaca tuzsuzla aynı olmamalı");
+  Deno.env.delete("PUZZLE_SALT");
+});

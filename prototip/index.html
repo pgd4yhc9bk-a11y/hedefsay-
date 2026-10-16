@@ -101,18 +101,31 @@
   }
   var S = window.Sunucu;
   function sunucuAcik() { return !!(S && S.hazir()); }
-  function hataEkrani(mesaj, yeniden) {
+  function hataEkrani(mesaj, yeniden, cevrimdisiYok) {
     durdur();
     app.innerHTML = '<div class="card"><h2>Bağlantı sorunu</h2><p>' + esc(mesaj) + '</p><div class="row">' +
       (yeniden ? '<button class="primary" id="yeniden">Yeniden dene</button>' : "") +
-      '<button id="cevrimdisi">Çevrimdışı oyna (sıralamasız)</button><button id="menu">Menü</button></div></div>';
+      (cevrimdisiYok ? "" : '<button id="cevrimdisi">Çevrimdışı oyna (sıralamasız)</button>') + '<button id="menu">Menü</button></div></div>';
     if (yeniden) document.getElementById("yeniden").onclick = yeniden;
-    document.getElementById("cevrimdisi").onclick = function () { basla("gunluk"); };
+    var cd = document.getElementById("cevrimdisi"); if (cd) cd.onclick = function () { basla("gunluk"); };
     document.getElementById("menu").onclick = menu;
   }
   function depoOku(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function depoYaz(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* özel pencere vb. */ } }
-  function durdur() { if (timer) clearInterval(timer); timer = null; onKey = null; tickFn = null; }
+  var pollTimer = null;  // düello durum sorgusu
+  function pollDurdur() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
+  // fn bir Promise döner; önceki bitmeden yenisi başlamaz; hata olursa (bağlantı kopması) sessizce yeniden dener
+  function bekleDon(fn, aralik) {
+    pollDurdur();
+    var calisiyor = false;
+    pollTimer = setInterval(function () {
+      if (calisiyor) return;
+      calisiyor = true;
+      var bitti = function () { calisiyor = false; };
+      try { fn().then(bitti, bitti); } catch (e) { bitti(); }
+    }, aralik || 1200);
+  }
+  function durdur() { if (timer) clearInterval(timer); timer = null; onKey = null; tickFn = null; pollDurdur(); }
   function sayacBaslat(sure, bitir, kalanSn) {
     var bitis = bitisAn = Date.now() + (kalanSn == null ? sure : kalanSn) * 1000;
     function tick() {
@@ -142,7 +155,8 @@
     }
     app.innerHTML =
       '<h1>Hedef</h1><p class="sub">Kelime ve işlem düellosu — prototip</p>' +
-      '<button class="primary big" id="oyna">Oyna — bilgisayara karşı (düello)</button>' +
+      (sunucuAcik() ? '<button class="primary big" id="canli">Canlı düello (gerçek rakip)</button>' : "") +
+      '<button class="' + (sunucuAcik() ? "" : "primary ") + 'big" id="oyna">' + (sunucuAcik() ? "Pratik — bilgisayara karşı" : "Oyna — bilgisayara karşı (düello)") + '</button>' +
       (gSonuc ? "" : '<button class="big" id="gunluk">Günlük mücadele (' + bugun() + ')</button>') + gunluk +
       '<div class="card"><h2>Ayarlar</h2><label>İşlem turu süresi: <select id="islemSure">' +
       '<option value="60"' + (ayar.islemSure === 60 ? " selected" : "") + '>60 sn</option>' +
@@ -154,6 +168,7 @@
       '<p class="foot">Deneme sözlüğü: ' + H.getDictionarySize() + ' kelime (geçici). ' +
       'Bu oyunun TV programıyla bağlantısı yoktur.</p>';
     document.getElementById("oyna").onclick = function () { basla("oyun"); };
+    var cl = document.getElementById("canli"); if (cl) cl.onclick = canliDuello;
     var g = document.getElementById("gunluk"); if (g) g.onclick = function () { sunucuAcik() ? gunlukSunucu() : basla("gunluk"); };
     document.getElementById("islemSure").onchange = function (e) { ayar.islemSure = parseInt(e.target.value, 10); };
     var k = document.getElementById("kopyala");
@@ -185,7 +200,7 @@
     }).catch(function (e) { hataEkrani(e.message, gunlukSunucu); });
   }
 
-  function profilEkrani() {
+  function profilEkrani(devam) {
     app.innerHTML = '<div class="card"><h2>Oyuncu kartı</h2><p class="sub" style="margin:0 0 8px">Sıralamada görünecek takma ad. İl isteğe bağlı; il ligine katılırsın.</p>' +
       '<div class="row"><input type="text" id="nick" maxlength="20" placeholder="Takma ad (2–20 harf)">' +
       '<select id="il"><option value="">İl (isteğe bağlı)</option></select></div>' +
@@ -197,7 +212,7 @@
     document.getElementById("kaydet").onclick = function () {
       var nick = document.getElementById("nick").value.trim(), il = document.getElementById("il").value, m = document.getElementById("pmesaj");
       if (nick.length < 2 || nick.length > 20) { m.textContent = "Takma ad 2–20 karakter olmalı"; return; }
-      S.oyuncuKaydet(nick, il).then(gunlukSunucu).catch(function (e) { m.textContent = "Kaydedilemedi: " + e.message; });
+      S.oyuncuKaydet(nick, il).then(devam || gunlukSunucu).catch(function (e) { m.textContent = "Kaydedilemedi: " + e.message; });
     };
   }
 
@@ -253,6 +268,135 @@
     });
   }
 
+  // ---------- canlı düello ----------
+  function canliDuello() {
+    app.innerHTML = '<div class="card">Bağlanıyor…</div>';
+    S.oyuncu().then(function (o) {
+      if (!o) return profilEkrani(canliDuello);
+      G = { mod: "duello", sunucu: "duello", tur: 0, sonuclar: [], toplam: { ben: 0, bot: 0 }, rakipAd: "Rakip", oyuncu: o, islemSure: H.GUNLUK_SURE };
+      return S.duello("queue").then(duelloGoruntu);
+    }).catch(function (e) { hataEkrani(e.message, canliDuello, true); });
+  }
+
+  // Sunucunun maç görünümüne göre doğru ekranı seçer (yeniden bağlanma da buradan geçer)
+  function duelloGoruntu(g) {
+    pollDurdur();
+    G.macId = g.match_id; G.rakip = g.rakip; G.rakipAd = (g.rakip && g.rakip.nick) || "Rakip";
+    if (g.terk) return hataEkrani("Maç iptal oldu (bekleme süresi doldu).", canliDuello, true);
+    if (g.state === "waiting") return duelloBekle(g);
+    if (g.bitti) return duelloSon(g);
+    G.toplam.ben = g.toplam.ben; G.toplam.bot = g.toplam.rakip; G.sonuclar = g.sonuclar; G.tur = g.tur - 1;
+    if (g.ben_gonderdim) return duelloRakipBekle(g);
+    duelloBaslat(g);
+  }
+  function duelloDurum() { return S.duello("status", { match_id: G.macId }); }
+
+  function duelloBekle(g) {
+    var botIstendi = false;
+    function ciz(v) {
+      app.innerHTML = '<div class="card"><h2>Rakip aranıyor…</h2><p class="sub">' +
+        (v.bot_icin_kalan_ms > 0 ? Math.ceil(v.bot_icin_kalan_ms / 1000) + ' sn içinde gerçek rakip bulunamazsa <b>Bot</b> ile oynarsın.' : 'Bot hazırlanıyor…') +
+        '</p><button id="iptal">Vazgeç</button></div>';
+      document.getElementById("iptal").onclick = menu;
+    }
+    ciz(g);
+    bekleDon(function () {
+      return duelloDurum().then(function (v) {
+        G.macId = v.match_id;   // çapraz eşleşmede maç değişebilir
+        if (v.state !== "waiting") return duelloGoruntu(v);
+        ciz(v);
+        if (v.bot_icin_kalan_ms <= 0 && !botIstendi) {
+          botIstendi = true;
+          return S.duello("bot", { match_id: v.match_id }).then(duelloGoruntu, function () { botIstendi = false; });
+        }
+      });
+    });
+  }
+
+  function duelloBaslat(g) {
+    var r = g.tur;
+    function dene() {
+      S.duello("start", { match_id: G.macId, round: r }).then(function (res) {
+        if (res.durum === "sayim") {
+          app.innerHTML = ustBilgi() + '<div class="card"><h2>Tur ' + r + ' · ' + (r % 2 ? "Kelime" : "İşlem") + '</h2><p class="sub" style="margin:0">Rakip: <b>' + esc(G.rakipAd) +
+            '</b>. Herkes aynı anda başlıyor.</p><div class="target">' + Math.max(1, Math.ceil(res.bekle_ms / 1000)) + '</div></div>';
+          setTimeout(dene, Math.min(Math.max(res.bekle_ms, 50), 400));
+          return;
+        }
+        var kalanSn = res.limit_sec - (Date.parse(res.server_now) - Date.parse(res.started_at)) / 1000;
+        if (res.kind === "kelime") {
+          G.tur_ = { tip: "kelime", harfler: res.payload.letters, secici: "sistem", sunucu: true };
+          kelimeTuru({ sure: res.limit_sec, kalanSn: kalanSn });
+        } else {
+          G.tur_ = { tip: "islem", nums: res.payload.nums, target: res.payload.target, sunucu: true };
+          G.islemSure = res.limit_sec;
+          islemTuru({ sure: res.limit_sec, kalanSn: kalanSn });
+        }
+      }).catch(function (e) {
+        if (e.status === 409) return duelloDurum().then(duelloGoruntu, function () { setTimeout(dene, 1000); });
+        hataEkrani(e.message, dene, true);
+      });
+    }
+    dene();
+  }
+
+  function duelloTurBitti(sonuc) {
+    var t = G.tur_, r = G.tur + 1;
+    var cevap = t.tip === "kelime" ? (sonuc.kelime ? sonuc.kelime.word : "") : (sonuc.islem ? sonuc.islem.expr : "");
+    app.innerHTML = '<div class="card">Cevabın gönderiliyor…</div>';
+    function gonder() {
+      S.duello("submit", { match_id: G.macId, round: r, answer: cevap }).then(function (v) {
+        G.toplam.ben = v.toplam.ben; G.toplam.bot = v.toplam.rakip; G.sonuclar = v.sonuclar;
+        if (v.sonuclar.length >= r) duelloTurSonucu(v, r - 1); else duelloRakipBekle(v);
+      }).catch(function (e) {
+        if (e.status === 409) return duelloDurum().then(duelloGoruntu, function () { hataEkrani(e.message, gonder, true); });
+        hataEkrani(e.message, gonder, true);
+      });
+    }
+    gonder();
+  }
+
+  function duelloRakipBekle(g) {
+    var r = g.tur;   // beklediğimiz tur (1..4)
+    app.innerHTML = ustBilgi() + '<div class="card"><h2>Cevabın alındı</h2><p class="sub" style="margin:0"><b>' + esc(G.rakipAd) + '</b> bekleniyor… (en fazla tur süresi kadar)</p></div>';
+    bekleDon(function () {
+      return duelloDurum().then(function (v) {
+        G.macId = v.match_id;
+        if (v.bitti || v.sonuclar.length >= r) { pollDurdur(); G.toplam.ben = v.toplam.ben; G.toplam.bot = v.toplam.rakip; duelloTurSonucu(v, r - 1); }
+      });
+    });
+  }
+
+  function duelloTurSonucu(v, i) {
+    pollDurdur();
+    var s = v.sonuclar[i], son = i >= 3;
+    G.tur = i;
+    var html = ustBilgi() + '<div class="card"><h2>Tur ' + (i + 1) + ' sonucu</h2><div class="grid"><span class="h"></span><span class="h">Sen</span><span class="h">' + esc(G.rakipAd) + '</span></div>';
+    html += satir(s.kind === "kelime" ? "Kelime" : "İşlem", esc(s.ben.answer ? (s.kind === "kelime" ? up(s.ben.answer) : s.ben.answer) : "—"), esc(s.rakip.answer ? (s.kind === "kelime" ? up(s.rakip.answer) : s.rakip.answer) : "—"));
+    html += satir("Puan", s.ben.score, s.rakip.score);
+    html += s.kind === "kelime" ? '<p class="sub" style="margin:12px 0 0">Bu harflerle en iyi: <b>' + up(s.best_solution) + ' (' + s.best_score + ' puan)</b></p>'
+      : '<p class="sub" style="margin:12px 0 0">Hedef <b>' + s.target + '</b> · bilgisayarın çözümü: <b>' + esc(s.best_solution) + ' = ' + s.target + '</b></p>';
+    html += '<button class="primary big" id="ileri" style="margin-top:12px">' + (son ? "Sonucu gör" : "Sonraki tur") + '</button></div>';
+    app.innerHTML = html;
+    document.getElementById("ileri").onclick = function () {
+      this.disabled = true;
+      duelloDurum().then(duelloGoruntu, function (e) { hataEkrani(e.message, function () { duelloDurum().then(duelloGoruntu); }, true); });
+    };
+  }
+
+  function duelloSon(g) {
+    pollDurdur();
+    G.toplam.ben = g.toplam.ben; G.toplam.bot = g.toplam.rakip;
+    var baslik = g.kazanan === "ben" ? "Kazandın! 🏆" : g.kazanan === "rakip" ? esc(G.rakipAd) + " kazandı" : "Berabere";
+    var simgeler = g.sonuclar.map(function (x) { return x.ben.score > x.rakip.score ? "🟩" : x.ben.score < x.rakip.score ? "🟥" : "⬜"; }).join("");
+    var paylas = "Hedef Düello\n" + simgeler + " " + g.toplam.ben + "–" + g.toplam.rakip;
+    app.innerHTML = '<h1>' + baslik + '</h1><div class="card"><div class="total score">' + g.toplam.ben + ' puan <span class="sub">— ' + esc(G.rakipAd) + ' ' + g.toplam.rakip + '</span></div>' +
+      '<pre class="share">' + esc(paylas) + '</pre><div class="row"><button id="kopyala">Sonucu kopyala</button><button class="primary" id="rovans">Rövanş</button><button id="menu">Menü</button></div></div>';
+    document.getElementById("kopyala").onclick = function (e) { kopyala(paylas, e.target); };
+    document.getElementById("rovans").onclick = canliDuello;
+    document.getElementById("menu").onclick = menu;
+  }
+
   // ---------- oyun akışı ----------
   function basla(mod) {
     var tohum = mod === "gunluk" ? "gunluk-" + bugun() : "oyun-" + Math.random() + "-" + Date.now();
@@ -284,7 +428,7 @@
 
   function ustBilgi() {
     return '<div class="row spread"><b>Tur ' + (G.tur + 1) + '/4 · ' + (TURLAR[G.tur] === "kelime" ? "Kelime" : "İşlem") + '</b>' +
-      (G.mod === "oyun" ? '<span class="score">Sen ' + G.toplam.ben + ' · Bot ' + G.toplam.bot + '</span>' :
+      (G.mod === "oyun" || G.mod === "duello" ? '<span class="score">Sen ' + G.toplam.ben + ' · ' + esc(G.mod === "duello" ? G.rakipAd : "Bot") + ' ' + G.toplam.bot + '</span>' :
         '<span class="score">Puan ' + G.toplam.ben + '</span>') + '</div>';
   }
 
@@ -477,6 +621,7 @@
 
   // ---------- tur sonu ----------
   function turBitti(sonuc) {
+    if (G.sunucu === "duello") return duelloTurBitti(sonuc);
     if (G.sunucu) return sunucuTurBitti(sonuc);
     var t = G.tur_, i = G.tur, ben, bot = null, ek = {}, simge;
     var bots = G.mod === "oyun";

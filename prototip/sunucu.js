@@ -84,6 +84,14 @@
         return istek("/functions/v1/daily-round", { method: "POST", jwt: o.access_token, body: { action: action, round: round, answer: answer } });
       });
     },
+    // Canlı düello: action = queue | status | bot | start | submit (bkz. supabase/functions/duel)
+    duello: function (action, ek) {
+      return yetkili(function (o) {
+        var body = { action: action };
+        for (var k in (ek || {})) body[k] = ek[k];
+        return istek("/functions/v1/duel", { method: "POST", jwt: o.access_token, body: body });
+      });
+    },
     siralama: function (tarih) {
       return yetkili(function (o) {
         return istek("/rest/v1/daily_leaderboard?select=nick,city,total,rank&order=rank.asc&limit=10&date=eq." + tarih, { jwt: o.access_token });

@@ -15,6 +15,13 @@ async function yeniSayfa(b, hatalar) {
   await p.goto(SAYFA);
   return { ctx, p };
 }
+// Türkçe klavye gibi her harf için tuş olayı gönderir (Playwright keyboard.type, ı/ü/ş gibi harfleri tuş olayı olmadan ekler)
+async function tusla(p, kelime) {
+  await p.evaluate((k) => {
+    for (const ch of k) document.dispatchEvent(new KeyboardEvent("keydown", { key: ch, bubbles: true }));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  }, kelime);
+}
 const metin = async (p) => (await p.textContent("#app")).replace(/\s+/g, " ");
 
 async function kelimeTuruOyna(p) {
@@ -22,8 +29,7 @@ async function kelimeTuruOyna(p) {
   await p.waitForSelector("[data-h]");
   const harfler = await p.$$eval("[data-h]", (e) => e.map((x) => x.dataset.h));
   const en = await p.evaluate((h) => window.Hedef.allWords(h)[0], harfler);
-  await p.keyboard.type(en.word);
-  await p.keyboard.press("Enter");
+  await tusla(p, en.word);
   assert.match(await p.textContent(".msg"), /geçerli/);
   return { harfler, en };
 }
@@ -97,7 +103,7 @@ async function islemTuruOyna(p) {
   assert.match(s, /🎯/);
   const puan1 = +(s.match(/(\d+) puan/)[1]);
   console.log("oyuncu 1 toplam:", puan1);
-  await p.screenshot({ path: process.argv[2] ? process.argv[2] + "/e2e-final.png" : "/dev/null" });
+  if (process.argv[2]) await p.screenshot({ path: process.argv[2] + "/e2e-final.png" });
 
   // bitince menüde "tamam" görünür, tekrar oynatılmaz
   await p.click("#menu");

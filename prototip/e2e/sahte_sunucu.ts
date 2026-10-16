@@ -8,12 +8,14 @@ import { db } from "../../supabase/tests/sahte_supabase.ts";
 Deno.env.set("SUPABASE_URL", "http://sahte");
 Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "k");
 Deno.env.set("CRON_SECRET", "gizli");
+Deno.env.set("DUELLO_GERI_SAYIM_MS", "800");   // testte kısa geri sayım
+Deno.env.set("PUZZLE_SALT", "e2e-tuz");
 
 const gercekServe = Deno.serve.bind(Deno);
 const isleyici: Record<string, (r: Request) => Promise<Response>> = {};
 let sonAd = "";
 (Deno as any).serve = (h: any) => { isleyici[sonAd] = h; return {} as any; };
-for (const ad of ["daily-round", "generate-daily-puzzle"]) { sonAd = ad; await import(`../../supabase/functions/${ad}/index.ts`); }
+for (const ad of ["daily-round", "generate-daily-puzzle", "duel"]) { sonAd = ad; await import(`../../supabase/functions/${ad}/index.ts`); }
 (Deno as any).serve = gercekServe;
 const { bugun } = await import("../../supabase/functions/_shared/ortak.ts");
 
@@ -52,9 +54,14 @@ gercekServe({ port: Number(Deno.env.get("PORT") ?? 8787), onListen: () => consol
   if (p === "/auth/v1/signup") return json(oturum(crypto.randomUUID()));
   if (p === "/auth/v1/token") { const b = await req.json(); return json(oturum(String(b.refresh_token).slice(2))); }
   if (p === "/functions/v1/daily-round") return await isleyici["daily-round"](req);
+  if (p === "/functions/v1/duel") return await isleyici["duel"](req);
 
   if (p === "/__test/geri") {   // başlangıç damgalarını n sn geriye al (süre aşımı denemesi için)
     for (const r of db.daily_round_starts) r.started_at = new Date(Date.now() - Number(q.get("sn")) * 1000).toISOString();
+    return json({ ok: true });
+  }
+  if (p === "/__test/maci_geri") {   // bekleyen maçların yaşını n sn artır (bota düşmeyi hızlandırır)
+    for (const m of db.matches) if (m.state === "waiting") m.created_at = new Date(Date.parse(m.created_at) - Number(q.get("sn")) * 1000).toISOString();
     return json({ ok: true });
   }
   if (p === "/__test/db") return json(db);
