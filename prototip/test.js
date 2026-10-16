@@ -134,12 +134,14 @@ t("düello: seed'den bulmaca ve bot hamlesi deterministik; bonus yok", () => {
   assert.strictEqual(tam.score, 10, "düelloda süre bonusu olmamalı");
 });
 
-t("supabase/functions/_shared kopyaları güncel (scripts/senkronla.sh)", () => {
+t("çekirdek kopyaları güncel (scripts/senkronla.sh): supabase/functions/_shared ve istemci/src/cekirdek", () => {
   const fs = require("fs"), path = require("path");
-  for (const f of ["oyun.js", "sozluk.js"]) {
-    const a = fs.readFileSync(path.join(__dirname, f), "utf8");
-    const b = fs.readFileSync(path.join(__dirname, "../supabase/functions/_shared", f), "utf8");
-    assert.strictEqual(a, b, f + " senkron değil: scripts/senkronla.sh çalıştır");
+  for (const dir of ["../supabase/functions/_shared", "../istemci/src/cekirdek"]) {
+    for (const f of ["oyun.js", "sozluk.js"]) {
+      const a = fs.readFileSync(path.join(__dirname, f), "utf8");
+      const b = fs.readFileSync(path.join(__dirname, dir, f), "utf8");
+      assert.strictEqual(a, b, dir + "/" + f + " senkron değil: scripts/senkronla.sh çalıştır");
+    }
   }
 });
 

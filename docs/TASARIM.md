@@ -144,5 +144,9 @@ Toplam: yaklaşık 7–9 hafta.
 
 ## 15. Mevcut durum
 
-- Sayı turu web prototipi hazır (Oyun Laboratuvarı #10): üretici, çözücü, 5 tur, sıralama.
-- Sıradaki adım: prototipe kelime turunu ve düello akışını eklemek.
+(Güncelleme: 16 Ekim 2026)
+
+- Web prototipi (`prototip/`): sayı + kelime turu, bota karşı düello, günlük mod, canlı düello. Çekirdek (`oyun.js`) tek kaynak.
+- Supabase (`supabase/`): şema + RLS, günlük bulmaca üretimi (cron), sunucu tarafı skor doğrulama, canlı düello (`duel`). `hedef-dev` projesine şema ve ilk iki fonksiyon uygulandı; düello migration'ı, `PUZZLE_SALT` ve `duel` fonksiyonu **henüz canlıya alınmadı**.
+- Expo istemcisi (`istemci/`): prototipin tüm akışları; web çıktısında test edildi, gerçek cihazda denenmedi. Skia ve Aslan İnteraktif intro'su yok.
+- Açık: sözlük (geçici ~700 kelime; veri lisansı doğrulanmadı), kesin isim, iOS kararı, kural dengesi (oynanarak), Realtime yerine polling kullanıldı (düello).
