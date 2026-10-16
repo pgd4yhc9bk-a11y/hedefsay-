@@ -1,0 +1,69 @@
+# Test APK'sı üretir (Android SDK GitHub'ın makinesinde hazır). Elle başlat: Actions → Android APK → Run workflow.
+# Çıktı: (1) çalıştırmanın "Artifacts" bölümü, (2) Releases altında "pre-release" olarak APK.
+# APK, Expo'nun varsayılan debug anahtarıyla imzalanır: telefona kurulur ama Play Store'a YÜKLENEMEZ (yayın için gerçek anahtar gerekir).
+name: Android APK
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: istemci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: istemci/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Bağımlılıklar
+        run: npm ci
+
+      - name: Tip denetimi
+        run: npx tsc --noEmit
+
+      - name: Android projesini üret (prebuild)
+        run: npx expo prebuild --platform android --no-install
+        env:
+          EXPO_NO_TELEMETRY: "1"
+
+      - name: APK derle
+        working-directory: istemci/android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+
+      - name: APK'yı adlandır
+        id: ad
+        run: |
+          APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -n 1)
+          test -n "$APK"
+          AD="hedef-dev-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}.apk"
+          cp "$APK" "$AD"
+          echo "ad=$AD" >> "$GITHUB_OUTPUT"
+          ls -la "$AD"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.ad.outputs.ad }}
+          path: istemci/${{ steps.ad.outputs.ad }}
+
+      - name: Sürüm olarak yayınla (telefondan indirmek için)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "apk-${GITHUB_RUN_NUMBER}" "${{ steps.ad.outputs.ad }}" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "Hedef test APK #${GITHUB_RUN_NUMBER}" \
+            --notes "Test derlemesi (debug anahtarıyla imzalı, yalnızca arm64). Telefonda: indir → aç → 'bilinmeyen kaynaklardan yüklemeye' izin ver. Commit: ${GITHUB_SHA::7}"

@@ -19,6 +19,10 @@ EXPO_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co EXPO_PUBLIC_SUPABASE_ANON_KEY
 
 `EXPO_PUBLIC_SUPABASE_ANON_KEY=` (boş) verilirse menüde yalnızca pratik görünür.
 
+## Android APK (test)
+
+Bu ortamda Android SDK olmadığı için APK GitHub Actions'ta derlenir: **Actions → Android APK → Run workflow** (≈15 dk). Çıktı hem çalışmanın *Artifacts* bölümünde hem **Releases** altında pre-release olarak çıkar. Expo'nun varsayılan debug anahtarıyla imzalanır ve yalnızca arm64'tür: telefona kurulur ama **Play Store'a yüklenemez** (yayın için gerçek anahtar ve `eas`/gradle imzalama gerekir). Paket adı (`com.aslaninteraktif.hedefdev`) geçicidir.
+
 ## Çekirdeği güncelleme
 
 Çekirdeğin tek kaynağı `prototip/oyun.js` ve `sozluk.js`. Değiştirdiysen kökten `scripts/senkronla.sh` çalıştır (Edge Function'lara ve buraya kopyalar). `prototip/test.js` kopyaların güncel olduğunu denetler.
