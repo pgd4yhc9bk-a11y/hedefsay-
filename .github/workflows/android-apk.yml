@@ -40,8 +40,15 @@ jobs:
         env:
           EXPO_NO_TELEMETRY: "1"
 
+      - name: Sürüm kodunu derleme numarasına bağla (telefon her derlemeyi güncelleme olarak kabul etsin)
+        run: |
+          sed -i "s/versionCode [0-9]\+/versionCode ${GITHUB_RUN_NUMBER}/" android/app/build.gradle
+          grep -n "versionCode" android/app/build.gradle
+
       - name: APK derle
         working-directory: istemci/android
+        env:
+          EXPO_PUBLIC_SURUM: apk-${{ github.run_number }}-${{ github.sha }}
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
 
       - name: APK'yı adlandır

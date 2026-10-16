@@ -115,7 +115,7 @@ function Menu({ git }: { git: (e: Ekranlar) => void }) {
         <Dugme testID="kurallar" hayalet baslik="Nasıl oynanır?" onPress={() => setKurallar(true)} />
         {sunucu && <View style={{ marginTop: 6 }}><Dugme testID="menu-profilim" buyuk baslik="👤  Profilim ve arkadaşlar" onPress={() => git("profilim")} /></View>}
         <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 12, textAlign: "center", marginTop: 14, lineHeight: 18 }}>
-          Sözlük: {H.getDictionarySize().toLocaleString("tr")} kelime · kaynak: VikiSözlük (CC BY-SA).{"\n"}Bu oyunun TV programıyla bağlantısı yoktur.
+          Sözlük: {H.getDictionarySize().toLocaleString("tr")} kelime · kaynak: VikiSözlük (CC BY-SA).{"\n"}Bu oyunun TV programıyla bağlantısı yoktur.{process.env.EXPO_PUBLIC_SURUM ? `\nSürüm: ${process.env.EXPO_PUBLIC_SURUM.slice(0, 14)}` : ""}
         </Text>
       </Belir>
       <Kurallar acik={kurallar} kapat={() => setKurallar(false)} />
