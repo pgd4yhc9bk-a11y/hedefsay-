@@ -1,87 +1,251 @@
-// Ortak arayüz parçaları: tema, kart, düğme, harf karosu, sayaç.
-import React, { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextStyle, useColorScheme, View, ViewStyle } from "react-native";
+// Tasarım sistemi: ekran iskeleti, tipografi, düğme, 3 boyutlu harf karosu, sayaçlar, animasyonlu parçalar.
+import { LinearGradient } from "expo-linear-gradient";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated, Easing, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TextStyle, useWindowDimensions, View, ViewStyle,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FONT, Tema, useTema } from "./tema";
 
-const acik = { bg: "#f6f3ec", kart: "#ffffff", yazi: "#1d2433", soluk: "#6b7385", cizgi: "#e2ddd0", vurgu: "#c8501e", vurguYazi: "#ffffff",
-  iyi: "#2e7d4f", kotu: "#b3372e", karo: "#fff7e0", karoCizgi: "#e3c872", karoKullanildi: "#eee9da", joker: "#e9d5ff", jokerCizgi: "#a678d8" };
-const koyu = { bg: "#14171f", kart: "#1d222d", yazi: "#eceff5", soluk: "#98a0b3", cizgi: "#2c3342", vurgu: "#f08a4b", vurguYazi: "#1b1005",
-  iyi: "#5cc98a", kotu: "#ef7d73", karo: "#2c2a1c", karoCizgi: "#6a5a24", karoKullanildi: "#232734", joker: "#3a2b52", jokerCizgi: "#a678d8" };
-export type Tema = typeof acik;
-export const useTema = (): Tema => (useColorScheme() === "dark" ? koyu : acik);
-
+export { useTema } from "./tema";
 export const up = (s: string) => s.toLocaleUpperCase("tr");
+const surucu = Platform.OS !== "web";   // useNativeDriver yalnızca native'de
 
-export function Sayfa({ children }: { children: React.ReactNode }) {
+// ---------- tipografi ----------
+type Varyant = "govde" | "kucuk" | "etiket" | "baslik" | "baslikBuyuk" | "dev";
+const BOYUT: Record<Varyant, TextStyle> = {
+  govde: { fontSize: 16, lineHeight: 23, fontFamily: FONT.orta },
+  kucuk: { fontSize: 13, lineHeight: 18, fontFamily: FONT.orta },
+  etiket: { fontSize: 12, lineHeight: 16, fontFamily: FONT.kalin, letterSpacing: 1.2 },
+  baslik: { fontSize: 20, lineHeight: 26, fontFamily: FONT.kalin },
+  baslikBuyuk: { fontSize: 30, lineHeight: 36, fontFamily: FONT.siyah },
+  dev: { fontSize: 56, lineHeight: 64, fontFamily: FONT.siyah },
+};
+export function Metin({ v = "govde", soluk, renk, stil, children, testID, ortala }: { v?: Varyant; soluk?: boolean; renk?: string; stil?: TextStyle; children: React.ReactNode; testID?: string; ortala?: boolean }) {
   const t = useTema();
+  return <Text testID={testID} style={[BOYUT[v], { color: renk ?? (soluk ? t.soluk : t.yazi) }, ortala && { textAlign: "center" }, stil]}>{children}</Text>;
+}
+export const Baslik = ({ children, boyut = "baslik", ortala }: { children: React.ReactNode; boyut?: "baslik" | "baslikBuyuk"; ortala?: boolean }) => <Metin v={boyut} ortala={ortala}>{children}</Metin>;
+export const Yazi = ({ children, soluk, stil, testID, ortala }: { children: React.ReactNode; soluk?: boolean; stil?: TextStyle; testID?: string; ortala?: boolean }) =>
+  <Metin soluk={soluk} stil={stil} testID={testID} ortala={ortala}>{children}</Metin>;
+
+// ---------- animasyon yardımcıları ----------
+/** Açılışta yumuşakça belirir (yukarı kayarak) */
+export function Belir({ children, gecikme = 0, stil }: { children: React.ReactNode; gecikme?: number; stil?: ViewStyle }) {
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.timing(a, { toValue: 1, duration: 380, delay: gecikme, easing: Easing.out(Easing.cubic), useNativeDriver: surucu }).start(); }, [a, gecikme]);
+  return <Animated.View style={[{ opacity: a, transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }, stil]}>{children}</Animated.View>;
+}
+/** Yay ile büyüyerek belirir (karo, ödül) */
+export function Pop({ children, gecikme = 0, stil }: { children: React.ReactNode; gecikme?: number; stil?: ViewStyle }) {
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.spring(a, { toValue: 1, delay: gecikme, friction: 5, tension: 120, useNativeDriver: surucu }).start(); }, [a, gecikme]);
+  return <Animated.View style={[{ opacity: a.interpolate({ inputRange: [0, 0.4], outputRange: [0, 1], extrapolate: "clamp" }), transform: [{ scale: a.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] }, stil]}>{children}</Animated.View>;
+}
+/** Sayıyı 0'dan değere sayarak gösterir */
+export function SayiSayaci({ deger, sureMs = 750, v = "dev", renk, testID }: { deger: number; sureMs?: number; v?: Varyant; renk?: string; testID?: string }) {
+  const [g, setG] = useState(0);
+  useEffect(() => {
+    let r = 0; const t0 = Date.now();
+    const f = () => { const k = Math.min(1, (Date.now() - t0) / sureMs); setG(Math.round(deger * (1 - Math.pow(1 - k, 3)))); if (k < 1) r = requestAnimationFrame(f); };
+    r = requestAnimationFrame(f);
+    return () => cancelAnimationFrame(r);
+  }, [deger, sureMs]);
+  return <Metin v={v} renk={renk} testID={testID}>{g}</Metin>;
+}
+
+// ---------- ekran iskeleti ----------
+export function Ekran({ children, ust, alt, ortala, kaydir = true }: { children: React.ReactNode; ust?: React.ReactNode; alt?: React.ReactNode; ortala?: boolean; kaydir?: boolean }) {
+  const t = useTema();
+  const ek = useSafeAreaInsets();
+  const icerik = [{ flexGrow: 1, padding: 20, paddingTop: 8, maxWidth: 520, width: "100%" as const, alignSelf: "center" as const }, ortala && { justifyContent: "center" as const }];
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ padding: 16, paddingTop: 40, maxWidth: 560, width: "100%", alignSelf: "center" }}
-      keyboardShouldPersistTaps="handled">
-      {children}
-    </ScrollView>
-  );
-}
-
-export function Baslik({ children, boyut = 24 }: { children: React.ReactNode; boyut?: number }) {
-  const t = useTema();
-  return <Text style={{ color: t.yazi, fontSize: boyut, fontWeight: "800", marginBottom: 8 }}>{children}</Text>;
-}
-
-export function Yazi({ children, soluk, stil, testID }: { children: React.ReactNode; soluk?: boolean; stil?: TextStyle; testID?: string }) {
-  const t = useTema();
-  return <Text testID={testID} style={[{ color: soluk ? t.soluk : t.yazi, fontSize: 16, lineHeight: 22 }, stil]}>{children}</Text>;
-}
-
-export function Kart({ children, stil }: { children: React.ReactNode; stil?: ViewStyle }) {
-  const t = useTema();
-  return <View style={[{ backgroundColor: t.kart, borderColor: t.cizgi, borderWidth: 1, borderRadius: 14, padding: 16, marginBottom: 14 }, stil]}>{children}</View>;
-}
-
-export function Sira({ children, ortala, bosluk = 8 }: { children: React.ReactNode; ortala?: boolean; bosluk?: number }) {
-  return <View style={{ flexDirection: "row", flexWrap: "wrap", gap: bosluk, alignItems: "center", justifyContent: ortala ? "center" : "flex-start" }}>{children}</View>;
-}
-
-export function Dugme({ baslik, onPress, birincil, buyuk, pasif, testID }: { baslik: string; onPress: () => void; birincil?: boolean; buyuk?: boolean; pasif?: boolean; testID?: string }) {
-  const t = useTema();
-  return (
-    <Pressable testID={testID} accessibilityRole="button" disabled={pasif} onPress={onPress}
-      style={{ backgroundColor: birincil ? t.vurgu : t.kart, borderColor: birincil ? t.vurgu : t.cizgi, borderWidth: 1, borderRadius: 10,
-        paddingVertical: buyuk ? 14 : 10, paddingHorizontal: 14, opacity: pasif ? 0.4 : 1, alignItems: "center", marginBottom: buyuk ? 10 : 0,
-        alignSelf: buyuk ? "stretch" : "auto" }}>
-      <Text style={{ color: birincil ? t.vurguYazi : t.yazi, fontSize: buyuk ? 17 : 16, fontWeight: birincil ? "700" : "400" }}>{baslik}</Text>
-    </Pressable>
-  );
-}
-
-export function Karo({ harf, kullanildi, joker, bos, onPress, testID, kucuk }: { harf?: string; kullanildi?: boolean; joker?: boolean; bos?: boolean; onPress?: () => void; testID?: string; kucuk?: boolean }) {
-  const t = useTema();
-  const boy = kucuk ? { width: 38, height: 46 } : { width: 44, height: 52 };
-  return (
-    <Pressable testID={testID} disabled={!onPress || kullanildi} onPress={onPress}
-      style={{ ...boy, borderRadius: 9, borderWidth: 2, alignItems: "center", justifyContent: "center",
-        backgroundColor: bos ? "transparent" : joker ? t.joker : kullanildi ? t.karoKullanildi : t.karo,
-        borderColor: bos ? t.cizgi : joker ? t.jokerCizgi : kullanildi ? t.cizgi : t.karoCizgi, borderStyle: bos ? "dashed" : "solid" }}>
-      <Text style={{ fontSize: kucuk ? 20 : 24, fontWeight: "700", color: kullanildi ? t.soluk : t.yazi }}>{bos ? "" : joker && !harf ? "★" : up(harf ?? "")}</Text>
-    </Pressable>
-  );
-}
-
-export function Mesaj({ metin, iyi, testID }: { metin: string; iyi?: boolean; testID?: string }) {
-  const t = useTema();
-  return <Text testID={testID} style={{ minHeight: 24, textAlign: "center", marginVertical: 4, color: iyi ? t.iyi : t.kotu }}>{metin}</Text>;
-}
-
-/** Satır: ad | sen | rakip (rakip verilmezse iki sütun) */
-export function Cizelge({ ad, a, b }: { ad: string; a: React.ReactNode; b?: React.ReactNode }) {
-  const t = useTema();
-  return (
-    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 3, gap: 12 }}>
-      <Text style={{ color: t.yazi, flex: 1 }}>{ad}</Text>
-      <Text style={{ color: t.yazi, fontWeight: "700", minWidth: 70, textAlign: "right" }}>{a}</Text>
-      {b !== undefined && <Text style={{ color: t.yazi, fontWeight: "700", minWidth: 70, textAlign: "right" }}>{b}</Text>}
+    <View style={{ flex: 1, backgroundColor: t.zemin[0] }}>
+      <LinearGradient colors={t.zemin} style={StyleSheet.absoluteFill} />
+      <View style={{ flex: 1, paddingTop: ek.top + 10, paddingBottom: ek.bottom }}>
+        <View style={{ flex: 1, width: "100%", maxWidth: 520, alignSelf: "center" }}>
+          {ust}
+          {kaydir
+            ? <ScrollView style={{ flex: 1 }} contentContainerStyle={icerik} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView>
+            : <View style={[{ flex: 1 }, ...icerik.map((x) => x || {})]}>{children}</View>}
+          {alt && <View style={{ padding: 16, paddingTop: 8, gap: 8 }}>{alt}</View>}
+        </View>
+      </View>
     </View>
   );
 }
 
+export function Kart({ children, stil, vurgulu }: { children: React.ReactNode; stil?: ViewStyle; vurgulu?: boolean }) {
+  const t = useTema();
+  return (
+    <View style={[{ backgroundColor: t.yuzey, borderColor: vurgulu ? t.vurgu : t.cizgi, borderWidth: vurgulu ? 2 : 1, borderRadius: 20, padding: 16, marginBottom: 14 }, stil]}>{children}</View>
+  );
+}
+export function Sira({ children, ortala, bosluk = 8, stil }: { children: React.ReactNode; ortala?: boolean; bosluk?: number; stil?: ViewStyle }) {
+  return <View style={[{ flexDirection: "row", flexWrap: "wrap", gap: bosluk, alignItems: "center", justifyContent: ortala ? "center" : "flex-start" }, stil]}>{children}</View>;
+}
+
+// ---------- düğme ----------
+export function Dugme({ baslik, onPress, birincil, buyuk, pasif, hayalet, testID, esnek }: { baslik: string; onPress: () => void; birincil?: boolean; buyuk?: boolean; pasif?: boolean; hayalet?: boolean; testID?: string; esnek?: boolean }) {
+  const t = useTema();
+  const yukseklik = buyuk ? 58 : 46;
+  const govde: ViewStyle = hayalet
+    ? { backgroundColor: "transparent" }
+    : birincil
+      ? { backgroundColor: t.vurgu, borderBottomWidth: 4, borderBottomColor: t.vurguAlt }
+      : { backgroundColor: t.yuzey2, borderWidth: 1, borderBottomWidth: 3, borderColor: t.cizgi };
+  return (
+    <Pressable testID={testID} accessibilityRole="button" disabled={pasif} onPress={onPress}
+      style={({ pressed }) => [{ height: yukseklik, borderRadius: 16, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", opacity: pasif ? 0.4 : 1 }, govde,
+        esnek && { flex: 1 }, pressed && { transform: [{ scale: 0.97 }], opacity: 0.92 }]}>
+      <Text style={{ color: birincil ? t.vurguYazi : hayalet ? t.soluk : t.yazi, fontFamily: birincil ? FONT.siyah : FONT.kalin, fontSize: buyuk ? 18 : 16 }}>{baslik}</Text>
+    </Pressable>
+  );
+}
+
+// ---------- harf karosu (3 boyutlu) ----------
+export function Karo({ harf, kullanildi, joker, bos, onPress, testID, boyut = "b", pop }: { harf?: string; kullanildi?: boolean; joker?: boolean; bos?: boolean; onPress?: () => void; testID?: string; boyut?: "b" | "o" | "k"; pop?: boolean }) {
+  const t = useTema();
+  const [w, h, f] = boyut === "b" ? [58, 66, 28] : boyut === "o" ? [48, 56, 24] : [40, 48, 20];
+  const yuz = bos ? "transparent" : joker ? t.joker : kullanildi ? t.karoKul : t.karo;
+  const alt = bos ? t.cizgi : joker ? t.jokerAlt : kullanildi ? t.karoKulAlt : t.karoAlt;
+  const k = (
+    <Pressable testID={testID} disabled={!onPress || kullanildi} onPress={onPress}
+      style={({ pressed }) => [{ width: w, height: h, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: yuz,
+        borderBottomWidth: bos ? 2 : 5, borderBottomColor: alt, borderWidth: bos ? 2 : 0, borderColor: alt, borderStyle: bos ? "dashed" : "solid" },
+        !bos && !kullanildi && { shadowColor: t.golge, shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+        pressed && { transform: [{ translateY: 3 }], borderBottomWidth: 2 }]}>
+      <Text style={{ fontFamily: FONT.siyah, fontSize: f, color: kullanildi ? t.karoKulYazi : t.karoYazi }}>{bos ? "" : joker && !harf ? "★" : up(harf ?? "")}</Text>
+    </Pressable>
+  );
+  return pop ? <Pop>{k}</Pop> : k;
+}
+
+// ---------- bildirim, çipler ----------
+export function Bildirim({ metin, iyi, testID }: { metin: string; iyi?: boolean; testID?: string }) {
+  const t = useTema();
+  return (
+    <View style={{ minHeight: 40, alignItems: "center", justifyContent: "center" }}>
+      {!!metin && (
+        <View style={{ backgroundColor: iyi ? t.iyiZemin : t.kotuZemin, borderRadius: 99, paddingVertical: 6, paddingHorizontal: 14 }}>
+          <Text testID={testID} style={{ color: iyi ? t.iyi : t.kotu, fontFamily: FONT.kalin, fontSize: 14, textAlign: "center" }}>{metin}</Text>
+        </View>
+      )}
+      {!metin && <Text testID={testID} style={{ height: 0 }}>{""}</Text>}
+    </View>
+  );
+}
+export function Cip({ children, renk, testID }: { children: React.ReactNode; renk?: string; testID?: string }) {
+  const t = useTema();
+  return (
+    <View style={{ backgroundColor: t.yuzey2, borderRadius: 99, paddingVertical: 5, paddingHorizontal: 12, borderWidth: 1, borderColor: t.cizgi }}>
+      <Text testID={testID} style={{ color: renk ?? t.yazi, fontFamily: FONT.kalin, fontSize: 13 }}>{children}</Text>
+    </View>
+  );
+}
+export function Avatar({ ad, boyut = 44, renk }: { ad: string; boyut?: number; renk?: string }) {
+  const t = useTema();
+  const renkler = ["#FF8A5B", "#5BC0EB", "#9BC53D", "#C77DFF", "#FFC857", "#F06C9B"];
+  let h = 0; for (const c of ad) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return (
+    <View style={{ width: boyut, height: boyut, borderRadius: boyut / 2, backgroundColor: renk ?? renkler[h % renkler.length], alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: t.cizgi }}>
+      <Text style={{ fontFamily: FONT.siyah, fontSize: boyut * 0.42, color: "#1B1B2F" }}>{up((ad || "?").trim().charAt(0) || "?")}</Text>
+    </View>
+  );
+}
+
+// ---------- tur göstergesi + üst çubuk ----------
+const TUR_TURU = ["A", "#", "A", "#"];
+export function TurNoktalari({ tur, bitenler = tur }: { tur: number; bitenler?: number }) {
+  const t = useTema();
+  return (
+    <View style={{ flexDirection: "row", gap: 6 }}>
+      {TUR_TURU.map((x, i) => {
+        const bitti = i < bitenler, simdi = i === tur;
+        return (
+          <View key={i} style={{ minWidth: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: simdi ? 10 : 0,
+            backgroundColor: bitti ? t.vurgu : simdi ? t.yuzey2 : "transparent", borderWidth: 2, borderColor: bitti || simdi ? t.vurgu : t.cizgi }}>
+            <Text style={{ fontFamily: FONT.siyah, fontSize: 13, color: bitti ? t.vurguYazi : simdi ? t.vurguMetin : t.soluk }}>{x}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+/** Üst çubuk: tur noktaları + "Tur n/4 · Kelime" + skor çipleri */
+export function UstCubuk({ tur, bitenler, ad, sen, rakip, rakipAd }: { tur: number; bitenler?: number; ad: string; sen: number; rakip?: number; rakipAd?: string }) {
+  const t = useTema();
+  return (
+    <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <TurNoktalari tur={tur} bitenler={bitenler} />
+        <View style={{ flexDirection: "row", gap: 6 }}>
+          <Cip testID="ust-puan" renk={t.vurguMetin}>Sen {sen}</Cip>
+          {rakip !== undefined && <Cip>{rakipAd ?? "Rakip"} {rakip}</Cip>}
+        </View>
+      </View>
+      <Text testID="ust-tur" style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 13, marginTop: 8 }}>Tur {tur + 1}/4 · {ad}</Text>
+    </View>
+  );
+}
+
+// ---------- hedef halkaları, logo ----------
+export function Halkalar({ boyut = 220, renk, adet = 4, stil, mutlak }: { boyut?: number; renk?: string; adet?: number; stil?: ViewStyle; mutlak?: boolean }) {
+  const t = useTema();
+  return (
+    <View style={[{ width: boyut, height: boyut, alignItems: "center", justifyContent: "center" }, mutlak && { position: "absolute" }, stil]} pointerEvents="none">
+      {Array.from({ length: adet }, (_, i) => {
+        const b = boyut * (1 - i * (0.78 / adet));
+        return <View key={i} style={{ position: "absolute", width: b, height: b, borderRadius: b / 2, borderWidth: 2, borderColor: renk ?? t.vurgu, opacity: 0.1 + i * 0.1 }} />;
+      })}
+    </View>
+  );
+}
+export function Logo({ boyut = 1 }: { boyut?: number }) {
+  const t = useTema();
+  return (
+    <View style={{ alignItems: "center" }}>
+      <View style={{ width: 88 * boyut, height: 88 * boyut, alignItems: "center", justifyContent: "center" }}>
+        <Halkalar boyut={88 * boyut} adet={3} />
+        <View style={{ position: "absolute", width: 18 * boyut, height: 18 * boyut, borderRadius: 9 * boyut, backgroundColor: t.vurgu }} />
+      </View>
+      <Text style={{ fontFamily: FONT.siyah, fontSize: 40 * boyut, color: t.yazi, letterSpacing: 6 * boyut, marginTop: 6 }}>HEDEF</Text>
+    </View>
+  );
+}
+/** Büyük geri sayım rakamı, halka içinde (yay ile her saniye vurgulanır) */
+export function BuyukRakam({ n, testID }: { n: number; testID?: string }) {
+  const t = useTema();
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => { a.setValue(0); Animated.spring(a, { toValue: 1, friction: 4, tension: 140, useNativeDriver: surucu }).start(); }, [n, a]);
+  return (
+    <View style={{ width: 240, height: 240, alignItems: "center", justifyContent: "center", alignSelf: "center" }}>
+      <Halkalar boyut={240} adet={4} mutlak />
+      <Animated.Text testID={testID} style={{ fontFamily: FONT.siyah, fontSize: 110, color: t.vurguMetin, transform: [{ scale: a.interpolate({ inputRange: [0, 1], outputRange: [1.5, 1] }) }] }}>{n}</Animated.Text>
+    </View>
+  );
+}
+/** Rakip aranırken yayılan halkalar */
+export function Radar() {
+  const t = useTema();
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const l = Animated.loop(Animated.timing(a, { toValue: 1, duration: 2200, easing: Easing.out(Easing.quad), useNativeDriver: surucu }));
+    l.start(); return () => l.stop();
+  }, [a]);
+  return (
+    <View style={{ width: 220, height: 220, alignItems: "center", justifyContent: "center", alignSelf: "center" }}>
+      {[0, 0.33, 0.66].map((faz) => {
+        const k = Animated.modulo(Animated.add(a, faz), 1);
+        return <Animated.View key={faz} style={{ position: "absolute", width: 220, height: 220, borderRadius: 110, borderWidth: 3, borderColor: t.vurgu,
+          opacity: k.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0] }), transform: [{ scale: k.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] }) }] }} />;
+      })}
+      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: t.vurgu }} />
+    </View>
+  );
+}
+
+// ---------- süre sayacı ----------
 /** Geri sayım: bitiş anı mount'ta sabitlenir (sunucudan gelen kalan süre dahil); süre bitince onBitti bir kez çağrılır. */
 export function useGeriSayim(sureSn: number, kalanSn: number | undefined, onBitti: () => void) {
   const bitis = useRef(Date.now() + (kalanSn ?? sureSn) * 1000);
@@ -95,22 +259,59 @@ export function useGeriSayim(sureSn: number, kalanSn: number | undefined, onBitt
       if (k <= 0 && !tetiklendi.current) { tetiklendi.current = true; bitti.current(); }
     };
     tick();
-    const id = setInterval(tick, 250);
+    const id = setInterval(tick, 200);
     return () => clearInterval(id);
   }, []);
   return { kalanMs, kalanSn: () => Math.max(0, bitis.current - Date.now()) / 1000 };
 }
-
 export function SayacCubugu({ kalanMs, sureSn }: { kalanMs: number; sureSn: number }) {
   const t = useTema();
+  const acil = kalanMs < 10000;
   return (
-    <View>
-      <View style={{ height: 8, backgroundColor: t.cizgi, borderRadius: 99, overflow: "hidden", marginBottom: 4 }}>
-        <View style={{ height: "100%", width: `${Math.min(100, (kalanMs / (sureSn * 1000)) * 100)}%`, backgroundColor: kalanMs < 10000 ? t.kotu : t.vurgu }} />
+    <View style={{ marginBottom: 8 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <View style={{ flex: 1, height: 12, backgroundColor: t.yuzey2, borderRadius: 99, overflow: "hidden" }}>
+          <View style={{ height: "100%", width: `${Math.min(100, (kalanMs / (sureSn * 1000)) * 100)}%`, backgroundColor: acil ? t.kotu : t.vurgu, borderRadius: 99 }} />
+        </View>
+        <Text testID="sure" style={{ minWidth: 56, textAlign: "right", fontFamily: FONT.siyah, fontSize: 22, color: acil ? t.kotu : t.yazi }}>{Math.ceil(kalanMs / 1000)} sn</Text>
       </View>
-      <Text testID="sure" style={{ textAlign: "right", color: t.soluk, fontSize: 14 }}>{Math.ceil(kalanMs / 1000)} sn</Text>
     </View>
   );
 }
 
-export const stil = StyleSheet.create({ ortala: { alignItems: "center", justifyContent: "center" } });
+// ---------- il seçici (aranabilir tam ekran liste) ----------
+export function IlSecici({ iller, secili, onSec }: { iller: string[]; secili: string; onSec: (il: string) => void }) {
+  const t = useTema();
+  const [acik, setAcik] = useState(false);
+  const [ara, setAra] = useState("");
+  const filtre = useMemo(() => { const a = ara.toLocaleLowerCase("tr").trim(); return a ? iller.filter((x) => x.toLocaleLowerCase("tr").includes(a)) : iller; }, [iller, ara]);
+  return (
+    <View>
+      <Pressable testID="il-sec" onPress={() => setAcik(true)}
+        style={{ height: 54, borderRadius: 16, backgroundColor: t.yuzey2, borderWidth: 1, borderColor: secili ? t.vurgu : t.cizgi, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Text style={{ fontFamily: FONT.kalin, fontSize: 17, color: secili ? t.yazi : t.soluk }}>{secili || "İl seç (isteğe bağlı)"}</Text>
+        <Text style={{ color: t.soluk, fontSize: 18 }}>{secili ? "✎" : "▾"}</Text>
+      </Pressable>
+      <Modal visible={acik} animationType="slide" onRequestClose={() => setAcik(false)}>
+        <View style={{ flex: 1, backgroundColor: t.zemin[0], padding: 16, paddingTop: 48 }}>
+          <Text style={{ fontFamily: FONT.siyah, fontSize: 24, color: t.yazi, marginBottom: 12 }}>İl seç</Text>
+          <TextInput testID="il-ara" value={ara} onChangeText={setAra} placeholder="Ara…" placeholderTextColor={t.soluk} autoCapitalize="none" autoCorrect={false}
+            style={{ height: 50, borderRadius: 14, backgroundColor: t.yuzey, borderWidth: 1, borderColor: t.cizgi, color: t.yazi, paddingHorizontal: 14, fontSize: 17, fontFamily: FONT.orta, marginBottom: 10 }} />
+          <FlatList data={filtre} keyExtractor={(x) => x} keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={<Pressable testID="il-yok" onPress={() => { onSec(""); setAcik(false); }} style={{ paddingVertical: 14 }}><Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 16 }}>İl seçme</Text></Pressable>}
+            renderItem={({ item }) => (
+              <Pressable testID={`il-${item}`} onPress={() => { onSec(item); setAcik(false); setAra(""); }}
+                style={{ paddingVertical: 14, borderTopWidth: 1, borderTopColor: t.cizgi, flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ color: t.yazi, fontFamily: FONT.kalin, fontSize: 17 }}>{item}</Text>
+                {item === secili && <Text style={{ color: t.vurguMetin, fontSize: 18 }}>✓</Text>}
+              </Pressable>
+            )} />
+          <View style={{ height: 10 }} />
+          <Dugme baslik="Kapat" onPress={() => setAcik(false)} />
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+export { Tema };

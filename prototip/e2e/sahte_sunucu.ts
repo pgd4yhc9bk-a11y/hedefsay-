@@ -8,7 +8,7 @@ import { db } from "../../supabase/tests/sahte_supabase.ts";
 Deno.env.set("SUPABASE_URL", "http://sahte");
 Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "k");
 Deno.env.set("CRON_SECRET", "gizli");
-Deno.env.set("DUELLO_GERI_SAYIM_MS", "800");   // testte kısa geri sayım
+if (!Deno.env.get("DUELLO_GERI_SAYIM_MS")) Deno.env.set("DUELLO_GERI_SAYIM_MS", "800");   // testte kısa geri sayım (dışarıdan geçersiz kılınabilir)
 Deno.env.set("PUZZLE_SALT", "e2e-tuz");
 
 const gercekServe = Deno.serve.bind(Deno);

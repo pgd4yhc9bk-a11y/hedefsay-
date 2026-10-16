@@ -86,7 +86,7 @@ async function turOyna(p, iyi) {
       if (tur > 0) await T(p, "go").click();
       await turOyna(p, true);
       assert.match(await metin(p), new RegExp("Tur " + (tur + 1) + " sonucu"));
-      assert.match(await T(p, "en-iyi").innerText(), /en iyi|bilgisayarın çözümü/);
+      assert.match(await T(p, "en-iyi").innerText(), /EN İYİ|BİLGİSAYARIN ÇÖZÜMÜ/);
       if (tur === 0) assert.match(await metin(p), /Bot/);
       await T(p, "ileri").click();
     }
@@ -106,7 +106,7 @@ async function turOyna(p, iyi) {
     await T(p, "nick").waitFor();
     await T(p, "nick").fill("x"); await T(p, "kaydet").click();
     assert.match(await T(p, "profil-hata").innerText(), /2–20/);
-    await T(p, "nick").fill("ayse"); await T(p, "il-Ankara").click(); await T(p, "kaydet").click();
+    await T(p, "nick").fill("ayse"); await T(p, "il-sec").click(); await T(p, "il-Ankara").click(); await T(p, "kaydet").click();
     await T(p, "go").waitFor();
     assert.strictEqual(await p.locator('[data-testid^="harf-"]').count(), 0, "başlamadan harf görünmemeli");
     for (let tur = 0; tur < 4; tur++) {
@@ -134,7 +134,7 @@ async function turOyna(p, iyi) {
   await hazirla(A.p); await hazirla(B.p);
   const kayit = async (p, nick, il) => {
     await T(p, "menu-canli").click(); await T(p, "nick").waitFor();
-    await T(p, "nick").fill(nick); await T(p, "il-" + il).click(); await T(p, "kaydet").click();
+    await T(p, "nick").fill(nick); await T(p, "il-sec").click(); await T(p, "il-" + il).click(); await T(p, "kaydet").click();
   };
   // A zaten günlükte kayıtlı olabilir (farklı bağlam): yeni bağlamlar yeni kullanıcı
   await kayit(A.p, "ali", "Ankara");

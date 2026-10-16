@@ -1,32 +1,50 @@
-// Akışlar arası ortak ekranlar: üst bilgi, oyuncu kartı, hata.
+// Akışlar arası ortak ekranlar: tur girişi, yükleniyor, hata, oyuncu kartı.
 import React, { useEffect, useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Text, TextInput, View } from "react-native";
 import * as S from "../sunucu";
-import { Baslik, Dugme, Kart, Mesaj, Sira, Yazi, useTema } from "../ui";
+import { FONT } from "../tema";
+import { Dugme, Ekran, IlSecici, Karo, Kart, Logo, Metin, Pop, Bildirim, Sira, useTema } from "../ui";
 
 export const TUR_ADI = (i: number) => (i % 2 === 0 ? "Kelime" : "İşlem");
 
-export function Ust({ tur, sol, sag }: { tur: number; sol?: string; sag: string }) {
+export function Yukleniyor({ metin = "Bağlanıyor…", ust }: { metin?: string; ust?: React.ReactNode }) {
   const t = useTema();
   return (
-    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
-      <Text testID="ust-tur" style={{ color: t.yazi, fontWeight: "700" }}>{sol ?? `Tur ${tur + 1}/4 · ${TUR_ADI(tur)}`}</Text>
-      <Text testID="ust-puan" style={{ color: t.yazi }}>{sag}</Text>
-    </View>
+    <Ekran ust={ust} ortala>
+      <View style={{ alignItems: "center", gap: 16 }}>
+        <ActivityIndicator size="large" color={t.vurgu} />
+        <Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 17, textAlign: "center" }}>{metin}</Text>
+      </View>
+    </Ekran>
   );
 }
 
 export function HataEkrani({ mesaj, yeniden, onMenu }: { mesaj: string; yeniden?: () => void; onMenu: () => void }) {
   return (
-    <Kart>
-      <Baslik boyut={18}>Bağlantı sorunu</Baslik>
-      <Yazi>{mesaj}</Yazi>
-      <View style={{ height: 10 }} />
-      <Sira>
-        {yeniden && <Dugme testID="yeniden" birincil baslik="Yeniden dene" onPress={yeniden} />}
-        <Dugme testID="menu" baslik="Menü" onPress={onMenu} />
-      </Sira>
-    </Kart>
+    <Ekran ortala alt={<>
+      {yeniden && <Dugme testID="yeniden" birincil buyuk baslik="Yeniden dene" onPress={yeniden} />}
+      <Dugme testID="menu" buyuk baslik="Menü" onPress={onMenu} />
+    </>}>
+      <View style={{ alignItems: "center", gap: 10 }}>
+        <Pop><Text style={{ fontSize: 56 }}>📡</Text></Pop>
+        <Metin v="baslik">Bağlantı sorunu</Metin>
+        <Metin soluk ortala>{mesaj}</Metin>
+      </View>
+    </Ekran>
+  );
+}
+
+/** Tur girişi: ne oynanacağını söyler; "Başla" ile süre başlar */
+export function TurGirisi({ ust, tip, aciklama, harfler, onBasla, baslaYazi = "Süreyi başlat" }: { ust: React.ReactNode; tip: "kelime" | "islem"; aciklama: string; harfler?: string[]; onBasla: () => void; baslaYazi?: string }) {
+  return (
+    <Ekran ust={ust} ortala alt={<Dugme testID="go" birincil buyuk baslik={baslaYazi} onPress={onBasla} />}>
+      <View style={{ alignItems: "center", gap: 14 }}>
+        <Pop><Karo boyut="b" harf={tip === "kelime" ? "A" : "#"} /></Pop>
+        <Metin v="baslikBuyuk">{tip === "kelime" ? "Kelime turu" : "İşlem turu"}</Metin>
+        <Metin soluk ortala>{aciklama}</Metin>
+        {harfler && <Sira ortala bosluk={6}>{harfler.map((h, i) => <Karo key={i} boyut="o" harf={h} pop />)}<Karo boyut="o" joker /></Sira>}
+      </View>
+    </Ekran>
   );
 }
 
@@ -44,23 +62,20 @@ export function Profil({ onTamam, onMenu }: { onTamam: () => void; onMenu: () =>
     S.oyuncuKaydet(n, il).then(onTamam).catch((e) => setHata("Kaydedilemedi: " + e.message));
   };
   return (
-    <Kart>
-      <Baslik boyut={18}>Oyuncu kartı</Baslik>
-      <Yazi soluk>Sıralamada görünecek takma ad. İl isteğe bağlı; il ligine katılırsın.</Yazi>
-      <View style={{ height: 8 }} />
+    <Ekran alt={<>
+      <Dugme testID="kaydet" birincil buyuk baslik="Kaydet ve başla" onPress={kaydet} />
+      <Dugme testID="menu" hayalet baslik="Menü" onPress={onMenu} />
+    </>}>
+      <View style={{ alignItems: "center", marginBottom: 20 }}><Logo boyut={0.6} /></View>
+      <Metin v="baslikBuyuk">Oyuncu kartı</Metin>
+      <Metin soluk stil={{ marginTop: 4, marginBottom: 20 }}>Sıralamada görünecek takma adın. İl seçersen il ligine katılırsın.</Metin>
+      <Metin v="etiket" soluk stil={{ marginBottom: 6 }}>TAKMA AD</Metin>
       <TextInput testID="nick" value={nick} onChangeText={setNick} maxLength={20} placeholder="Takma ad (2–20 harf)" placeholderTextColor={t.soluk}
-        style={{ color: t.yazi, borderColor: t.cizgi, borderWidth: 1, borderRadius: 10, padding: 10, fontSize: 16, backgroundColor: t.kart }} />
-      <View style={{ height: 8 }} />
-      <Yazi soluk>İl (isteğe bağlı)</Yazi>
-      <Sira bosluk={6}>
-        <Dugme testID="il-yok" baslik={il ? "Seçimi kaldır" : "Seçilmedi"} onPress={() => setIl("")} />
-        {iller.map((x) => <Dugme key={x} testID={`il-${x}`} birincil={il === x} baslik={x} onPress={() => setIl(x)} />)}
-      </Sira>
-      <Mesaj metin={hata} testID="profil-hata" />
-      <Sira>
-        <Dugme testID="kaydet" birincil baslik="Kaydet ve başla" onPress={kaydet} />
-        <Dugme testID="menu" baslik="Menü" onPress={onMenu} />
-      </Sira>
-    </Kart>
+        style={{ height: 54, borderRadius: 16, backgroundColor: t.yuzey2, borderWidth: 1, borderColor: t.cizgi, color: t.yazi, paddingHorizontal: 16, fontSize: 18, fontFamily: FONT.kalin }} />
+      <View style={{ height: 18 }} />
+      <Metin v="etiket" soluk stil={{ marginBottom: 6 }}>İL</Metin>
+      <IlSecici iller={iller} secili={il} onSec={setIl} />
+      <Bildirim metin={hata} testID="profil-hata" />
+    </Ekran>
   );
 }
