@@ -10,6 +10,7 @@ Bu dizin `hedef-dev` projesine uygulandı (şema + fonksiyonlar + cron); `202610
 | `migrations/20261018000000_puzzle_gizle.sql` | Güvenlik düzeltmesi: bugünün bulmacası artık REST ile okunamaz (yalnızca `daily-round` `start` ile, süre damgasıyla); yalnızca geçmiş günler okunur |
 | `functions/generate-daily-puzzle` | Cron ile günlük 4 turluk bulmacayı üretir (yayınlanmışı ezmez) |
 | `migrations/20261019000000_duello.sql` | Düello: `match_rounds` tablosu; `matches`/`match_moves` istemciye **kapatıldı** (rakibin cevabı ve maç tohumu sızmasın) |
+| `migrations/20261020000000_puzzle_tuzu.sql` | Bulmaca tuzu: migration uygulanırken veritabanında rastgele üretilir (dosyada değer yok), `puzzle_tuzu` tablosu istemciye kapalı |
 | `functions/duel` | Canlı düello: eşleştirme, geri sayım, tur başlat/gönder, bot; durum sunucuda, istemci `status` ile sorgular |
 | `functions/daily-round` | Turu başlatır (sunucu damgası) ve cevabı puanlar; cevapları gönderimden sonra açıklar |
 | `functions/_shared/` | `oyun.js`, `sozluk.js` (prototip ile **aynı kod**, `scripts/senkronla.sh` ile kopyalanır) ve ortak yardımcılar |
@@ -23,7 +24,7 @@ süre için `daily_round_starts`; `daily_scores` tur başına satır. Gerekçe m
 - Cevaplar (`daily_solutions`) ve başlangıç damgaları (`daily_round_starts`) istemciye tamamen kapalıdır.
 - Bugünün ve yarının bulmacası REST ile okunamaz (RLS, İstanbul saati); bulmaca yalnızca `start` yanıtında, sunucu süre damgasıyla gelir. Böylece süre işlemeden önceden düşünülemez. Tur sırası zorunlu, ilk başlatma kalıcı, süre aşımı 0 puan.
 - Sıralama görünümleri yalnızca takma ad, il ve toplam puanı açar; 4 turu bitirmeyen sayılmaz.
-- **Gizli tuz:** Günlük bulmaca tarihten türetilir ve üretici kod istemcide herkese açıktır; `PUZZLE_SALT` sırrı olmadan yarının bulmacası önceden hesaplanabilir. Sırrı ayarla: `supabase secrets set PUZZLE_SALT=<uzun rastgele>` (yoksa fonksiyon yine üretir ama yanıtında `uyari` döner). Düelloda tohum her maç için rastgeledir ve hiçbir yanıtta yer almaz.
+- **Gizli tuz:** Günlük bulmaca tarihten türetilir ve üretici kod istemcide herkese açıktır; gizli tuz olmadan yarının bulmacası önceden hesaplanabilir. Tuz `puzzle_tuzu` tablosunda (migration rastgele üretir, yalnızca `service_role` okur); istenirse `PUZZLE_SALT` ortam sırrı bunu geçersiz kılar. İkisi de yoksa fonksiyon yine üretir ama yanıtında `uyari` döner. Düelloda tohum her maç için rastgeledir ve hiçbir yanıtta yer almaz.
 - **Düello:** Her iki oyuncuya aynı bulmaca ve aynı başlangıç anı verilir (geri sayım bitmeden bulmaca gelmez); cevap yalnızca tur bitince rakibe açılır; süre aşımı 0 puan; rakip hiç göndermezse tur süre sonunda 0 puanla kapanır. Bot rakip adıyla "Bot" olarak gösterilir.
 - Hesap silme: `players` → `auth.users` cascade; skorlar da gider.
 
@@ -52,7 +53,7 @@ Test edilmeyenler: gerçek Supabase Auth/PostgREST, `supabase functions deploy` 
 1. Supabase projesi aç; `supabase link --project-ref <ref>`
 2. `supabase db push`
 3. Sırlar: `supabase secrets set CRON_SECRET=<uzun rastgele>`
-4. `supabase secrets set PUZZLE_SALT=<uzun rastgele>` ve `supabase functions deploy daily-round generate-daily-puzzle duel`
+4. `supabase functions deploy daily-round generate-daily-puzzle duel` (tuz migration'la gelir; `PUZZLE_SALT` sırrı isteğe bağlı)
 5. Günlük cron (SQL editöründe; `pg_cron` ve `pg_net` eklentileri açık olmalı). Her gün 21:05 UTC = 00:05 İstanbul, yarının bulmacasını üretir:
 
 ```sql

@@ -121,3 +121,19 @@ Deno.test("PUZZLE_SALT: yoksa uyarır, varsa bulmaca tuzla üretilir (tarihten t
   if (JSON.stringify(db.daily_puzzles[1].payload) === JSON.stringify(H.dailyRound(gun, 1).payload)) throw new Error("tuzlu bulmaca tuzsuzla aynı olmamalı");
   Deno.env.delete("PUZZLE_SALT");
 });
+
+Deno.test("tuz kaynağı: ortam sırrı yoksa puzzle_tuzu tablosu kullanılır; ikisi de varsa ortam sırrı kazanır", async () => {
+  sifirla();
+  const gun = "2031-02-07";
+  db.puzzle_tuzu.push({ id: true, tuz: "veritabani-tuzu-0123456789abcdef0123456789abcdef" });
+  const r1 = await (await istek("generate-daily-puzzle", { date: gun }, { "x-cron-secret": "gizli" })).json();
+  esit(r1.uyari, undefined, "tablodaki tuz varken uyarı olmamalı");
+  esit(JSON.stringify(db.daily_puzzles[0].payload), JSON.stringify(H.dailyRound(gun, 0, "veritabani-tuzu-0123456789abcdef0123456789abcdef").payload), "tablodaki tuzla üretilmeli");
+  if (JSON.stringify(db.daily_puzzles[0].payload) === JSON.stringify(H.dailyRound(gun, 0).payload)) throw new Error("tuzlu bulmaca tuzsuzla aynı olmamalı");
+
+  db.daily_puzzles.length = 0; db.daily_solutions.length = 0;
+  Deno.env.set("PUZZLE_SALT", "ortam-tuzu");
+  await istek("generate-daily-puzzle", { date: gun }, { "x-cron-secret": "gizli" });
+  esit(JSON.stringify(db.daily_puzzles[0].payload), JSON.stringify(H.dailyRound(gun, 0, "ortam-tuzu").payload), "ortam sırrı tabloyu geçmeli");
+  Deno.env.delete("PUZZLE_SALT");
+});
