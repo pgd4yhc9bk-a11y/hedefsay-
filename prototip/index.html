@@ -81,6 +81,8 @@
   var G = null;          // oyun durumu
   var timer = null;      // aktif tur sayacı
   var onKey = null;      // aktif turun klavye işleyicisi
+  var bitisAn = 0;       // aktif turun bitiş zamanı (ms)
+  var SURE_BONUS_BOLEN = 10; // tam isabette her 10 sn kalan için +1 (yalnızca günlük/tek oyunculu; değer ayarlanacak)
   var tickFn = null;     // sayaç çubuğunu hemen yenilemek için
   var ayar = { islemSure: 60 };
 
@@ -95,7 +97,7 @@
   function depoYaz(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* özel pencere vb. */ } }
   function durdur() { if (timer) clearInterval(timer); timer = null; onKey = null; tickFn = null; }
   function sayacBaslat(sure, bitir) {
-    var bitis = Date.now() + sure * 1000;
+    var bitis = bitisAn = Date.now() + sure * 1000;
     function tick() {
       var kalan = Math.max(0, bitis - Date.now());
       var bar = document.getElementById("bar"), tm = document.getElementById("tm");
@@ -336,9 +338,11 @@
       var r = H.evaluate(inp.value, t.nums);
       if (!r.ok) { mesajEl.className = "msg bad"; mesajEl.textContent = r.error; return; }
       var puan = H.numberScore(t.target, r.value), fark = Math.abs(t.target - r.value);
+      var bonus = fark === 0 && G.mod === "gunluk" ? Math.floor(Math.max(0, bitisAn - Date.now()) / 1000 / SURE_BONUS_BOLEN) : 0;
+      puan += bonus;
       mesajEl.className = "msg " + (puan ? "good" : "bad");
-      mesajEl.textContent = "= " + r.value + (fark ? " (fark " + fark + ")" : " — tam isabet!") + " · " + puan + " puan";
-      if (!enIyi || fark < enIyi.fark) enIyi = { value: r.value, fark: fark, puan: puan, expr: inp.value };
+      mesajEl.textContent = "= " + r.value + (fark ? " (fark " + fark + ")" : " — tam isabet!") + " · " + puan + " puan" + (bonus ? " (süre bonusu +" + bonus + ")" : "");
+      if (!enIyi || fark < enIyi.fark || (fark === enIyi.fark && puan > enIyi.puan)) enIyi = { value: r.value, fark: fark, puan: puan, expr: inp.value };
       document.getElementById("enIyi").textContent = "En iyin: " + enIyi.value + " (fark " + enIyi.fark + ", " + enIyi.puan + " puan)";
       if (fark === 0) bitir();
     }
@@ -370,7 +374,7 @@
       if (bots) { var bn = H.botNumber(t, G.botRng); bot = H.numberScore(t.target, bn.value); ek.bot = bn; }
       ek.cozum = t.found.get(t.target);
       ek.benIslem = sonuc.islem;
-      simge = ben === 10 ? "🎯" : ben > 0 ? "🟨" : "⬜";
+      simge = ben >= 10 ? "🎯" : ben > 0 ? "🟨" : "⬜";
     }
     G.toplam.ben += ben; if (bot !== null) G.toplam.bot += bot;
     G.sonuclar.push({ tip: t.tip, ben: ben, bot: bot, simge: simge });
