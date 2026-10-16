@@ -77,7 +77,7 @@ export function Gunluk({ onMenu }: { onMenu: () => void }) {
     Promise.all([S.siralama(bugun()), S.ilLigi(haftaBasi())]).then(([gen, il]) => ok(() => setSira({ gen, il }))).catch(() => ok(() => setSira({ gen: [], il: [] })));
   }, [asama, ok]);
 
-  const ust = (bitenler = tur) => <UstCubuk tur={tur} bitenler={bitenler} ad={TUR_ADI(tur)} sen={toplam} />;
+  const ust = (bitenler = tur) => <UstCubuk tur={tur} bitenler={bitenler} ad={TUR_ADI(tur)} sen={toplam} baslik="Günlük mücadele" />;
   if (asama === "yukleniyor") return <Yukleniyor />;
   if (asama === "hata") return <HataEkrani mesaj={hata} yeniden={yeniden.current} onMenu={onMenu} />;
   if (asama === "profil") return <Profil onTamam={yukle} onMenu={onMenu} />;

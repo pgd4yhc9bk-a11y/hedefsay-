@@ -113,7 +113,7 @@ export function Karo({ harf, kullanildi, joker, bos, onPress, testID, boyut = "b
     <Pressable testID={testID} disabled={!onPress || kullanildi} onPress={onPress}
       style={({ pressed }) => [{ width: w, height: h, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: yuz,
         borderBottomWidth: bos ? 2 : 5, borderBottomColor: alt, borderWidth: bos ? 2 : 0, borderColor: alt, borderStyle: bos ? "dashed" : "solid" },
-        secili && { borderWidth: 3, borderColor: t.vurgu, backgroundColor: "#FFE9A8", transform: [{ translateY: -4 }] },
+        secili && { borderWidth: 3, borderColor: t.vurgu, backgroundColor: t.karoSecili, transform: [{ translateY: -4 }] },
         !bos && !kullanildi && { shadowColor: t.golge, shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
         pressed && { transform: [{ translateY: 3 }], borderBottomWidth: 2 }]}>
       <Text style={{ fontFamily: FONT.siyah, fontSize: f, color: kullanildi ? t.karoKulYazi : t.karoYazi }}>{bos ? "" : joker && !harf ? "★" : up(harf ?? "")}</Text>
@@ -144,7 +144,7 @@ export function Cip({ children, renk, testID }: { children: React.ReactNode; ren
     </View>
   );
 }
-export function Avatar({ ad, boyut = 44, renk, url }: { ad: string; boyut?: number; renk?: string; url?: string | null }) {
+export function Avatar({ ad, boyut = 44, renk, url, emoji }: { ad: string; boyut?: number; renk?: string; url?: string | null; emoji?: string }) {
   const t = useTema();
   const renkler = ["#FF8A5B", "#5BC0EB", "#9BC53D", "#C77DFF", "#FFC857", "#F06C9B"];
   const [hata, setHata] = useState(false);
@@ -153,42 +153,63 @@ export function Avatar({ ad, boyut = 44, renk, url }: { ad: string; boyut?: numb
   if (url && !hata) return <Image testID="avatar-foto" source={{ uri: url }} onError={() => setHata(true)} style={kap} />;   // fotoğraf yüklenemezse baş harfe döner
   return (
     <View style={[kap, { backgroundColor: renk ?? renkler[h % renkler.length], alignItems: "center", justifyContent: "center" }]}>
-      <Text style={{ fontFamily: FONT.siyah, fontSize: boyut * 0.42, color: "#1B1B2F" }}>{up((ad || "?").trim().charAt(0) || "?")}</Text>
+      {emoji
+        ? <Text style={{ fontSize: boyut * 0.5 }}>{emoji}</Text>
+        : <Text style={{ fontFamily: FONT.siyah, fontSize: boyut * 0.42, color: "#1B1B2F" }}>{up((ad || "?").trim().charAt(0) || "?")}</Text>}
     </View>
   );
 }
 
 // ---------- tur göstergesi + üst çubuk ----------
-const TUR_TURU = ["A", "#", "A", "#"];
-export function TurNoktalari({ tur, bitenler = tur }: { tur: number; bitenler?: number }) {
+/** Çizgiyle bağlı numaralı 4 adım: biten dolu mavi, şimdiki büyük mavi, gelecek gri */
+export function TurAdimlari({ tur, bitenler = tur }: { tur: number; bitenler?: number }) {
   const t = useTema();
   return (
-    <View style={{ flexDirection: "row", gap: 6 }}>
-      {TUR_TURU.map((x, i) => {
-        const bitti = i < bitenler, simdi = i === tur;
+    <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 6 }}>
+      {[0, 1, 2, 3].map((i) => {
+        const bitti = i < bitenler, simdi = i === tur && !bitti;
         return (
-          <View key={i} style={{ minWidth: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: simdi ? 10 : 0,
-            backgroundColor: bitti ? t.vurgu : simdi ? t.yuzey2 : "transparent", borderWidth: 2, borderColor: bitti || simdi ? t.vurgu : t.cizgi }}>
-            <Text style={{ fontFamily: FONT.siyah, fontSize: 13, color: bitti ? t.vurguYazi : simdi ? t.vurguMetin : t.soluk }}>{x}</Text>
-          </View>
+          <React.Fragment key={i}>
+            {i > 0 && <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i <= bitenler ? t.vurgu : t.cizgi }} />}
+            <View style={{ width: simdi ? 34 : 28, height: simdi ? 34 : 28, borderRadius: 17, alignItems: "center", justifyContent: "center",
+              backgroundColor: bitti || simdi ? t.vurgu : t.karoKul, borderWidth: simdi ? 3 : 0, borderColor: "#B9C7FF" }}>
+              <Text style={{ fontFamily: FONT.siyah, fontSize: simdi ? 15 : 13, color: bitti || simdi ? "#FFFFFF" : t.karoKulYazi }}>{i + 1}</Text>
+            </View>
+          </React.Fragment>
         );
       })}
     </View>
   );
 }
-/** Üst çubuk: tur noktaları + "Tur n/4 · Kelime" + skor çipleri */
-export function UstCubuk({ tur, bitenler, ad, sen, rakip, rakipAd }: { tur: number; bitenler?: number; ad: string; sen: number; rakip?: number; rakipAd?: string }) {
+/** Üst çubuk: başlık, oyuncu kartı (Sen | rakip), numaralı tur adımları, "Tur n/4 · Kelime" */
+export function UstCubuk({ tur, bitenler, ad, sen, rakip, rakipAd, rakipUrl, rakipBot, baslik }: {
+  tur: number; bitenler?: number; ad: string; sen: number; rakip?: number; rakipAd?: string; rakipUrl?: string | null; rakipBot?: boolean; baslik?: string;
+}) {
   const t = useTema();
+  const puan = (n: number, id?: string, renk?: string) => <Text testID={id} style={{ fontFamily: FONT.siyah, fontSize: 30, lineHeight: 34, color: renk ?? t.yazi }}>{n}</Text>;
   return (
-    <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <TurNoktalari tur={tur} bitenler={bitenler} />
-        <View style={{ flexDirection: "row", gap: 6 }}>
-          <Cip testID="ust-puan" renk={t.vurguMetin}>Sen {sen}</Cip>
-          {rakip !== undefined && <Cip>{rakipAd ?? "Rakip"} {rakip}</Cip>}
+    <View style={{ paddingHorizontal: 16, paddingBottom: 6 }}>
+      {!!baslik && <Text style={{ textAlign: "center", fontFamily: FONT.kalin, fontSize: 17, color: t.yazi, marginBottom: 10 }}>{baslik}</Text>}
+      <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: t.yuzey, borderRadius: 22, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: t.cizgi,
+        shadowColor: t.golge, shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
+        <Avatar ad="Sen" boyut={52} renk={t.vurgu} emoji="🙂" />
+        <View style={{ marginLeft: 10, flex: 1 }}>
+          <Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 13 }}>Sen</Text>
+          {puan(sen, "ust-puan", t.vurguMetin)}
         </View>
+        {rakip !== undefined && (
+          <>
+            <View style={{ width: 1, alignSelf: "stretch", backgroundColor: t.cizgi, marginHorizontal: 8 }} />
+            <View style={{ flex: 1, alignItems: "flex-end", marginRight: 10 }}>
+              <Text numberOfLines={1} style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 13 }}>{rakipAd ?? "Rakip"}</Text>
+              {puan(rakip, "ust-rakip")}
+            </View>
+            <Avatar ad={rakipAd ?? "Rakip"} boyut={52} url={rakipUrl} renk={rakipBot ? t.mercan : undefined} emoji={rakipBot ? "🤖" : undefined} />
+          </>
+        )}
       </View>
-      <Text testID="ust-tur" style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 13, marginTop: 8 }}>Tur {tur + 1}/4 · {ad}</Text>
+      <View style={{ marginTop: 14 }}><TurAdimlari tur={tur} bitenler={bitenler} /></View>
+      <Text testID="ust-tur" style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 14, marginTop: 8, textAlign: "center" }}>Tur {tur + 1}/4 · {ad}</Text>
     </View>
   );
 }
@@ -272,14 +293,14 @@ export function useGeriSayim(sureSn: number, kalanSn: number | undefined, onBitt
 }
 export function SayacCubugu({ kalanMs, sureSn }: { kalanMs: number; sureSn: number }) {
   const t = useTema();
-  const acil = kalanMs < 10000;
+  const acil = kalanMs < 10000, sn = Math.ceil(kalanMs / 1000);
+  const mmss = `${String(Math.floor(sn / 60)).padStart(2, "0")}:${String(sn % 60).padStart(2, "0")}`;
   return (
-    <View style={{ marginBottom: 8 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View style={{ flex: 1, height: 12, backgroundColor: t.yuzey2, borderRadius: 99, overflow: "hidden" }}>
-          <View style={{ height: "100%", width: `${Math.min(100, (kalanMs / (sureSn * 1000)) * 100)}%`, backgroundColor: acil ? t.kotu : t.vurgu, borderRadius: 99 }} />
-        </View>
-        <Text testID="sure" style={{ minWidth: 56, textAlign: "right", fontFamily: FONT.siyah, fontSize: 22, color: acil ? t.kotu : t.yazi }}>{Math.ceil(kalanMs / 1000)} sn</Text>
+    <View style={{ marginBottom: 12, flexDirection: "row", alignItems: "center", gap: 12 }}>
+      <Text style={{ fontSize: 22 }}>⏱</Text>
+      <Text testID="sure" style={{ fontFamily: FONT.siyah, fontSize: 26, color: acil ? t.kotu : t.yazi, minWidth: 72, fontVariant: ["tabular-nums"] }}>{mmss}</Text>
+      <View style={{ flex: 1, height: 12, backgroundColor: t.cizgi, borderRadius: 99, overflow: "hidden" }}>
+        <View style={{ height: "100%", width: `${Math.min(100, (kalanMs / (sureSn * 1000)) * 100)}%`, backgroundColor: acil ? t.kotu : t.vurgu, borderRadius: 99 }} />
       </View>
     </View>
   );
