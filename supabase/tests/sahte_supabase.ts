@@ -5,7 +5,7 @@ type Row = Record<string, any>;
 const PK: Record<string, string[]> = {
   players: ["id"], daily_puzzles: ["date", "round"], daily_solutions: ["date", "round"],
   daily_round_starts: ["date", "player_id", "round"], daily_scores: ["date", "player_id", "round"],
-  matches: ["id"], match_rounds: ["match_id", "round"], match_moves: ["match_id", "round", "player_id"],
+  puzzle_tuzu: ["id"], matches: ["id"], match_rounds: ["match_id", "round"], match_moves: ["match_id", "round", "player_id"],
 };
 export const db: Record<string, Row[]> = {};
 export function sifirla() { for (const k of Object.keys(PK)) db[k] = []; }

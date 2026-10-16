@@ -38,6 +38,9 @@ select pg_temp.expect_error('insert into public.players (id, nick, city) values 
 insert into public.matches (a, b, seed) values (:A, :B, 's1'), (:B, :C, 's2');
 insert into public.match_moves (match_id, round, player_id, payload) select id, 1, a, '{}' from public.matches where seed = 's1';
 
+select pg_temp.expect_count('select 1 from public.puzzle_tuzu where char_length(tuz) >= 64', 1);   -- migration tuzu rastgele üretmiş olmalı (tek satır)
+select pg_temp.expect_error('insert into public.puzzle_tuzu (id, tuz) values (false, ''x'')');       -- tek satır kuralı
+
 -- ---- A olarak ----
 reset role; set role authenticated; set request.jwt.claim.sub = :A;
 select pg_temp.expect_count('select 1 from public.players', 3);                                  -- oyuncular herkese açık
@@ -50,6 +53,7 @@ select pg_temp.expect_count('select 1 from public.daily_scores', 4);            
 select pg_temp.expect_error('select * from public.matches');                                      -- düello yalnızca fonksiyondan: seed ve rakip cevabı sızmaz
 select pg_temp.expect_error('select * from public.match_moves');
 select pg_temp.expect_error('select * from public.match_rounds');
+select pg_temp.expect_error('select * from public.puzzle_tuzu');                                  -- tuz istemciye kapalı
 select pg_temp.expect_error('insert into public.matches (a, seed) values (' || quote_literal(:A) || ', ''hile'')');
 select pg_temp.expect_error('select * from public.daily_totals');
 select pg_temp.expect_error('insert into public.players (id, nick) values (' || quote_literal(:B) || ', ''baska'')');
