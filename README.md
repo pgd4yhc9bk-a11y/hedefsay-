@@ -11,6 +11,10 @@ Derleme gerekmez: `prototip/index.html` dosyasını tarayıcıda aç.
 - `index.html` — arayüz: botlu düello (4 tur, harfleri turlar sırayla seçer) ve günlük mücadele (tohum = tarih, günde bir kez, paylaşım metni).
 - `test.js` — çekirdek testleri: `node prototip/test.js`
 
+## Mobil istemci (`istemci/`)
+
+Expo SDK 58 / React Native, TypeScript: pratik, günlük mücadele ve canlı düello. Kurulum ve sınırlar: [istemci/README.md](istemci/README.md). Web çıktısı üzerinde uçtan uca test edildi; **gerçek cihazda denenmedi**.
+
 ## Sunucu (`supabase/`)
 
 Şema, RLS, günlük bulmaca üretimi ve skor doğrulama: [supabase/README.md](supabase/README.md).
