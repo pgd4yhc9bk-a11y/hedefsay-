@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hedef</title>
+<style>
+  :root {
+    --bg: #f6f3ec; --card: #ffffff; --ink: #1d2433; --muted: #6b7385; --line: #e2ddd0;
+    --accent: #c8501e; --accent-ink: #ffffff; --good: #2e7d4f; --warn: #b8860b; --bad: #b3372e;
+    --tile: #fff7e0; --tile-line: #e3c872; --tile-used: #eee9da; --joker: #e9d5ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171f; --card: #1d222d; --ink: #eceff5; --muted: #98a0b3; --line: #2c3342;
+      --accent: #f08a4b; --accent-ink: #1b1005; --good: #5cc98a; --warn: #e5b94a; --bad: #ef7d73;
+      --tile: #2c2a1c; --tile-line: #6a5a24; --tile-used: #232734; --joker: #3a2b52;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #app { max-width: 560px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 2.2rem; margin: 8px 0 0; letter-spacing: .02em; }
+  h2 { font-size: 1.15rem; margin: 0 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row.center { justify-content: center; }
+  .spread { justify-content: space-between; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button.big { width: 100%; padding: 14px; font-size: 1.05rem; margin-bottom: 10px; }
+  select, input[type=text] { font: inherit; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .tiles { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 10px 0; }
+  .tile { width: 44px; height: 52px; display: grid; place-items: center; font-size: 1.5rem; font-weight: 700; text-transform: uppercase;
+          background: var(--tile); border: 2px solid var(--tile-line); border-radius: 9px; padding: 0; }
+  .tile.used { background: var(--tile-used); border-color: var(--line); color: var(--muted); }
+  .tile.joker { background: var(--joker); border-color: #a678d8; }
+  .tile.empty { background: transparent; border-style: dashed; border-color: var(--line); }
+  .num { width: 58px; font-size: 1.6rem; }
+  .target { text-align: center; font-size: 3.4rem; font-weight: 800; color: var(--accent); margin: 4px 0; letter-spacing: .03em; }
+  .word { min-height: 56px; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin: 6px 0; }
+  .word .tile { width: 38px; height: 46px; font-size: 1.3rem; }
+  .timer { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 4px; }
+  .timer > div { height: 100%; background: var(--accent); width: 100%; transition: width .25s linear; }
+  .timer.low > div { background: var(--bad); }
+  .time { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; font-size: .9rem; }
+  .msg { min-height: 1.4em; text-align: center; margin: 4px 0; }
+  .msg.good { color: var(--good); } .msg.bad { color: var(--bad); }
+  .best { text-align: center; color: var(--muted); font-size: .95rem; }
+  .score { font-variant-numeric: tabular-nums; }
+  .grid { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 14px; align-items: baseline; }
+  .grid .h { color: var(--muted); font-size: .85rem; }
+  .total { font-size: 1.6rem; font-weight: 800; }
+  .picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 16px; }
+  .overlay .card { max-width: 420px; width: 100%; margin: 0; }
+  #expr { width: 100%; font-size: 1.4rem; text-align: center; letter-spacing: .04em; }
+  .ops button { min-width: 48px; font-size: 1.2rem; }
+  pre.share { background: var(--bg); border: 1px dashed var(--line); border-radius: 10px; padding: 10px; white-space: pre-wrap; }
+  .foot { color: var(--muted); font-size: .8rem; text-align: center; margin: 18px 0 8px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="sozluk.js"></script>
+<script src="oyun.js"></script>
+<script>
+(function () {
+  "use strict";
+  var H = window.Hedef;
+  H.setDictionary(window.HEDEF_SOZLUK);
+
+  var app = document.getElementById("app");
+  var TURLAR = ["kelime", "islem", "kelime", "islem"];
+  var KELIME_SURE = 60;
+
+  var G = null;          // oyun durumu
+  var timer = null;      // aktif tur sayacı
+  var onKey = null;      // aktif turun klavye işleyicisi
+  var bitisAn = 0;       // aktif turun bitiş zamanı (ms)
+  var SURE_BONUS_BOLEN = 10; // tam isabette her 10 sn kalan için +1 (yalnızca günlük/tek oyunculu; değer ayarlanacak)
+  var tickFn = null;     // sayaç çubuğunu hemen yenilemek için
+  var ayar = { islemSure: 60 };
+
+  // ---------- yardımcılar ----------
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function up(s) { return String(s).toLocaleUpperCase("tr"); }
+  function bugun() {
+    try { return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" }); }
+    catch (e) { return new Date().toISOString().slice(0, 10); }
+  }
+  function depoOku(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function depoYaz(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* özel pencere vb. */ } }
+  function durdur() { if (timer) clearInterval(timer); timer = null; onKey = null; tickFn = null; }
+  function sayacBaslat(sure, bitir) {
+    var bitis = bitisAn = Date.now() + sure * 1000;
+    function tick() {
+      var kalan = Math.max(0, bitis - Date.now());
+      var bar = document.getElementById("bar"), tm = document.getElementById("tm");
+      if (bar) { bar.style.width = (kalan / (sure * 1000) * 100) + "%"; bar.parentNode.className = "timer" + (kalan < 10000 ? " low" : ""); }
+      if (tm) tm.textContent = Math.ceil(kalan / 1000) + " sn";
+      if (kalan <= 0) { bitir(); }
+    }
+    tickFn = tick;
+    tick();
+    timer = setInterval(tick, 250);
+  }
+  document.addEventListener("keydown", function (e) { if (onKey) onKey(e); });
+
+  // ---------- menü ----------
+  function menu() {
+    durdur();
+    G = null;
+    var gKey = "hedef-gunluk-" + bugun();
+    var gSonuc = depoOku(gKey);
+    var gunluk = "";
+    if (gSonuc) {
+      var r = JSON.parse(gSonuc);
+      gunluk = '<div class="card"><h2>Bugünün günlüğü tamam</h2><pre class="share">' + esc(r.paylas) + '</pre>' +
+        '<button id="kopyala">Sonucu kopyala</button></div>';
+    }
+    app.innerHTML =
+      '<h1>Hedef</h1><p class="sub">Kelime ve işlem düellosu — prototip</p>' +
+      '<button class="primary big" id="oyna">Oyna — bilgisayara karşı (düello)</button>' +
+      (gSonuc ? "" : '<button class="big" id="gunluk">Günlük mücadele (' + bugun() + ')</button>') + gunluk +
+      '<div class="card"><h2>Ayarlar</h2><label>İşlem turu süresi: <select id="islemSure">' +
+      '<option value="60"' + (ayar.islemSure === 60 ? " selected" : "") + '>60 sn</option>' +
+      '<option value="90"' + (ayar.islemSure === 90 ? " selected" : "") + '>90 sn</option></select></label></div>' +
+      '<div class="card"><h2>Kurallar</h2><p style="margin:0">4 tur: kelime, işlem, kelime, işlem. ' +
+      'Kelime turunda 8 harf + 1 joker (★) ile en uzun sözlük kelimesini kur; ' +
+      'işlem turunda 6 sayıyla hedefe ulaş. Düelloda iki taraf da aynı harf ve sayılarla oynar; ' +
+      'harfleri turlar sırayla seçersiniz.</p></div>' +
+      '<p class="foot">Deneme sözlüğü: ' + H.getDictionarySize() + ' kelime (geçici). ' +
+      'Bu oyunun TV programıyla bağlantısı yoktur.</p>';
+    document.getElementById("oyna").onclick = function () { basla("oyun"); };
+    var g = document.getElementById("gunluk"); if (g) g.onclick = function () { basla("gunluk"); };
+    document.getElementById("islemSure").onchange = function (e) { ayar.islemSure = parseInt(e.target.value, 10); };
+    var k = document.getElementById("kopyala");
+    if (k) k.onclick = function () { kopyala(JSON.parse(gSonuc).paylas, k); };
+  }
+
+  function kopyala(metin, btn) {
+    function tamam() { btn.textContent = "Kopyalandı ✓"; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(metin).then(tamam, function () { window.prompt("Kopyala:", metin); });
+    else window.prompt("Kopyala:", metin);
+  }
+
+  // ---------- oyun akışı ----------
+  function basla(mod) {
+    var tohum = mod === "gunluk" ? "gunluk-" + bugun() : "oyun-" + Math.random() + "-" + Date.now();
+    G = { mod: mod, tohum: tohum, tur: 0, sonuclar: [], toplam: { ben: 0, bot: 0 }, islemSure: ayar.islemSure };
+    turGir();
+  }
+
+  function turGir() {
+    durdur();
+    var i = G.tur, tip = TURLAR[i], rr = H.makeRng(G.tohum + "|" + i);
+    G.rng = rr;
+    G.botRng = H.makeRng(G.tohum + "|bot|" + i);
+    if (tip === "kelime") {
+      var secici = G.mod === "oyun" ? (i === 0 ? "ben" : "bot") : "sistem";
+      if (secici === "ben") return harfSec(rr);
+      var tipler = secici === "bot" ? H.randomTypes(G.botRng) : null;
+      var harfler = secici === "bot" ? H.generateRack(rr, tipler) : H.generateRackAuto(rr);
+      G.tur_ = { tip: "kelime", harfler: harfler, secici: secici };
+      return turGiris();
+    }
+    G.tur_ = Object.assign({ tip: "islem" }, H.generateNumberRound(rr));
+    turGiris();
+  }
+
+  function ustBilgi() {
+    return '<div class="row spread"><b>Tur ' + (G.tur + 1) + '/4 · ' + (TURLAR[G.tur] === "kelime" ? "Kelime" : "İşlem") + '</b>' +
+      (G.mod === "oyun" ? '<span class="score">Sen ' + G.toplam.ben + ' · Bot ' + G.toplam.bot + '</span>' :
+        '<span class="score">Puan ' + G.toplam.ben + '</span>') + '</div>';
+  }
+
+  // Oyuncu harfleri sesli/sessiz diyerek açar (en az 3 sesli)
+  function harfSec(rr) {
+    var harfler = [], tipler = [];
+    function ciz() {
+      var sesli = tipler.filter(function (t) { return t === "sesli"; }).length;
+      var kalan = H.HARF_SAYISI - tipler.length;
+      var gerek = Math.max(0, H.MIN_SESLI - sesli);
+      var tam = kalan === 0;
+      var html = ustBilgi() + '<div class="card"><h2>Harfleri sen seç</h2>' +
+        '<p class="sub" style="margin:0">En az ' + H.MIN_SESLI + ' sesli olmalı. ' + (gerek ? gerek + ' sesli daha gerekli.' : "") + '</p><div class="tiles">';
+      for (var i = 0; i < H.HARF_SAYISI; i++) {
+        html += harfler[i] ? '<div class="tile">' + esc(up(harfler[i])) + '</div>' : '<div class="tile empty"></div>';
+      }
+      html += '<div class="tile joker">★</div></div>';
+      if (!tam) {
+        html += '<div class="row center"><button id="sesli">Sesli</button><button id="sessiz"' + (kalan <= gerek ? " disabled" : "") + '>Sessiz</button></div>';
+      } else {
+        html += '<button class="primary big" id="git">Devam</button>';
+      }
+      html += '</div>';
+      app.innerHTML = html;
+      if (!tam) {
+        document.getElementById("sesli").onclick = function () { sec("sesli"); };
+        document.getElementById("sessiz").onclick = function () { sec("sessiz"); };
+      } else {
+        document.getElementById("git").onclick = function () {
+          G.tur_ = { tip: "kelime", harfler: harfler, secici: "ben" };
+          turGiris();
+        };
+      }
+    }
+    function sec(tip) {
+      tipler.push(tip);
+      if (tipler.length < H.HARF_SAYISI) harfler.push(H.drawLetter(rr, tip));
+      else harfler = H.completeRack(rr, harfler, tip); // son harf: 6+ harfli çözüm garantisi
+      ciz();
+    }
+    ciz();
+  }
+
+  function turGiris() {
+    var t = G.tur_;
+    var html = ustBilgi() + '<div class="card">';
+    if (t.tip === "kelime") {
+      var kim = t.secici === "ben" ? "Harfleri sen seçtin." : t.secici === "bot" ? "Bu turun harflerini rakip seçti." : "Herkese aynı harfler.";
+      html += '<h2>Kelime turu</h2><p class="sub" style="margin:0">' + kim + ' En uzun geçerli kelimeyi kur. Süre: ' + KELIME_SURE + ' sn.</p>' +
+        '<div class="tiles">' + t.harfler.map(function (h) { return '<div class="tile">' + esc(up(h)) + '</div>'; }).join("") + '<div class="tile joker">★</div></div>';
+    } else {
+      html += '<h2>İşlem turu</h2><p class="sub" style="margin:0">Dört işlemle hedefe ulaş. Çıkarma ve bölme sonucu pozitif tam sayı olmalı; her sayı bir kez. Süre: ' + G.islemSure + ' sn.</p>';
+    }
+    html += '<button class="primary big" id="go" style="margin-top:12px">Süreyi başlat</button></div>';
+    app.innerHTML = html;
+    document.getElementById("go").onclick = t.tip === "kelime" ? kelimeTuru : islemTuru;
+  }
+
+  // ---------- kelime turu ----------
+  function kelimeTuru() {
+    var t = G.tur_;
+    var harfler = t.harfler;
+    var giris = [];            // {ch, joker}
+    var enIyi = null, mesaj = "", mesajSinif = "", picker = false;
+
+    function kullanim() {
+      var kullanildi = harfler.map(function () { return false; }), jokerKullanildi = false;
+      giris.forEach(function (g) {
+        if (g.joker) { jokerKullanildi = true; return; }
+        for (var i = 0; i < harfler.length; i++) if (!kullanildi[i] && harfler[i] === g.ch) { kullanildi[i] = true; return; }
+      });
+      return { kullanildi: kullanildi, joker: jokerKullanildi };
+    }
+    function ekle(ch) {
+      if (giris.length >= H.HARF_SAYISI + 1) return;
+      var k = kullanim(), serbest = false, i;
+      for (i = 0; i < harfler.length; i++) if (!k.kullanildi[i] && harfler[i] === ch) { serbest = true; break; }
+      if (serbest) giris.push({ ch: ch, joker: false });
+      else if (!k.joker) giris.push({ ch: ch, joker: true });
+      else { mesaj = "Bu harf kalmadı"; mesajSinif = "bad"; return ciz(); }
+      mesaj = ""; ciz();
+    }
+    function gonder() {
+      var kelime = giris.map(function (g) { return g.ch; }).join("");
+      if (!kelime) return;
+      var b = H.wordInfo(kelime, harfler);
+      giris = [];
+      if (!b.valid) { mesaj = "“" + up(kelime) + "” — " + b.reason; mesajSinif = "bad"; return ciz(); }
+      if (!enIyi || b.score > enIyi.score) enIyi = b;
+      mesaj = "“" + up(b.word) + "” geçerli: " + b.score + " puan"; mesajSinif = "good";
+      ciz();
+    }
+    function ciz() {
+      var k = kullanim();
+      var html = ustBilgi() + '<div class="card"><div class="timer"><div id="bar"></div></div><div class="time" id="tm"></div>' +
+        '<div class="word">' + giris.map(function (g) { return '<div class="tile' + (g.joker ? " joker" : "") + '">' + esc(up(g.ch)) + '</div>'; }).join("") + '</div>' +
+        '<div class="msg ' + mesajSinif + '">' + esc(mesaj) + '</div><div class="tiles">';
+      harfler.forEach(function (h, i) {
+        html += '<button class="tile' + (k.kullanildi[i] ? " used" : "") + '" data-h="' + esc(h) + '"' + (k.kullanildi[i] ? " disabled" : "") + '>' + esc(up(h)) + '</button>';
+      });
+      html += '<button class="tile joker' + (k.joker ? " used" : "") + '" id="joker"' + (k.joker ? " disabled" : "") + '>★</button></div>' +
+        '<div class="row center"><button id="sil">⌫ Sil</button><button class="primary" id="gonder">Gönder</button><button id="bitir">Bitir</button></div>' +
+        '<div class="best">' + (enIyi ? "En iyin: " + esc(up(enIyi.word)) + " (" + enIyi.score + " puan)" : "Henüz geçerli kelime yok") + '</div></div>';
+      if (picker) {
+        html += '<div class="overlay"><div class="card"><h2>Joker hangi harf olsun?</h2><div class="picker">' +
+          H.ALFABE.split("").map(function (c) { return '<button class="tile" data-j="' + c + '">' + up(c) + '</button>'; }).join("") +
+          '</div><div class="row center" style="margin-top:10px"><button id="vazgec">Vazgeç</button></div></div></div>';
+      }
+      app.innerHTML = html;
+      Array.prototype.forEach.call(app.querySelectorAll("[data-h]"), function (b) { b.onclick = function () { ekle(b.getAttribute("data-h")); }; });
+      Array.prototype.forEach.call(app.querySelectorAll("[data-j]"), function (b) { b.onclick = function () { picker = false; giris.push({ ch: b.getAttribute("data-j"), joker: true }); ciz(); }; });
+      document.getElementById("joker").onclick = function () { picker = true; ciz(); };
+      document.getElementById("sil").onclick = function () { giris.pop(); mesaj = ""; ciz(); };
+      document.getElementById("gonder").onclick = gonder;
+      document.getElementById("bitir").onclick = bitir;
+      var v = document.getElementById("vazgec"); if (v) v.onclick = function () { picker = false; ciz(); };
+      if (tickFn) tickFn();
+    }
+    var bittiMi = false;
+    function bitir() { if (bittiMi) return; bittiMi = true; durdur(); turBitti({ kelime: enIyi }); }
+
+    ciz();
+    sayacBaslat(KELIME_SURE, bitir);
+    onKey = function (e) {
+      if (picker || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "Enter") { e.preventDefault(); gonder(); }
+      else if (e.key === "Backspace") { giris.pop(); mesaj = ""; ciz(); }
+      else if (e.key.length === 1) {
+        var ch = H.trLower(e.key);
+        if (H.ALFABE.indexOf(ch) >= 0) ekle(ch);
+      }
+    };
+  }
+
+  // ---------- işlem turu ----------
+  function islemTuru() {
+    var t = G.tur_;
+    var enIyi = null, bittiMi = false;
+    var html = ustBilgi() + '<div class="card"><div class="timer"><div id="bar"></div></div><div class="time" id="tm"></div>' +
+      '<div class="target">' + t.target + '</div>' +
+      '<div class="tiles" id="sayilar">' + t.nums.map(function (n, i) { return '<button class="tile num" data-n="' + n + '" data-i="' + i + '">' + n + '</button>'; }).join("") + '</div>' +
+      '<input type="text" id="expr" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="örn. (7+3)×8−5">' +
+      '<div class="msg" id="mesaj"></div>' +
+      '<div class="row center ops">' + ["+", "−", "×", "÷", "(", ")"].map(function (o) { return '<button data-o="' + o + '">' + o + '</button>'; }).join("") + '<button id="sil">⌫</button></div>' +
+      '<div class="row center" style="margin-top:10px"><button class="primary" id="gonder">Gönder</button><button id="bitir">Bitir</button></div>' +
+      '<div class="best" id="enIyi">Henüz sonuç yok</div></div>';
+    app.innerHTML = html;
+    var inp = document.getElementById("expr"), mesajEl = document.getElementById("mesaj");
+
+    function sayilariBoya() {
+      var kullan = {};
+      (inp.value.match(/\d+/g) || []).forEach(function (x) { kullan[x] = (kullan[x] || 0) + 1; });
+      Array.prototype.forEach.call(document.querySelectorAll("[data-n]"), function (b) {
+        var n = b.getAttribute("data-n");
+        if (kullan[n] > 0) { kullan[n]--; b.classList.add("used"); } else b.classList.remove("used");
+      });
+    }
+    function yaz(s) { inp.value += s; sayilariBoya(); inp.focus(); }
+    function gonder() {
+      var r = H.evaluate(inp.value, t.nums);
+      if (!r.ok) { mesajEl.className = "msg bad"; mesajEl.textContent = r.error; return; }
+      var puan = H.numberScore(t.target, r.value), fark = Math.abs(t.target - r.value);
+      var bonus = fark === 0 && G.mod === "gunluk" ? Math.floor(Math.max(0, bitisAn - Date.now()) / 1000 / SURE_BONUS_BOLEN) : 0;
+      puan += bonus;
+      mesajEl.className = "msg " + (puan ? "good" : "bad");
+      mesajEl.textContent = "= " + r.value + (fark ? " (fark " + fark + ")" : " — tam isabet!") + " · " + puan + " puan" + (bonus ? " (süre bonusu +" + bonus + ")" : "");
+      if (!enIyi || fark < enIyi.fark || (fark === enIyi.fark && puan > enIyi.puan)) enIyi = { value: r.value, fark: fark, puan: puan, expr: inp.value };
+      document.getElementById("enIyi").textContent = "En iyin: " + enIyi.value + " (fark " + enIyi.fark + ", " + enIyi.puan + " puan)";
+      if (fark === 0) bitir();
+    }
+    function bitir() { if (bittiMi) return; bittiMi = true; durdur(); turBitti({ islem: enIyi }); }
+
+    Array.prototype.forEach.call(document.querySelectorAll("[data-n]"), function (b) { b.onclick = function () { yaz(b.getAttribute("data-n")); }; });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-o]"), function (b) { b.onclick = function () { yaz(b.getAttribute("data-o")); }; });
+    document.getElementById("sil").onclick = function () { inp.value = inp.value.slice(0, -1); sayilariBoya(); };
+    document.getElementById("gonder").onclick = gonder;
+    document.getElementById("bitir").onclick = bitir;
+    inp.oninput = sayilariBoya;
+    onKey = function (e) { if (e.key === "Enter") { e.preventDefault(); gonder(); } };
+    sayacBaslat(G.islemSure, bitir);
+  }
+
+  // ---------- tur sonu ----------
+  function turBitti(sonuc) {
+    var t = G.tur_, i = G.tur, ben, bot = null, ek = {}, simge;
+    var bots = G.mod === "oyun";
+    if (t.tip === "kelime") {
+      var liste = H.allWords(t.harfler), en = liste[0] || null;
+      ben = sonuc.kelime ? sonuc.kelime.score : 0;
+      if (bots) { var bw = H.botWord(t.harfler, G.botRng); bot = bw ? bw.score : 0; ek.bot = bw; }
+      ek.en = en; ek.benKelime = sonuc.kelime;
+      simge = !en || ben >= en.score ? "🎯" : ben >= en.score * 0.6 ? "🟨" : "⬜";
+      if (!sonuc.kelime) simge = "⬜";
+    } else {
+      ben = sonuc.islem ? sonuc.islem.puan : 0;
+      if (bots) { var bn = H.botNumber(t, G.botRng); bot = H.numberScore(t.target, bn.value); ek.bot = bn; }
+      ek.cozum = t.found.get(t.target);
+      ek.benIslem = sonuc.islem;
+      simge = ben >= 10 ? "🎯" : ben > 0 ? "🟨" : "⬜";
+    }
+    G.toplam.ben += ben; if (bot !== null) G.toplam.bot += bot;
+    G.sonuclar.push({ tip: t.tip, ben: ben, bot: bot, simge: simge });
+
+    var html = ustBilgi() + '<div class="card"><h2>Tur ' + (i + 1) + ' sonucu</h2><div class="grid"><span class="h"></span><span class="h">Sen</span>' + (bots ? '<span class="h">Bot</span>' : "") + '</div>';
+    if (t.tip === "kelime") {
+      html += satir("Kelime", ek.benKelime ? up(ek.benKelime.word) : "—", bots ? (ek.bot ? up(ek.bot.word) : "—") : null);
+      html += satir("Puan", ben, bots ? bot : null);
+      html += '<p class="sub" style="margin:12px 0 0">Bu harflerle en iyi: <b>' + (ek.en ? up(ek.en.word) + " (" + ek.en.score + " puan" + (ek.en.joker ? ", jokerli" : "") + ")" : "—") + '</b></p>';
+    } else {
+      html += satir("Sonuç", ek.benIslem ? ek.benIslem.value : "—", bots ? ek.bot.value : null);
+      html += satir("Puan", ben, bots ? bot : null);
+      html += '<p class="sub" style="margin:12px 0 0">Hedef <b>' + t.target + '</b> · bilgisayarın çözümü: <b>' + esc(ek.cozum.e) + ' = ' + t.target + '</b></p>';
+      if (bots) html += '<p class="sub" style="margin:4px 0 0">Botun işlemi: ' + esc(ek.bot.expr) + ' = ' + ek.bot.value + '</p>';
+    }
+    html += '<button class="primary big" id="ileri" style="margin-top:12px">' + (i < 3 ? "Sonraki tur" : "Sonucu gör") + '</button></div>';
+    app.innerHTML = html;
+    document.getElementById("ileri").onclick = function () {
+      if (i < 3) { G.tur++; turGir(); } else oyunSonu();
+    };
+  }
+  function satir(ad, a, b) {
+    return '<div class="grid"><span>' + ad + '</span><b class="score">' + a + '</b>' + (b !== null ? '<b class="score">' + b + '</b>' : "") + '</div>';
+  }
+
+  function oyunSonu() {
+    durdur();
+    var bots = G.mod === "oyun";
+    var baslik = "";
+    if (bots) baslik = G.toplam.ben > G.toplam.bot ? "Kazandın! 🏆" : G.toplam.ben < G.toplam.bot ? "Bot kazandı" : "Berabere";
+    var paylas = "Hedef " + (G.mod === "gunluk" ? "Günlük " + bugun() : "Düello") + "\n" +
+      G.sonuclar.map(function (s) { return s.simge; }).join("") + " " + G.toplam.ben + " puan" + (bots ? " (bot " + G.toplam.bot + ")" : "");
+    if (G.mod === "gunluk") depoYaz("hedef-gunluk-" + bugun(), JSON.stringify({ puan: G.toplam.ben, paylas: paylas }));
+    app.innerHTML = '<h1>' + (baslik || "Günlük bitti") + '</h1>' +
+      '<div class="card"><div class="total score">' + G.toplam.ben + ' puan' + (bots ? ' <span class="sub">— Bot ' + G.toplam.bot + '</span>' : "") + '</div>' +
+      '<pre class="share">' + esc(paylas) + '</pre>' +
+      '<div class="row"><button id="kopyala">Sonucu kopyala</button>' +
+      (bots ? '<button class="primary" id="rovans">Rövanş</button>' : "") + '<button id="menu">Menü</button></div></div>';
+    document.getElementById("kopyala").onclick = function (e) { kopyala(paylas, e.target); };
+    var r = document.getElementById("rovans"); if (r) r.onclick = function () { basla("oyun"); };
+    document.getElementById("menu").onclick = menu;
+  }
+
+  menu();
+})();
+</script>
+</body>
+</html>
