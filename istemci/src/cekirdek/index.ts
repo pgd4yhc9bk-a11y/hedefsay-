@@ -22,6 +22,9 @@ export interface Cekirdek {
   generateNumberRound(rng: () => number): { nums: number[]; target: number; found: Map<number, { e: string; n: number }> };
   evaluate(text: string, pool: number[]): Degerlendirme;
   numberScore(target: number, value: number): number;
+  expressionSteps(text: string): { a: number; op: string; b: number; r: number }[] | null;
+  stepText(st: { a: number; op: string; b: number; r: number }): string;
+  botPersona(seed: string): { nick: string; city: string; skill: number; bot: true };
   botWord(letters: string[], rng: () => number): { word: string; score: number } | null;
   botNumber(round: { target: number; found: Map<number, { e: string; n: number }> }, rng: () => number): { value: number; expr: string };
   timeBonus(kalanSn: number): number;

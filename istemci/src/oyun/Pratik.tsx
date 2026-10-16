@@ -81,12 +81,12 @@ export function Pratik({ onMenu }: { onMenu: () => void }) {
   };
   const ileri = () => { if (tur < 3) { setTur(tur + 1); turHazirla(tur + 1); } else setAsama("son"); };
 
-  const ust = (bitenler = tur) => <UstCubuk tur={tur} bitenler={bitenler} ad={TUR_ADI(tur)} sen={toplam.ben} rakip={toplam.bot} rakipAd="Bot" />;
+  const ust = (bitenler = tur) => <UstCubuk tur={tur} bitenler={bitenler} ad={TUR_ADI(tur)} sen={toplam.ben} rakip={toplam.bot} rakipAd="🤖 Bot" />;
   if (asama === "son") {
     const kazanan = toplam.ben > toplam.bot ? "ben" : toplam.ben < toplam.bot ? "rakip" : "berabere";
     const baslik = kazanan === "ben" ? "Kazandın! 🏆" : kazanan === "rakip" ? "Bot kazandı" : "Berabere";
     const simgeler = turlar.map((x) => (x.ben > (x.rakip ?? 0) ? "🟩" : x.ben < (x.rakip ?? 0) ? "🟥" : "⬜")).join("");
-    return <OyunSonu kazanan={kazanan} baslik={baslik} sen={toplam.ben} rakip={toplam.bot} rakipAd="Bot" turlar={turlar}
+    return <OyunSonu kazanan={kazanan} baslik={baslik} sen={toplam.ben} rakip={toplam.bot} rakipAd="Bot" rakipBot turlar={turlar}
       paylasMetni={`Hedef Düello\n${simgeler} ${toplam.ben}–${toplam.bot} (bot)`}
       onRovans={() => { setTur(0); setToplam({ ben: 0, bot: 0 }); setTurlar([]); turHazirla(0); }} onMenu={onMenu} />;
   }
@@ -107,11 +107,11 @@ export function Pratik({ onMenu }: { onMenu: () => void }) {
     const ileriBaslik = tur < 3 ? "Sonraki tur" : "Sonucu gör";
     return veri.tip === "kelime"
       ? <TurSonucu ust={ust(tur + 1)} tur={tur} tip="kelime" ileriBaslik={ileriBaslik} onIleri={ileri}
-          sen={{ ad: "Sen", puan: sonuc.ben, cevap: e.ben?.word ?? "" }} rakip={{ ad: "Bot", puan: sonuc.bot, cevap: e.bot?.word ?? "" }}
+          sen={{ ad: "Sen", puan: sonuc.ben, cevap: e.ben?.word ?? "" }} rakip={{ ad: "Bot", bot: true, puan: sonuc.bot, cevap: e.bot?.word ?? "" }}
           enIyi={{ baslik: "BU HARFLERLE EN İYİ", cevap: e.en?.word ?? "", kelime: true, ayrinti: e.en ? `${up(e.en.word)} (${e.en.score} puan${e.en.joker ? ", jokerli" : ""})` : "—" }} />
       : <TurSonucu ust={ust(tur + 1)} tur={tur} tip="islem" ileriBaslik={ileriBaslik} onIleri={ileri}
-          sen={{ ad: "Sen", puan: sonuc.ben, cevap: e.ben?.expr ?? "", deger: e.ben?.value }} rakip={{ ad: "Bot", puan: sonuc.bot, cevap: e.bot.expr, deger: e.bot.value }}
-          enIyi={{ baslik: "BİLGİSAYARIN ÇÖZÜMÜ", cevap: `${e.cozum.e} = ${veri.target}`, ayrinti: `Hedef ${veri.target}` }} />;
+          sen={{ ad: "Sen", puan: sonuc.ben, cevap: e.ben?.expr ?? "", deger: e.ben?.value }} rakip={{ ad: "Bot", bot: true, puan: sonuc.bot, cevap: e.bot.expr, deger: e.bot.value }}
+          enIyi={{ baslik: "BİLGİSAYARIN ÇÖZÜMÜ", cevap: e.cozum.e, ayrinti: `Hedef ${veri.target}` }} />;
   }
   return null;
 }

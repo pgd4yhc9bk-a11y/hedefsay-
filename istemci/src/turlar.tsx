@@ -1,6 +1,6 @@
 // Kelime ve işlem turu oynatıcıları. Süre bitince / "Bitir" ile / işlemde tam isabette onBitir bir kez çağrılır.
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, Text, TextInput, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import H from "./cekirdek";
 import { FONT } from "./tema";
 import { Bildirim, Dugme, Ekran, Halkalar, Karo, Kart, Metin, SayacCubugu, Sira, up, useGeriSayim, useTema, Yazi } from "./ui";
@@ -115,14 +115,21 @@ export function KelimeTuru({ harfler, sureSn, kalanSn, ust, onBitir }: Ortak & {
   );
 }
 
-const OPERATORLER = ["+", "−", "×", "÷", "(", ")"];
+const OPERATORLER = ["+", "−", "×", "÷"];
+interface Tas { id: number; v: number; e: string }   // e: tam parantezli ifade (sunucuya gider; ekranda görünmez)
 
 export function IslemTuru({ sayilar, hedef, sureSn, kalanSn, bonus, ust, onBitir }:
   Ortak & { sayilar: number[]; hedef: number; bonus: boolean; onBitir: (s: IslemSonuc | null) => void }) {
   const t = useTema();
-  const [ifade, setIfade] = useState("");
+  // TV'deki gibi: bir sayı + bir işlem + bir sayı seçilir; ikisi kaybolup yerine sonuç karosu gelir.
+  const [taslar, setTaslar] = useState<Tas[]>(() => sayilar.map((v, i) => ({ id: i, v, e: String(v) })));
+  const [adimlar, setAdimlar] = useState<string[]>([]);
+  const [gecmis, setGecmis] = useState<{ taslar: Tas[]; adimlar: string[] }[]>([]);
+  const [secilen, setSecilen] = useState<number | null>(null);   // ilk sayının id'si
+  const [op, setOp] = useState<string | null>(null);
   const [enIyi, setEnIyi] = useState<IslemSonuc | null>(null);
   const [mesaj, setMesaj] = useState<{ m: string; iyi: boolean }>({ m: "", iyi: false });
+  const sonId = useRef(sayilar.length);
   const bittiMi = useRef(false);
   const enIyiRef = useRef<IslemSonuc | null>(null); enIyiRef.current = enIyi;
 
@@ -133,66 +140,72 @@ export function IslemTuru({ sayilar, hedef, sureSn, kalanSn, bonus, ust, onBitir
   }, [onBitir]);
   const { kalanMs, kalanSn: kalanSnFn } = useGeriSayim(sureSn, kalanSn, bitir);
 
-  const kullan: Record<string, number> = {};
-  (ifade.match(/\d+/g) ?? []).forEach((x) => { kullan[x] = (kullan[x] ?? 0) + 1; });
-
-  const gonder = () => {
-    const r = H.evaluate(ifade, sayilar);
-    if (!r.ok) { setMesaj({ m: r.error ?? "Geçersiz", iyi: false }); return; }
-    const value = r.value as number, fark = Math.abs(hedef - value);
+  const tasaDokun = (id: number) => {
+    if (secilen === null || op === null) { setSecilen(secilen === id ? null : id); setOp(null); setMesaj({ m: "", iyi: false }); return; }
+    if (id === secilen) { setSecilen(null); setOp(null); return; }
+    // ikinci sayı seçildi: işlemi yap
+    const A = taslar.find((x) => x.id === secilen)!, B = taslar.find((x) => x.id === id)!;
+    const hesapla = (x: Tas, y: Tas): number | string => {
+      if (op === "+") return x.v + y.v;
+      if (op === "×") return x.v * y.v;
+      if (op === "−") return x.v > y.v ? x.v - y.v : "Çıkarma sonucu pozitif olmalı";
+      return y.v !== 0 && x.v % y.v === 0 ? x.v / y.v : "Bölme tam sayı çıkmalı";
+    };
+    let x = A, y = B, r = hesapla(x, y);
+    if (typeof r === "string" && (op === "−" || op === "÷")) { const ters = hesapla(B, A); if (typeof ters === "number") { x = B; y = A; r = ters; } }   // sırayı kendisi düzeltir
+    if (typeof r === "string") { setMesaj({ m: r, iyi: false }); setSecilen(null); setOp(null); return; }
+    const yeni: Tas = { id: sonId.current++, v: r, e: `(${x.e}${op}${y.e})` };
+    const satir = H.stepText({ a: x.v, op: op, b: y.v, r });
+    setGecmis((g) => [...g, { taslar, adimlar }]);
+    setTaslar([...taslar.filter((k) => k.id !== A.id && k.id !== B.id), yeni]);
+    setAdimlar([...adimlar, satir]); setSecilen(null); setOp(null);
+    const fark = Math.abs(hedef - r);
     const b = fark === 0 && bonus ? H.timeBonus(kalanSnFn()) : 0;
-    const puan = H.numberScore(hedef, value) + b;
-    setMesaj({ m: `= ${value}${fark ? ` (fark ${fark})` : " — tam isabet!"} · ${puan} puan${b ? ` (süre bonusu +${b})` : ""}`, iyi: puan > 0 });
-    const yeni = { value, fark, puan, expr: ifade };
-    if (!enIyiRef.current || fark < enIyiRef.current.fark || (fark === enIyiRef.current.fark && puan > enIyiRef.current.puan)) { enIyiRef.current = yeni; setEnIyi(yeni); }
+    const puan = H.numberScore(hedef, r) + b;
+    setMesaj({ m: fark ? "" : "Tam isabet!", iyi: true });
+    if (!enIyiRef.current || fark < enIyiRef.current.fark) { enIyiRef.current = { value: r, fark, puan, expr: yeni.e }; setEnIyi(enIyiRef.current); }
     if (fark === 0) bitir();
   };
+  const geriAl = () => {
+    const son = gecmis[gecmis.length - 1];
+    if (!son) return;
+    setTaslar(son.taslar); setAdimlar(son.adimlar); setGecmis((g) => g.slice(0, -1)); setSecilen(null); setOp(null); setMesaj({ m: "", iyi: false });
+  };
 
-  const gonderRef = useRef(gonder); gonderRef.current = gonder;
-  useEffect(() => {
-    if (Platform.OS !== "web") return;
-    const f = (e: KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); gonderRef.current(); } };
-    document.addEventListener("keydown", f);
-    return () => document.removeEventListener("keydown", f);
-  }, []);
-
-  const kalanSayac: Record<string, number> = { ...kullan };
+  const yonerge = secilen === null ? "Bir sayı seç" : op === null ? "Bir işlem seç" : "İkinci sayıyı seç";
   return (
     <Ekran ust={ust}
-      alt={<>
-        <Sira bosluk={10} stil={{ flexWrap: "nowrap" }}>
-          <Dugme testID="sil" baslik="⌫" onPress={() => setIfade((s) => s.slice(0, -1))} />
-          <Dugme testID="gonder" birincil buyuk esnek baslik="Gönder" onPress={gonder} />
-        </Sira>
-        <Dugme testID="bitir" hayalet baslik="Turu bitir" onPress={bitir} />
-      </>}>
+      alt={<Sira bosluk={10} stil={{ flexWrap: "nowrap" }}>
+        <Dugme testID="geri" baslik="↶ Geri al" pasif={gecmis.length === 0} onPress={geriAl} />
+        <Dugme testID="bitir" birincil buyuk esnek baslik={enIyi ? `Bitir (${enIyi.value})` : "Bitir"} onPress={bitir} />
+      </Sira>}>
       <SayacCubugu kalanMs={kalanMs} sureSn={sureSn} />
-      <View style={{ alignItems: "center", justifyContent: "center", height: 170 }}>
-        <Halkalar boyut={170} adet={4} mutlak />
-        <Text style={{ position: "absolute", top: 18, color: t.soluk, fontFamily: FONT.kalin, fontSize: 12, letterSpacing: 2 }}>HEDEF</Text>
-        <Text testID="hedef" style={{ fontFamily: FONT.siyah, fontSize: 68, color: t.vurguMetin }}>{hedef}</Text>
+      <View style={{ alignItems: "center", justifyContent: "center", height: 150 }}>
+        <Halkalar boyut={150} adet={4} mutlak />
+        <Text style={{ position: "absolute", top: 14, color: t.soluk, fontFamily: FONT.kalin, fontSize: 12, letterSpacing: 2 }}>HEDEF</Text>
+        <Text testID="hedef" style={{ fontFamily: FONT.siyah, fontSize: 60, color: t.vurguMetin }}>{hedef}</Text>
       </View>
-      <View style={{ flex: 1, minHeight: 10 }} />
-      <Sira ortala bosluk={6}>
-        {sayilar.map((n, i) => {
-          const kk = String(n); const kullanildi = (kalanSayac[kk] ?? 0) > 0;
-          if (kullanildi) kalanSayac[kk]--;
-          return <Karo key={i} testID={`sayi-${n}`} boyut="o" harf={String(n)} kullanildi={kullanildi} onPress={() => setIfade((s) => s + n)} />;
-        })}
-      </Sira>
-      <View style={{ height: 14 }} />
-      <TextInput testID="ifade" value={ifade} onChangeText={setIfade} placeholder="(7+3)×8−5" placeholderTextColor={t.soluk}
-        autoCapitalize="none" autoCorrect={false} onSubmitEditing={gonder} inputMode="none" showSoftInputOnFocus={false}
-        style={{ color: t.yazi, backgroundColor: t.yuzey2, borderColor: t.cizgi, borderWidth: 1, borderRadius: 16, height: 62, fontSize: 28, textAlign: "center", fontFamily: FONT.kalin }} />
-      <Bildirim metin={mesaj.m} iyi={mesaj.iyi} testID="mesaj" />
+      <Text testID="enIyi" style={{ textAlign: "center", color: t.soluk, fontFamily: FONT.kalin, fontSize: 14, marginBottom: 6 }}>
+        {enIyi ? `En yakın: ${enIyi.value} (fark ${enIyi.fark})` : "Henüz sonuç yok"}
+      </Text>
+      <Kart stil={{ marginBottom: 10, minHeight: 72, paddingVertical: 10 }}>
+        {adimlar.length === 0
+          ? <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 15, textAlign: "center", marginTop: 14 }}>İşlemlerin burada görünür</Text>
+          : adimlar.slice(-4).map((a, i, d) => (
+            <Text key={adimlar.length - d.length + i} testID="adim" style={{ color: i === d.length - 1 ? t.yazi : t.soluk, fontFamily: i === d.length - 1 ? FONT.siyah : FONT.kalin, fontSize: i === d.length - 1 ? 22 : 16, textAlign: "center" }}>{a}</Text>
+          ))}
+      </Kart>
+      <View style={{ flex: 1, minHeight: 6 }} />
+      <Text style={{ textAlign: "center", color: t.soluk, fontFamily: FONT.kalin, fontSize: 13, marginBottom: 8 }}>{yonerge}</Text>
       <Sira ortala bosluk={8}>
+        {taslar.map((k) => <Karo key={k.id} testID={`sayi-${k.v}`} boyut="o" harf={String(k.v)} secili={k.id === secilen} onPress={() => tasaDokun(k.id)} />)}
+      </Sira>
+      <Bildirim metin={mesaj.m} iyi={mesaj.iyi} testID="mesaj" />
+      <Sira ortala bosluk={10}>
         {OPERATORLER.map((o) => (
-          <View key={o} style={{ width: 48 }}><Dugme testID={`op-${o}`} baslik={o} onPress={() => setIfade((s) => s + o)} /></View>
+          <View key={o} style={{ width: 70 }}><Dugme testID={`op-${o}`} buyuk birincil={op === o} pasif={secilen === null} baslik={o} onPress={() => setOp(op === o ? null : o)} /></View>
         ))}
       </Sira>
-      <Text testID="enIyi" style={{ textAlign: "center", color: t.soluk, fontFamily: FONT.kalin, fontSize: 14, marginTop: 12 }}>
-        {enIyi ? `En iyin: ${enIyi.value} (fark ${enIyi.fark}, ${enIyi.puan} puan)` : "Henüz sonuç yok"}
-      </Text>
     </Ekran>
   );
 }

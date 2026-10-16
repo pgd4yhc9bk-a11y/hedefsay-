@@ -98,7 +98,7 @@ export function Gunluk({ onMenu }: { onMenu: () => void }) {
           enIyi={{ baslik: "BU HARFLERLE EN İYİ", cevap: sonuc.best_solution ?? "", kelime: true, ayrinti: sonuc.best_solution ? `${up(sonuc.best_solution)} (${sonuc.best_score} puan)` : "—" }}
           ek={!sonuc.valid ? <Hata metin={sonuc.detail} /> : undefined} />
       : <TurSonucu ust={ust(tur + 1)} tur={tur} tip="islem" ileriBaslik={ileriBaslik} onIleri={ileri} sen={{ ad: "Sen", puan: sonuc.score, cevap: sonuc.cevap, deger: sonuc.islemDeger }}
-          enIyi={{ baslik: "BİLGİSAYARIN ÇÖZÜMÜ", cevap: `${sonuc.best_solution ?? "—"} = ${veri.payload.target}`, ayrinti: `Hedef ${veri.payload.target}` }}
+          enIyi={{ baslik: "BİLGİSAYARIN ÇÖZÜMÜ", cevap: sonuc.best_solution ?? "", ayrinti: `Hedef ${veri.payload.target}` }}
           ek={!sonuc.valid ? <Hata metin={sonuc.detail} /> : undefined} />;
   }
   if (asama === "son") {

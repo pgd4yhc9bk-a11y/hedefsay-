@@ -49,6 +49,19 @@ t("sayı turu: 30 tur, hedef 101–999 ve çözücü ifadesi geçerli", () => {
   }
 });
 
+t("expressionSteps: adımlar sırayla, parantezsiz gösterilebilir", () => {
+  const st = H.expressionSteps("(7+3)×8−5");
+  assert.deepStrictEqual(st.map(H.stepText), ["7 + 3 = 10", "10 × 8 = 80", "80 − 5 = 75"]);
+  assert.deepStrictEqual(H.expressionSteps("30×2").map(H.stepText), ["30 × 2 = 60"]);
+  assert.deepStrictEqual(H.expressionSteps("8-(5-2)").map(H.stepText), ["5 − 2 = 3", "8 − 3 = 5"]);
+  assert.strictEqual(H.expressionSteps("(7+"), null);
+  assert.deepStrictEqual(H.expressionSteps("42"), []);
+  for (let i = 0; i < 10; i++) {   // çözücü ifadelerinin adımları tutarlı: son adımın sonucu hedef
+    const r = H.generateNumberRound(H.makeRng("adim" + i)), steps = H.expressionSteps(r.found.get(r.target).e);
+    assert.strictEqual(steps[steps.length - 1].r, r.target);
+  }
+});
+
 t("çözücü: bilinen örnek", () => {
   const f = H.solve([25, 50, 75, 100, 3, 6]);
   assert.ok(f.has(952));

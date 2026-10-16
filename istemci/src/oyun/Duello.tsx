@@ -7,7 +7,7 @@ import { FONT } from "../tema";
 import { IslemSonuc, IslemTuru, KelimeSonuc, KelimeTuru } from "../turlar";
 import { Avatar, BuyukRakam, Dugme, Ekran, Metin, Radar, UstCubuk, up, useTema } from "../ui";
 import { HataEkrani, Profil, TUR_ADI, Yukleniyor } from "./ortak";
-import { OyunSonu, TurSonucu } from "./sonuc";
+import { OyunSonu, TurSonucu, rakipAdi } from "./sonuc";
 
 type Asama = "yukleniyor" | "profil" | "bekle" | "sayim" | "oyna" | "gonderiliyor" | "rakipBekle" | "sonuc" | "son" | "hata";
 
@@ -20,6 +20,7 @@ export function Duello({ onMenu }: { onMenu: () => void }) {
   const [veri, setVeri] = useState<any>(null);       // start yanıtı (bulmaca)
   const [sayim, setSayim] = useState(0);
   const [bekle, setBekle] = useState<any>(null);     // bekleyen maç görünümü
+  const [rakipKalan, setRakipKalan] = useState<number | null>(null);   // rakibe kalan süre (ms)
   const [gorunum, setGorunum] = useState<any>(null); // son sunucu görünümü (sonuçlar)
   const [hata, setHata] = useState("");
   const macId = useRef("");
@@ -110,6 +111,7 @@ export function Duello({ onMenu }: { onMenu: () => void }) {
       try {
         const v = await S.duello("status", { match_id: macId.current });
         if (v.bitti || v.sonuclar.length >= tur + 1) ok(() => { setGorunum(v); setToplam({ ben: v.toplam.ben, rakip: v.toplam.rakip }); setAsama("sonuc"); });
+        else ok(() => setRakipKalan(v.rakip_kalan_ms ?? null));
       } catch { /* yeniden dener */ } finally { calisiyor = false; }
     }, 1200);
     return () => clearInterval(id);
@@ -135,7 +137,7 @@ export function Duello({ onMenu }: { onMenu: () => void }) {
   const islemBitti = (s: IslemSonuc | null) => gonder(s?.expr ?? "");
   const ileri = async () => { try { goster(await S.duello("status", { match_id: macId.current })); } catch (e: any) { hataGoster(e.message, ileri); } };
 
-  const ust = (bitenler = tur) => <UstCubuk tur={tur} bitenler={bitenler} ad={TUR_ADI(tur)} sen={toplam.ben} rakip={toplam.rakip} rakipAd={rakip.nick} />;
+  const ust = (bitenler = tur) => <UstCubuk tur={tur} bitenler={bitenler} ad={TUR_ADI(tur)} sen={toplam.ben} rakip={toplam.rakip} rakipAd={rakipAdi(rakip)} />;
   if (asama === "yukleniyor") return <Yukleniyor />;
   if (asama === "hata") return <HataEkrani mesaj={hata} yeniden={yeniden.current} onMenu={onMenu} />;
   if (asama === "profil") return <Profil onTamam={giris} onMenu={onMenu} />;
@@ -146,7 +148,7 @@ export function Duello({ onMenu }: { onMenu: () => void }) {
           <Radar />
           <Metin v="baslikBuyuk">Rakip aranıyor…</Metin>
           <Metin soluk ortala testID="bekle-bilgi">
-            {bekle?.bot_icin_kalan_ms > 0 ? `${Math.ceil(bekle.bot_icin_kalan_ms / 1000)} sn içinde gerçek rakip bulunamazsa Bot ile oynarsın.` : "Bot hazırlanıyor…"}
+            {bekle?.bot_icin_kalan_ms > 0 ? `${Math.ceil(bekle.bot_icin_kalan_ms / 1000)} sn içinde gerçek rakip bulunamazsa yapay zekâ rakibiyle oynarsın.` : "Yapay zekâ rakibi hazırlanıyor…"}
           </Metin>
         </View>
       </Ekran>
@@ -162,14 +164,16 @@ export function Duello({ onMenu }: { onMenu: () => void }) {
             <Avatar ad={rakip.nick} boyut={52} />
           </View>
           <Metin v="baslik">Tur {tur + 1} · {TUR_ADI(tur)}</Metin>
-          <Metin soluk ortala>Rakip: <Text style={{ color: t.yazi, fontFamily: FONT.kalin }}>{rakip.nick}</Text>. Herkes aynı anda başlıyor.</Metin>
+          <Metin soluk ortala>Rakip: <Text style={{ color: t.yazi, fontFamily: FONT.kalin }}>{rakipAdi(rakip)}</Text>{rakip.bot ? " (yapay zekâ)" : rakip.city ? ` · ${rakip.city}` : ""}. Herkes aynı anda başlıyor.</Metin>
           <BuyukRakam n={sayim} testID="geri-sayim" />
         </View>
       </Ekran>
     );
   }
   if (asama === "gonderiliyor") return <Yukleniyor metin="Cevabın gönderiliyor…" ust={ust()} />;
-  if (asama === "rakipBekle") return <Yukleniyor metin={`Cevabın alındı. ${rakip.nick} bekleniyor…`} ust={ust()} />;
+  if (asama === "rakipBekle") {
+    return <Yukleniyor ust={ust()} metin={`Cevabın alındı. ${rakipAdi(rakip)} bitirsin diye bekleniyor…${rakipKalan != null ? ` (en fazla ${Math.ceil(rakipKalan / 1000)} sn)` : ""}`} />;
+  }
   if (asama === "oyna" && veri) {
     return veri.kind === "kelime"
       ? <KelimeTuru key={tur} ust={ust()} harfler={veri.payload.letters} sureSn={veri.limit_sec} kalanSn={veri.kalanSn} onBitir={kelimeBitti} />
@@ -181,18 +185,18 @@ export function Duello({ onMenu }: { onMenu: () => void }) {
     const ileriBaslik = tur >= 3 ? "Sonucu gör" : "Sonraki tur";
     return s.kind === "kelime"
       ? <TurSonucu ust={ust(tur + 1)} tur={tur} tip="kelime" ileriBaslik={ileriBaslik} onIleri={ileri}
-          sen={{ ad: "Sen", puan: s.ben.score, cevap: s.ben.answer }} rakip={{ ad: rakip.nick, puan: s.rakip.score, cevap: s.rakip.answer }}
+          sen={{ ad: "Sen", puan: s.ben.score, cevap: s.ben.answer }} rakip={{ ad: rakip.nick, bot: rakip.bot, puan: s.rakip.score, cevap: s.rakip.answer }} otomatikSn={6}
           enIyi={{ baslik: "BU HARFLERLE EN İYİ", cevap: s.best_solution, kelime: true, ayrinti: `${up(s.best_solution)} (${s.best_score} puan)` }} />
       : <TurSonucu ust={ust(tur + 1)} tur={tur} tip="islem" ileriBaslik={ileriBaslik} onIleri={ileri}
-          sen={{ ad: "Sen", puan: s.ben.score, cevap: s.ben.answer }} rakip={{ ad: rakip.nick, puan: s.rakip.score, cevap: s.rakip.answer }}
-          enIyi={{ baslik: "BİLGİSAYARIN ÇÖZÜMÜ", cevap: `${s.best_solution} = ${s.target}`, ayrinti: `Hedef ${s.target}` }} />;
+          sen={{ ad: "Sen", puan: s.ben.score, cevap: s.ben.answer }} rakip={{ ad: rakip.nick, bot: rakip.bot, puan: s.rakip.score, cevap: s.rakip.answer }} otomatikSn={6}
+          enIyi={{ baslik: "BİLGİSAYARIN ÇÖZÜMÜ", cevap: s.best_solution, ayrinti: `Hedef ${s.target}` }} />;
   }
   if (asama === "son" && gorunum) {
     const k = gorunum.kazanan as "ben" | "rakip" | "berabere";
-    const baslik = k === "ben" ? "Kazandın! 🏆" : k === "rakip" ? `${rakip.nick} kazandı` : "Berabere";
+    const baslik = k === "ben" ? "Kazandın! 🏆" : k === "rakip" ? `${rakipAdi(rakip)} kazandı` : "Berabere";
     const turlar = gorunum.sonuclar.map((x: any) => ({ ben: x.ben.score, rakip: x.rakip.score }));
     const simgeler = turlar.map((x: any) => (x.ben > x.rakip ? "🟩" : x.ben < x.rakip ? "🟥" : "⬜")).join("");
-    return <OyunSonu kazanan={k} baslik={baslik} sen={gorunum.toplam.ben} rakip={gorunum.toplam.rakip} rakipAd={rakip.nick} turlar={turlar}
+    return <OyunSonu kazanan={k} baslik={baslik} sen={gorunum.toplam.ben} rakip={gorunum.toplam.rakip} rakipAd={rakip.nick} rakipBot={rakip.bot} turlar={turlar}
       paylasMetni={`Hedef Düello\n${simgeler} ${gorunum.toplam.ben}–${gorunum.toplam.rakip}`} onRovans={giris} onMenu={onMenu} />;
   }
   return null;
