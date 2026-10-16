@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, Text, View } from "react-native";
 import H from "./cekirdek";
 import { FONT } from "./tema";
-import { Bildirim, Dugme, Ekran, Halkalar, Karo, Kart, Metin, SayacCubugu, Sira, up, useGeriSayim, useTema, Yazi } from "./ui";
+import { Bildirim, Dugme, Ekran, Karo, Kart, Metin, SayacCubugu, Sira, up, useGeriSayim, useTema, Yazi } from "./ui";
 
 export interface KelimeSonuc { word: string; score: number }
 export interface IslemSonuc { value: number; fark: number; puan: number; expr: string }
@@ -89,7 +89,7 @@ export function KelimeTuru({ harfler, sureSn, kalanSn, ust, onBitir }: Ortak & {
           {enIyi ? `En iyin: ${up(enIyi.word)} · ${enIyi.score} puan` : "Henüz geçerli kelime yok"}
         </Text>
       </View>
-      <View style={{ minHeight: 64, alignItems: "center", justifyContent: "center", marginBottom: 4 }}>
+      <View style={{ minHeight: 76, alignItems: "center", justifyContent: "center", marginBottom: 4, backgroundColor: "#E4ECFF", borderRadius: 22, borderWidth: 1, borderColor: "#C9D7FF", paddingHorizontal: 8 }}>
         {giris.length === 0
           ? <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 16 }}>Harflere dokunarak kelimeni kur</Text>
           : <Sira ortala bosluk={5}>{giris.map((g, i) => <Karo key={i} boyut="o" harf={g.ch} joker={g.joker} pop />)}</Sira>}
@@ -180,10 +180,9 @@ export function IslemTuru({ sayilar, hedef, sureSn, kalanSn, bonus, ust, onBitir
         <Dugme testID="bitir" birincil buyuk esnek baslik={enIyi ? `Bitir (${enIyi.value})` : "Bitir"} onPress={bitir} />
       </Sira>}>
       <SayacCubugu kalanMs={kalanMs} sureSn={sureSn} />
-      <View style={{ alignItems: "center", justifyContent: "center", height: 150 }}>
-        <Halkalar boyut={150} adet={4} mutlak />
-        <Text style={{ position: "absolute", top: 14, color: t.soluk, fontFamily: FONT.kalin, fontSize: 12, letterSpacing: 2 }}>HEDEF</Text>
-        <Text testID="hedef" style={{ fontFamily: FONT.siyah, fontSize: 60, color: t.vurguMetin }}>{hedef}</Text>
+      <View style={{ alignItems: "center", backgroundColor: t.mercanZemin, borderRadius: 24, paddingVertical: 12, marginBottom: 8, borderWidth: 1, borderColor: "#FFC9B9" }}>
+        <Text style={{ color: t.mercan, fontFamily: FONT.siyah, fontSize: 13, letterSpacing: 2 }}>🎯 HEDEF SAYI</Text>
+        <Text testID="hedef" style={{ fontFamily: FONT.siyah, fontSize: 64, lineHeight: 72, color: t.mercan }}>{hedef}</Text>
       </View>
       <Text testID="enIyi" style={{ textAlign: "center", color: t.soluk, fontFamily: FONT.kalin, fontSize: 14, marginBottom: 6 }}>
         {enIyi ? `En yakın: ${enIyi.value} (fark ${enIyi.fark})` : "Henüz sonuç yok"}

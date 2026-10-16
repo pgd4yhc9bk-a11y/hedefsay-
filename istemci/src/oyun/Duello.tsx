@@ -138,7 +138,7 @@ export function Duello({ onMenu }: { onMenu: () => void }) {
   const islemBitti = (s: IslemSonuc | null) => gonder(s?.expr ?? "");
   const ileri = async () => { try { goster(await S.duello("status", { match_id: macId.current })); } catch (e: any) { hataGoster(e.message, ileri); } };
 
-  const ust = (bitenler = tur) => <UstCubuk tur={tur} bitenler={bitenler} ad={TUR_ADI(tur)} sen={toplam.ben} rakip={toplam.rakip} rakipAd={rakipAdi(rakip)} />;
+  const ust = (bitenler = tur) => <UstCubuk tur={tur} bitenler={bitenler} ad={TUR_ADI(tur)} sen={toplam.ben} rakip={toplam.rakip} rakipAd={rakip.nick} rakipBot={rakip.bot} rakipUrl={rakip.avatar_url} baslik="Canlı düello" />;
   if (asama === "yukleniyor") return <Yukleniyor />;
   if (asama === "hata") return <HataEkrani mesaj={hata} yeniden={yeniden.current} onMenu={onMenu} />;
   if (asama === "profil") return <Profil onTamam={giris} onMenu={onMenu} />;

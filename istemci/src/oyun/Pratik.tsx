@@ -82,7 +82,7 @@ export function Pratik({ onMenu }: { onMenu: () => void }) {
   };
   const ileri = () => { if (tur < 3) { setTur(tur + 1); turHazirla(tur + 1); } else setAsama("son"); };
 
-  const ust = (bitenler = tur) => <UstCubuk tur={tur} bitenler={bitenler} ad={TUR_ADI(tur)} sen={toplam.ben} rakip={toplam.bot} rakipAd="🤖 Bot" />;
+  const ust = (bitenler = tur) => <UstCubuk tur={tur} bitenler={bitenler} ad={TUR_ADI(tur)} sen={toplam.ben} rakip={toplam.bot} rakipAd="Bilgisayar" rakipBot baslik="Pratik" />;
   if (asama === "son") {
     const kazanan = toplam.ben > toplam.bot ? "ben" : toplam.ben < toplam.bot ? "rakip" : "berabere";
     const baslik = kazanan === "ben" ? "Kazandın! 🏆" : kazanan === "rakip" ? "Bot kazandı" : "Berabere";

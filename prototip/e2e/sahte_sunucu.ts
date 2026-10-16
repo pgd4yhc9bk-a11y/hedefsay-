@@ -86,7 +86,8 @@ gercekServe({ port: Number(Deno.env.get("PORT") ?? 8787), onListen: () => consol
     const b = await req.json();
     if (b.id !== uid) return json({ message: "RLS" }, 403);
     if (String(b.nick).length < 2) return json({ message: "nick kısa" }, 400);
-    db.players.push({ id: b.id, nick: b.nick, city: b.city, avatar_url: b.avatar_url ?? null, kayit_izni: b.kayit_izni ?? false });
+    db.players.push({ id: b.id, nick: b.nick, city: b.city, avatar_url: b.avatar_url ?? null, kayit_izni: b.kayit_izni ?? false,
+      arkadas_kodu: Array.from({ length: 6 }, () => "ABCDEFGHJKLMNPRSTUVYZ23456789"[Math.floor(Math.random() * 29)]).join("") });
     return new Response(null, { status: 201, headers: cors });
   }
   if (p === "/rest/v1/players" && req.method === "PATCH") {
@@ -95,6 +96,46 @@ gercekServe({ port: Number(Deno.env.get("PORT") ?? 8787), onListen: () => consol
     if (b.avatar_url && !String(b.avatar_url).includes("/storage/v1/object/public/avatarlar/" + uid + "/")) return json({ message: "avatar_url kendi klasörün olmalı" }, 400);
     Object.assign(satir, b);
     return new Response(null, { status: 204, headers: cors });
+  }
+  if (p.startsWith("/rest/v1/rpc/arkadas_")) {   // arkadaşlık işlevlerinin taklidi (gerçeği SQL testlerinde doğrulanır)
+    const b = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+    const hata = (m: string) => json({ message: m }, 400);
+    const ben = db.players.find((x) => x.id === uid);
+    if (!ben) return hata("Önce oyuncu kartını oluştur");
+    db.arkadaslik ??= [];
+    const bul = (id: string) => db.arkadaslik.find((a: any) => a.id === id);
+    const ad = p.replace("/rest/v1/rpc/", "");
+    if (ad === "arkadas_listesi") {
+      return json({ kod: ben.arkadas_kodu, liste: db.arkadaslik.filter((a: any) => a.gonderen === uid || a.alan === uid).map((a: any) => {
+        const o = db.players.find((x) => x.id === (a.gonderen === uid ? a.alan : a.gonderen));
+        return { id: a.id, kullanici: o.id, nick: o.nick, city: o.city, avatar_url: o.avatar_url, durum: a.durum === "kabul" ? "arkadas" : a.alan === uid ? "gelen" : "giden" };
+      }) });
+    }
+    if (ad === "arkadas_ekle") {
+      const h = db.players.find((x) => x.arkadas_kodu === String(b.p_kod ?? "").trim().toUpperCase());
+      if (!h) return hata("Bu kodla oyuncu bulunamadı");
+      if (h.id === uid) return hata("Bu senin kendi kodun");
+      const var_ = db.arkadaslik.find((a: any) => [a.gonderen, a.alan].includes(uid) && [a.gonderen, a.alan].includes(h.id));
+      if (var_) {
+        if (var_.durum === "kabul") return hata("Zaten arkadaşsınız");
+        if (var_.alan === uid) { var_.durum = "kabul"; return json({ durum: "arkadas" }); }
+        return hata("İstek zaten gönderildi");
+      }
+      db.arkadaslik.push({ id: crypto.randomUUID(), gonderen: uid, alan: h.id, durum: "bekliyor" });
+      return json({ durum: "giden" });
+    }
+    if (ad === "arkadas_yanit") {
+      const a = bul(b.p_id);
+      if (!a || a.alan !== uid || a.durum !== "bekliyor") return hata("İstek bulunamadı");
+      if (b.p_kabul) a.durum = "kabul"; else db.arkadaslik.splice(db.arkadaslik.indexOf(a), 1);
+      return new Response(null, { status: 204, headers: cors });
+    }
+    if (ad === "arkadas_sil") {
+      const a = bul(b.p_id);
+      if (!a || ![a.gonderen, a.alan].includes(uid)) return hata("Kayıt bulunamadı");
+      db.arkadaslik.splice(db.arkadaslik.indexOf(a), 1);
+      return new Response(null, { status: 204, headers: cors });
+    }
   }
   if (p === "/rest/v1/daily_scores") {
     return json(db.daily_scores.filter((x) => x.player_id === uid && x.date === eq("date"))

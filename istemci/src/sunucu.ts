@@ -85,6 +85,26 @@ export async function avatarYukle(uri: string, mime = "image/jpeg"): Promise<str
   if (!r.ok) { let m = "Yüklenemedi"; try { m = (await r.json()).message ?? m; } catch { /* gövde yok */ } throw new SunucuHatasi(m, r.status); }
   return `${AYAR.url}/storage/v1/object/public/avatarlar/${yol}?v=${Date.now()}`;
 }
+export interface Arkadas { id: string; kullanici: string; nick: string; city: string | null; avatar_url: string | null; durum: "arkadas" | "gelen" | "giden" }
+/** Kendi arkadaş kodum + arkadaşlar, gelen ve giden istekler */
+export async function arkadaslar(): Promise<{ kod: string; liste: Arkadas[] }> {
+  const o = await oturum();
+  return istek("/rest/v1/rpc/arkadas_listesi", { method: "POST", jwt: o.access_token, body: {} });
+}
+/** Kodla istek gönder; karşı taraf zaten istek göndermişse doğrudan arkadaş olunur */
+export async function arkadasEkle(kod: string): Promise<{ durum: "arkadas" | "giden" }> {
+  const o = await oturum();
+  return istek("/rest/v1/rpc/arkadas_ekle", { method: "POST", jwt: o.access_token, body: { p_kod: kod } });
+}
+export async function arkadasYanit(id: string, kabul: boolean): Promise<void> {
+  const o = await oturum();
+  await istek("/rest/v1/rpc/arkadas_yanit", { method: "POST", jwt: o.access_token, body: { p_id: id, p_kabul: kabul } });
+}
+/** Arkadaşı sil veya gönderdiğin isteği geri çek */
+export async function arkadasSil(id: string): Promise<void> {
+  const o = await oturum();
+  await istek("/rest/v1/rpc/arkadas_sil", { method: "POST", jwt: o.access_token, body: { p_id: id } });
+}
 export async function skorlar(tarih: string): Promise<{ round: number; score: number }[]> {
   const o = await oturum();
   return istek("/rest/v1/daily_scores?select=round,score&order=round.asc&date=eq." + tarih, { jwt: o.access_token });

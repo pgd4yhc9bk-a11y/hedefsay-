@@ -74,3 +74,9 @@ $$);
 - **İzin varsayılan kapalıdır**, oyuncu kayıtta veya "Profilim"de açar ve istediği zaman kapatır. Yayından önce **aydınlatma metni** bu işlemeyi (ad, fotoğraf, oyun kaydının başkalarına gösterilmesi) açıkça anlatmalı.
 - Fotoğraflar herkese açık okunur. **Yayından önce:** uygunsuz görsel için şikâyet/kaldırma yolu ve gerekirse içerik denetimi gerekir (şu an yok).
 - Hesap silinince oyuncu satırı gider; `matches.ghost_player` `set null` olur ve o oyuncunun kayıtlı maçı artık rakip olarak seçilmez (depodaki fotoğraf dosyası ayrıca silinmelidir: henüz otomatik değil).
+
+## Arkadaşlar (migration `20261022000000_arkadaslar.sql`)
+
+- Her oyuncunun 6 karakterli bir **arkadaş kodu** vardır (`players.arkadas_kodu`). İstemci yalnızca kendi kodunu `arkadas_listesi()` ile görür; sütun okuma/yazma yetkisi kapalıdır, başkalarının kodu listelenemez.
+- `arkadaslik` tablosu istemciye kapalıdır (RLS açık, politika yok). İşlemler SECURITY DEFINER işlevlerle yapılır: `arkadas_listesi`, `arkadas_ekle(kod)`, `arkadas_yanit(id, kabul)`, `arkadas_sil(id)`. İstek karşı tarafça kabul edilince arkadaşlık başlar; karşılıklı istek doğrudan arkadaş yapar; en çok 50 bekleyen istek.
+- **Dikkat:** `players` tablosunda artık tablo düzeyinde değil sütun düzeyinde yetki var. Yeni sütun eklenirse istemcinin okuması/yazması için ayrıca `grant select/insert/update (sütun)` gerekir.

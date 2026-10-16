@@ -11,31 +11,66 @@ import { Profilim } from "./src/oyun/ortak";
 import { Pratik } from "./src/oyun/Pratik";
 import * as S from "./src/sunucu";
 import { FONT } from "./src/tema";
-import { Belir, Dugme, Ekran, Karo, Kart, Logo, Metin, Sira, useTema } from "./src/ui";
+import { Belir, Dugme, Ekran, Karo, Kart, Metin, Sira, useTema } from "./src/ui";
 import { bugun } from "./src/zaman";
 
 type Ekranlar = "menu" | "pratik" | "gunluk" | "duello" | "profilim";
 
-function ModKarti({ baslik, alt, ikon, onPress, vurgulu, testID }: { baslik: string; alt: string; ikon: string; onPress: () => void; vurgulu?: boolean; testID: string }) {
+function ModKarti({ baslik, alt, ikon, onPress, renk, dugme, testID }: { baslik: string; alt: string; ikon: string; onPress: () => void; renk: "mavi" | "sari" | "acik"; dugme: string; testID: string }) {
   const t = useTema();
-  const icerik = (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 14, padding: 18 }}>
-      <View style={{ width: 52, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: vurgulu ? "rgba(29,19,0,0.14)" : t.yuzey2 }}>
-        <Text style={{ fontSize: 26 }}>{ikon}</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: FONT.siyah, fontSize: 20, color: vurgulu ? t.vurguYazi : t.yazi }}>{baslik}</Text>
-        <Text style={{ fontFamily: FONT.orta, fontSize: 14, color: vurgulu ? "rgba(29,19,0,0.75)" : t.soluk, marginTop: 2 }}>{alt}</Text>
-      </View>
-      <Text style={{ fontFamily: FONT.siyah, fontSize: 26, color: vurgulu ? t.vurguYazi : t.soluk }}>›</Text>
-    </View>
-  );
+  const mavi = renk === "mavi", sari = renk === "sari";
+  const zemin = mavi ? t.vurgu : sari ? t.sari : t.yuzey;
+  const kenar = mavi ? t.vurguAlt : sari ? t.sariAlt : t.cizgi;
+  const yazi = mavi ? "#FFFFFF" : t.yazi;
+  const pill = mavi ? t.mercan : t.vurgu;
   return (
     <Pressable testID={testID} accessibilityRole="button" onPress={onPress}
-      style={({ pressed }) => [{ borderRadius: 22, marginBottom: 12, overflow: "hidden", borderWidth: vurgulu ? 0 : 1, borderBottomWidth: vurgulu ? 5 : 3, borderColor: vurgulu ? t.vurguAlt : t.cizgi,
-        backgroundColor: vurgulu ? t.vurgu : t.yuzey }, pressed && { transform: [{ scale: 0.98 }] }]}>
-      {vurgulu ? <LinearGradient colors={["#FFC857", "#FFA620"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>{icerik}</LinearGradient> : icerik}
+      style={({ pressed }) => [{ borderRadius: 26, marginBottom: 14, borderWidth: renk === "acik" ? 1 : 0, borderBottomWidth: 6, borderColor: kenar, backgroundColor: zemin,
+        shadowColor: t.golge, shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 3 }, pressed && { transform: [{ scale: 0.98 }] }]}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 14, padding: 18 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontFamily: FONT.siyah, fontSize: 22, color: yazi }}>{baslik}</Text>
+          <Text style={{ fontFamily: FONT.kalin, fontSize: 14, color: mavi ? "rgba(255,255,255,0.85)" : t.soluk, marginTop: 2, marginBottom: 12 }}>{alt}</Text>
+          <View style={{ alignSelf: "flex-start", backgroundColor: pill, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 8, borderBottomWidth: 3, borderColor: "rgba(0,0,0,0.18)" }}>
+            <Text style={{ fontFamily: FONT.siyah, fontSize: 15, color: "#FFFFFF" }}>{dugme} ›</Text>
+          </View>
+        </View>
+        <Text style={{ fontSize: 58 }}>{ikon}</Text>
+      </View>
     </Pressable>
+  );
+}
+
+function Afis() {
+  const t = useTema();
+  const kar = (harf: string, renk: string, ust: number, yan: Record<string, number>, aci: string) => (
+    <View style={{ position: "absolute", top: ust, ...yan, transform: [{ rotate: aci }] }}>
+      <View style={{ width: 40, height: 40, borderRadius: 11, backgroundColor: renk, alignItems: "center", justifyContent: "center", borderBottomWidth: 4, borderColor: "rgba(0,0,0,0.2)" }}>
+        <Text style={{ fontFamily: FONT.siyah, fontSize: 21, color: renk === t.sari ? t.yazi : "#FFFFFF" }}>{harf}</Text>
+      </View>
+    </View>
+  );
+  const harfler = [["K", t.vurgu], ["E", t.mercan], ["L", t.sari], ["İ", t.vurgu], ["M", t.mercan], ["E", t.iyi]] as const;
+  return (
+    <View style={{ alignItems: "center", paddingVertical: 8, marginBottom: 14, alignSelf: "stretch" }}>
+      {kar("A", t.mercan, 0, { left: 6 }, "-12deg")}{kar("3", t.vurgu, 34, { left: 0 }, "8deg")}
+      {kar("+", t.iyi, 4, { right: 8 }, "10deg")}{kar("★", t.sari, 38, { right: 2 }, "-8deg")}
+      <Sira bosluk={3} ortala>
+        {harfler.map(([c, r], i) => (
+          <View key={i} style={{ width: 34, height: 44, borderRadius: 9, backgroundColor: r, alignItems: "center", justifyContent: "center", borderBottomWidth: 4, borderColor: "rgba(0,0,0,0.2)" }}>
+            <Text style={{ fontFamily: FONT.siyah, fontSize: 24, color: r === t.sari ? t.yazi : "#FFFFFF" }}>{c}</Text>
+          </View>
+        ))}
+      </Sira>
+      <Text style={{ fontFamily: FONT.siyah, fontSize: 22, color: t.mercan, marginVertical: 2 }}>ve</Text>
+      <Sira bosluk={3} ortala>
+        {"İŞLEM".split("").map((c, i) => (
+          <View key={i} style={{ width: 34, height: 44, borderRadius: 9, backgroundColor: [t.sari, t.vurgu, t.mercan, t.iyi, t.vurgu][i], alignItems: "center", justifyContent: "center", borderBottomWidth: 4, borderColor: "rgba(0,0,0,0.2)" }}>
+            <Text style={{ fontFamily: FONT.siyah, fontSize: 24, color: i === 0 ? t.yazi : "#FFFFFF" }}>{c}</Text>
+          </View>
+        ))}
+      </Sira>
+    </View>
   );
 }
 
@@ -66,21 +101,22 @@ function Menu({ git }: { git: (e: Ekranlar) => void }) {
   const [kurallar, setKurallar] = useState(false);
   const sunucu = S.hazir();
   return (
-    <Ekran ortala>
-      <Belir stil={{ alignItems: "center", marginBottom: 26 }}>
-        <Logo />
-        <Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 15, marginTop: 8 }}>Zekâ düellosu</Text>
+    <Ekran ortala alt={<Sira bosluk={10} stil={{ flexWrap: "nowrap" }}>
+      <Dugme testID="kurallar" baslik="❓ Kurallar" onPress={() => setKurallar(true)} />
+      {sunucu && <Dugme testID="menu-profilim" birincil buyuk esnek baslik="👤  Profilim · Arkadaşlar" onPress={() => git("profilim")} />}
+    </Sira>}>
+      <Belir stil={{ alignItems: "center", marginBottom: 14 }}>
+        <Afis />
+        <Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 15, marginTop: 2 }}>Kelimeni kur, işlemini yap, düelloyu kazan!</Text>
       </Belir>
       <Belir gecikme={120}>
-        {sunucu && <ModKarti testID="menu-canli" vurgulu ikon="⚔️" baslik="Canlı düello" alt="Gerçek rakiple, 4 tur" onPress={() => git("duello")} />}
-        <ModKarti testID="menu-pratik" vurgulu={!sunucu} ikon="🤖" baslik={sunucu ? "Pratik" : "Oyna"} alt="Bilgisayara karşı · çevrimdışı" onPress={() => git("pratik")} />
-        {sunucu && <ModKarti testID="menu-gunluk" ikon="📅" baslik="Günlük mücadele" alt={`${bugun()} · herkese aynı bulmaca`} onPress={() => git("gunluk")} />}
+        {sunucu && <ModKarti testID="menu-canli" renk="mavi" dugme="Rakip bul" ikon="⚔️" baslik="Canlı düello" alt="Gerçek rakiple, 4 tur" onPress={() => git("duello")} />}
+        {sunucu && <ModKarti testID="menu-gunluk" renk="sari" dugme="Başla" ikon="📅" baslik="Günlük mücadele" alt={`${bugun()} · herkese aynı bulmaca`} onPress={() => git("gunluk")} />}
+        <ModKarti testID="menu-pratik" renk={sunucu ? "acik" : "mavi"} dugme="Başla" ikon="🤖" baslik={sunucu ? "Pratik" : "Oyna"} alt="Bilgisayara karşı · çevrimdışı" onPress={() => git("pratik")} />
       </Belir>
       <Belir gecikme={240}>
-        <Dugme testID="kurallar" hayalet baslik="Nasıl oynanır?" onPress={() => setKurallar(true)} />
-        {sunucu && <Dugme testID="menu-profilim" hayalet baslik="Profilim" onPress={() => git("profilim")} />}
-        <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 12, textAlign: "center", marginTop: 14, lineHeight: 18 }}>
-          Sözlük: {H.getDictionarySize().toLocaleString("tr")} kelime · kaynak: VikiSözlük (CC BY-SA).{"\n"}Bu oyunun TV programıyla bağlantısı yoktur.
+        <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 12, textAlign: "center", marginTop: 4, lineHeight: 18 }}>
+          Sözlük: {H.getDictionarySize().toLocaleString("tr")} kelime · kaynak: VikiSözlük (CC BY-SA).{"\n"}Bu oyunun TV programıyla bağlantısı yoktur.{process.env.EXPO_PUBLIC_SURUM ? `\nSürüm: ${process.env.EXPO_PUBLIC_SURUM.slice(0, 14)}` : ""}
         </Text>
       </Belir>
       <Kurallar acik={kurallar} kapat={() => setKurallar(false)} />

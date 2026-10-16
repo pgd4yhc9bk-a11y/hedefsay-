@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { ActivityIndicator, Switch, Text, TextInput, View } from "react-native";
 import * as S from "../sunucu";
+import { paylas } from "./sonuc";
+import { OYUN_ADI } from "../marka";
 import { FONT } from "../tema";
 import { Avatar, Dugme, Ekran, IlSecici, Karo, Kart, Logo, Metin, Pop, Bildirim, Sira, useTema } from "../ui";
 
@@ -125,6 +127,80 @@ export function Profil({ onTamam, onMenu }: { onTamam: () => void; onMenu: () =>
 }
 
 /** Profilim: fotoğrafı ve kayıtlı rakip iznini sonradan değiştir (izin her zaman geri alınabilir) */
+function Arkadaslar() {
+  const t = useTema();
+  const [v, setV] = useState<{ kod: string; liste: S.Arkadas[] } | null>(null);
+  const [kod, setKod] = useState("");
+  const [mesaj, setMesaj] = useState<{ m: string; iyi?: boolean }>({ m: "" });
+  const [kopya, setKopya] = useState(false);
+  const yukle = () => S.arkadaslar().then(setV).catch((e) => setMesaj({ m: e.message }));
+  useEffect(() => { yukle(); }, []);
+  const islem = (f: () => Promise<unknown>, ok?: string) => f().then(() => { if (ok) setMesaj({ m: ok, iyi: true }); return yukle(); }).catch((e) => setMesaj({ m: e.message }));
+  const ekle = () => {
+    const k = kod.trim();
+    if (k.length < 4) return setMesaj({ m: "Arkadaşının kodunu yaz" });
+    S.arkadasEkle(k).then((r) => { setKod(""); setMesaj({ m: r.durum === "arkadas" ? "Artık arkadaşsınız!" : "İstek gönderildi", iyi: true }); return yukle(); }).catch((e) => setMesaj({ m: e.message }));
+  };
+  const liste = v?.liste ?? [];
+  const gelen = liste.filter((a) => a.durum === "gelen"), dost = liste.filter((a) => a.durum === "arkadas"), giden = liste.filter((a) => a.durum === "giden");
+  const Satir = ({ a, sag }: { a: S.Arkadas; sag: React.ReactNode }) => (
+    <View testID={`arkadas-${a.nick}`} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 }}>
+      <Avatar ad={a.nick} boyut={44} url={a.avatar_url} />
+      <View style={{ flex: 1 }}>
+        <Text numberOfLines={1} style={{ color: t.yazi, fontFamily: FONT.siyah, fontSize: 16 }}>{a.nick}</Text>
+        <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 12 }}>{a.city ?? "—"}</Text>
+      </View>
+      {sag}
+    </View>
+  );
+  const mini = (baslik: string, onPress: () => void, id: string, birincil?: boolean) => <View style={{ minWidth: 76 }}><Dugme testID={id} baslik={baslik} birincil={birincil} onPress={onPress} /></View>;
+  return (
+    <View style={{ marginTop: 22 }}>
+      <Metin v="baslik" stil={{ marginBottom: 10 }}>Arkadaşlar</Metin>
+      <Kart vurgulu>
+        <Metin v="etiket" soluk>ARKADAŞ KODUN</Metin>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 }}>
+          <Text testID="arkadas-kodum" selectable style={{ flex: 1, color: t.vurguMetin, fontFamily: FONT.siyah, fontSize: 30, letterSpacing: 4 }}>{v?.kod ?? "······"}</Text>
+          <View style={{ minWidth: 110 }}>
+            <Dugme testID="kod-paylas" baslik={kopya ? "Kopyalandı ✓" : "Paylaş"} onPress={async () => { if (v && (await paylas(`${OYUN_ADI}'nde arkadaş kodum: ${v.kod}`))) { setKopya(true); setTimeout(() => setKopya(false), 1800); } }} />
+          </View>
+        </View>
+        <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 12, marginTop: 6 }}>Kodunu yalnızca eklemek istediğin kişilerle paylaş.</Text>
+      </Kart>
+      <Kart>
+        <Metin v="etiket" soluk stil={{ marginBottom: 6 }}>KODLA ARKADAŞ EKLE</Metin>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <TextInput testID="kod-gir" value={kod} onChangeText={(x) => setKod(x.toUpperCase())} maxLength={6} autoCapitalize="characters" autoCorrect={false} placeholder="6 haneli kod" placeholderTextColor={t.soluk}
+            onSubmitEditing={ekle}
+            style={{ flex: 1, minWidth: 0, height: 50, borderRadius: 16, backgroundColor: t.yuzey2, borderWidth: 1, borderColor: t.cizgi, color: t.yazi, paddingHorizontal: 16, fontSize: 18, fontFamily: FONT.kalin, letterSpacing: 2 }} />
+          <View style={{ width: 84 }}><Dugme testID="kod-ekle" birincil baslik="Ekle" onPress={ekle} /></View>
+        </View>
+        <Bildirim metin={mesaj.m} iyi={mesaj.iyi} testID="arkadas-mesaj" />
+      </Kart>
+      {gelen.length > 0 && (
+        <Kart>
+          <Metin v="etiket" soluk>GELEN İSTEKLER ({gelen.length})</Metin>
+          {gelen.map((a) => <Satir key={a.id} a={a} sag={<View style={{ flexDirection: "row", gap: 8 }}>
+            {mini("Kabul", () => islem(() => S.arkadasYanit(a.id, true)), `kabul-${a.nick}`, true)}
+            {mini("Reddet", () => islem(() => S.arkadasYanit(a.id, false)), `reddet-${a.nick}`)}
+          </View>} />)}
+        </Kart>
+      )}
+      <Kart>
+        <Metin v="etiket" soluk>ARKADAŞLARIM ({dost.length})</Metin>
+        {dost.length === 0 && <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 14, marginTop: 6 }}>Henüz arkadaşın yok. Kodunu paylaş ya da arkadaşının kodunu gir.</Text>}
+        {dost.map((a) => <Satir key={a.id} a={a} sag={mini("Sil", () => islem(() => S.arkadasSil(a.id)), `sil-${a.nick}`)} />)}
+      </Kart>
+      {giden.length > 0 && (
+        <Kart>
+          <Metin v="etiket" soluk>GÖNDERİLEN İSTEKLER</Metin>
+          {giden.map((a) => <Satir key={a.id} a={a} sag={mini("Geri çek", () => islem(() => S.arkadasSil(a.id)), `geri-${a.nick}`)} />)}
+        </Kart>
+      )}
+    </View>
+  );
+}
+
 export function Profilim({ onMenu }: { onMenu: () => void }) {
   const [o, setO] = useState<S.Oyuncu | null | undefined>(undefined);
   const [hata, setHata] = useState("");
@@ -141,6 +217,7 @@ export function Profilim({ onMenu }: { onMenu: () => void }) {
       <View style={{ height: 14 }} />
       <IzinAnahtari deger={!!o.kayit_izni} onDeger={(v) => yama({ kayit_izni: v })} />
       <Bildirim metin={hata} testID="profil-hata" />
+      <Arkadaslar />
     </Ekran>
   );
 }
