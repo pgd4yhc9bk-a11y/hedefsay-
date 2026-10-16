@@ -101,8 +101,11 @@ function Menu({ git }: { git: (e: Ekranlar) => void }) {
   const [kurallar, setKurallar] = useState(false);
   const sunucu = S.hazir();
   return (
-    <Ekran ortala>
-      <Belir stil={{ alignItems: "center", marginBottom: 26 }}>
+    <Ekran ortala alt={<Sira bosluk={10} stil={{ flexWrap: "nowrap" }}>
+      <Dugme testID="kurallar" baslik="❓ Kurallar" onPress={() => setKurallar(true)} />
+      {sunucu && <Dugme testID="menu-profilim" birincil buyuk esnek baslik="👤  Profilim · Arkadaşlar" onPress={() => git("profilim")} />}
+    </Sira>}>
+      <Belir stil={{ alignItems: "center", marginBottom: 14 }}>
         <Afis />
         <Text style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 15, marginTop: 2 }}>Kelimeni kur, işlemini yap, düelloyu kazan!</Text>
       </Belir>
@@ -112,9 +115,7 @@ function Menu({ git }: { git: (e: Ekranlar) => void }) {
         <ModKarti testID="menu-pratik" renk={sunucu ? "acik" : "mavi"} dugme="Başla" ikon="🤖" baslik={sunucu ? "Pratik" : "Oyna"} alt="Bilgisayara karşı · çevrimdışı" onPress={() => git("pratik")} />
       </Belir>
       <Belir gecikme={240}>
-        <Dugme testID="kurallar" hayalet baslik="Nasıl oynanır?" onPress={() => setKurallar(true)} />
-        {sunucu && <View style={{ marginTop: 6 }}><Dugme testID="menu-profilim" buyuk baslik="👤  Profilim ve arkadaşlar" onPress={() => git("profilim")} /></View>}
-        <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 12, textAlign: "center", marginTop: 14, lineHeight: 18 }}>
+        <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 12, textAlign: "center", marginTop: 4, lineHeight: 18 }}>
           Sözlük: {H.getDictionarySize().toLocaleString("tr")} kelime · kaynak: VikiSözlük (CC BY-SA).{"\n"}Bu oyunun TV programıyla bağlantısı yoktur.{process.env.EXPO_PUBLIC_SURUM ? `\nSürüm: ${process.env.EXPO_PUBLIC_SURUM.slice(0, 14)}` : ""}
         </Text>
       </Belir>
