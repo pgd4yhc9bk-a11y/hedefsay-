@@ -1,13 +1,13 @@
 // Günlük mücadele: bulmaca ve puan sunucudan, süre sunucu damgasıyla. Yenilenince kalınan turdan devam eder.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View } from "react-native";
 import H from "../cekirdek";
 import * as S from "../sunucu";
 import { IslemSonuc, IslemTuru, KelimeSonuc, KelimeTuru } from "../turlar";
-import { Baslik, Cizelge, Dugme, Kart, Karo, Sira, up, Yazi } from "../ui";
+import { Bildirim, UstCubuk, up } from "../ui";
 import { bugun, haftaBasi } from "../zaman";
-import { HataEkrani, Profil, TUR_ADI, Ust } from "./ortak";
+import { HataEkrani, Profil, TUR_ADI, TurGirisi, Yukleniyor } from "./ortak";
+import { OyunSonu, Siralama, TurOzeti, TurSonucu } from "./sonuc";
 
 type Asama = "yukleniyor" | "profil" | "giris" | "baslatiliyor" | "oyna" | "gonderiliyor" | "sonuc" | "son" | "hata";
 const simgeAnahtar = () => "hedef-gunluk-simge-" + bugun();
@@ -15,8 +15,7 @@ const simgeAnahtar = () => "hedef-gunluk-simge-" + bugun();
 export function Gunluk({ onMenu }: { onMenu: () => void }) {
   const [asama, setAsama] = useState<Asama>("yukleniyor");
   const [tur, setTur] = useState(0);
-  const [toplam, setToplam] = useState(0);
-  const [simgeler, setSimgeler] = useState<string[]>([]);
+  const [turlar, setTurlar] = useState<TurOzeti[]>([]);
   const [veri, setVeri] = useState<any>(null);
   const [sonuc, setSonuc] = useState<any>(null);
   const [hata, setHata] = useState("");
@@ -25,6 +24,7 @@ export function Gunluk({ onMenu }: { onMenu: () => void }) {
   const aktif = useRef(true);
   useEffect(() => () => { aktif.current = false; }, []);
   const ok = useCallback((f: () => void) => { if (aktif.current) f(); }, []);
+  const toplam = turlar.reduce((t, x) => t + x.ben, 0);
 
   const hataGoster = useCallback((m: string, tekrar?: () => void) => { yeniden.current = tekrar ?? (() => {}); ok(() => { setHata(m); setAsama("hata"); }); }, [ok]);
 
@@ -37,8 +37,7 @@ export function Gunluk({ onMenu }: { onMenu: () => void }) {
       let kayitli: string[] = [];
       try { kayitli = JSON.parse((await AsyncStorage.getItem(simgeAnahtar())) || "[]"); } catch { /* yok */ }
       ok(() => {
-        setTur(sk.length); setToplam(sk.reduce((t, x) => t + x.score, 0));
-        setSimgeler(sk.map((_, i) => kayitli[i] ?? "🟨"));
+        setTur(sk.length); setTurlar(sk.map((x, i) => ({ ben: x.score, simge: kayitli[i] ?? "🟨" })));
         setAsama(sk.length >= 4 ? "son" : "giris");
       });
     } catch (e: any) { hataGoster(e.message, yukle); }
@@ -61,16 +60,15 @@ export function Gunluk({ onMenu }: { onMenu: () => void }) {
         const r = await S.gunlukTur("submit", tur + 1, cevap);
         const ben = r.score, en = r.best_score;
         const simge = veri.kind === "kelime" ? (ben >= en ? "🎯" : ben >= en * 0.6 ? "🟨" : "⬜") : (ben >= 10 ? "🎯" : ben > 0 ? "🟨" : "⬜");
-        const yeni = [...simgeler, simge];
-        try { await AsyncStorage.setItem(simgeAnahtar(), JSON.stringify(yeni)); } catch { /* depo yoksa kalıcı olmaz */ }
-        ok(() => { setToplam((t) => t + ben); setSimgeler(yeni); setSonuc({ ...r, cevap, ...yerel }); setAsama("sonuc"); });
+        const yeni = [...turlar, { ben, simge }];
+        try { await AsyncStorage.setItem(simgeAnahtar(), JSON.stringify(yeni.map((x) => x.simge))); } catch { /* depo yoksa kalıcı olmaz */ }
+        ok(() => { setTurlar(yeni); setSonuc({ ...r, cevap, ...yerel }); setAsama("sonuc"); });
       } catch (e: any) { if (e.status === 409) yukle(); else hataGoster(e.message, dene); }
     };
     dene();
   };
   const kelimeBitti = (s: KelimeSonuc | null) => gonder(s?.word ?? "", {});
   const islemBitti = (s: IslemSonuc | null) => gonder(s?.expr ?? "", { islemDeger: s?.value });
-
   const ileri = () => { if (tur < 3) { setTur(tur + 1); setAsama("giris"); } else setAsama("son"); };
 
   useEffect(() => {
@@ -78,75 +76,37 @@ export function Gunluk({ onMenu }: { onMenu: () => void }) {
     Promise.all([S.siralama(bugun()), S.ilLigi(haftaBasi())]).then(([gen, il]) => ok(() => setSira({ gen, il }))).catch(() => ok(() => setSira({ gen: [], il: [] })));
   }, [asama, ok]);
 
-  const sag = `Puan ${toplam}`;
-  if (asama === "yukleniyor") return <Kart><Yazi>Bağlanıyor…</Yazi></Kart>;
+  const ust = (bitenler = tur) => <UstCubuk tur={tur} bitenler={bitenler} ad={TUR_ADI(tur)} sen={toplam} />;
+  if (asama === "yukleniyor") return <Yukleniyor />;
   if (asama === "hata") return <HataEkrani mesaj={hata} yeniden={yeniden.current} onMenu={onMenu} />;
   if (asama === "profil") return <Profil onTamam={yukle} onMenu={onMenu} />;
-  if (asama === "baslatiliyor") return <Kart><Yazi>Tur başlatılıyor…</Yazi></Kart>;
-  if (asama === "gonderiliyor") return <Kart><Yazi>Puanlanıyor…</Yazi></Kart>;
+  if (asama === "baslatiliyor") return <Yukleniyor metin="Tur başlatılıyor…" ust={ust()} />;
+  if (asama === "gonderiliyor") return <Yukleniyor metin="Puanlanıyor…" ust={ust()} />;
   if (asama === "giris") {
-    return (
-      <View>
-        <Ust tur={tur} sag={sag} />
-        <Kart>
-          <Baslik boyut={18}>{TUR_ADI(tur)} turu</Baslik>
-          <Yazi soluk>Herkese aynı bulmaca. Süreyi başlatınca {tur % 2 === 0 ? "harfler açılır" : "sayılar ve hedef açılır"} ve süre sunucuda işlemeye başlar ({H.GUNLUK_SURE} sn).</Yazi>
-          <View style={{ height: 10 }} />
-          <Dugme testID="go" birincil buyuk baslik="Süreyi başlat" onPress={baslat} />
-        </Kart>
-      </View>
-    );
+    return <TurGirisi ust={ust()} tip={tur % 2 === 0 ? "kelime" : "islem"} onBasla={baslat}
+      aciklama={`Herkese aynı bulmaca. Süreyi başlatınca ${tur % 2 === 0 ? "harfler açılır" : "sayılar ve hedef açılır"} ve süre sunucuda işlemeye başlar (${H.GUNLUK_SURE} sn).`} />;
   }
   if (asama === "oyna" && veri) {
-    const ust = <Ust tur={tur} sag={sag} />;
     return veri.kind === "kelime"
-      ? <KelimeTuru key={tur} ust={ust} harfler={veri.payload.letters} sureSn={veri.limit_sec} kalanSn={veri.kalanSn} onBitir={kelimeBitti} />
-      : <IslemTuru key={tur} ust={ust} sayilar={veri.payload.nums} hedef={veri.payload.target} sureSn={veri.limit_sec} kalanSn={veri.kalanSn} bonus onBitir={islemBitti} />;
+      ? <KelimeTuru key={tur} ust={ust()} harfler={veri.payload.letters} sureSn={veri.limit_sec} kalanSn={veri.kalanSn} onBitir={kelimeBitti} />
+      : <IslemTuru key={tur} ust={ust()} sayilar={veri.payload.nums} hedef={veri.payload.target} sureSn={veri.limit_sec} kalanSn={veri.kalanSn} bonus onBitir={islemBitti} />;
   }
   if (asama === "sonuc" && sonuc && veri) {
-    return (
-      <View>
-        <Ust tur={tur} sag={sag} />
-        <Kart>
-          <Baslik boyut={18}>Tur {tur + 1} sonucu</Baslik>
-          <Cizelge ad="" a="Sen" />
-          {veri.kind === "kelime"
-            ? <><Cizelge ad="Kelime" a={sonuc.cevap ? up(sonuc.cevap) : "—"} /><Cizelge ad="Puan" a={sonuc.score} />
-                <Yazi soluk testID="en-iyi">Bu harflerle en iyi: {sonuc.best_solution ? `${up(sonuc.best_solution)} (${sonuc.best_score} puan)` : "—"}</Yazi></>
-            : <><Cizelge ad="Sonuç" a={sonuc.islemDeger ?? "—"} /><Cizelge ad="Puan" a={sonuc.score} />
-                <Yazi soluk testID="en-iyi">Hedef {veri.payload.target} · bilgisayarın çözümü: {sonuc.best_solution ?? "—"} = {veri.payload.target}</Yazi></>}
-          {!sonuc.valid && <Yazi soluk>{sonuc.detail}</Yazi>}
-          <View style={{ height: 10 }} />
-          <Dugme testID="ileri" birincil buyuk baslik={tur < 3 ? "Sonraki tur" : "Sonucu gör"} onPress={ileri} />
-        </Kart>
-      </View>
-    );
+    const ileriBaslik = tur < 3 ? "Sonraki tur" : "Sonucu gör";
+    return veri.kind === "kelime"
+      ? <TurSonucu ust={ust(tur + 1)} tur={tur} tip="kelime" ileriBaslik={ileriBaslik} onIleri={ileri} sen={{ ad: "Sen", puan: sonuc.score, cevap: sonuc.cevap }}
+          enIyi={{ baslik: "BU HARFLERLE EN İYİ", cevap: sonuc.best_solution ?? "", kelime: true, ayrinti: sonuc.best_solution ? `${up(sonuc.best_solution)} (${sonuc.best_score} puan)` : "—" }}
+          ek={!sonuc.valid ? <Hata metin={sonuc.detail} /> : undefined} />
+      : <TurSonucu ust={ust(tur + 1)} tur={tur} tip="islem" ileriBaslik={ileriBaslik} onIleri={ileri} sen={{ ad: "Sen", puan: sonuc.score, cevap: sonuc.cevap, deger: sonuc.islemDeger }}
+          enIyi={{ baslik: "BİLGİSAYARIN ÇÖZÜMÜ", cevap: `${sonuc.best_solution ?? "—"} = ${veri.payload.target}`, ayrinti: `Hedef ${veri.payload.target}` }}
+          ek={!sonuc.valid ? <Hata metin={sonuc.detail} /> : undefined} />;
   }
   if (asama === "son") {
-    const paylas = `Hedef Günlük ${bugun()}\n${simgeler.join("")} ${toplam} puan`;
-    return (
-      <View>
-        <Baslik boyut={30}>Günlük bitti</Baslik>
-        <Kart>
-          <Baslik>{toplam} puan</Baslik>
-          <Yazi testID="paylas">{paylas}</Yazi>
-          <View style={{ height: 10 }} />
-          <Dugme testID="menu" baslik="Menü" onPress={onMenu} />
-        </Kart>
-        {!sira ? <Kart><Yazi soluk>Sıralama yükleniyor…</Yazi></Kart> : (
-          <>
-            <Kart>
-              <Baslik boyut={18}>Bugünün sıralaması</Baslik>
-              {sira.gen.length ? sira.gen.map((x) => <Cizelge key={x.rank} ad={`${x.rank}. ${x.nick}${x.city ? ` (${x.city})` : ""}`} a={x.total} />) : <Yazi soluk>Henüz kimse bitirmedi.</Yazi>}
-            </Kart>
-            <Kart>
-              <Baslik boyut={18}>İl ligi (bu hafta)</Baslik>
-              {sira.il.length ? sira.il.map((x, i) => <Cizelge key={x.city} ad={`${i + 1}. ${x.city} (${x.players} oyuncu)`} a={x.total} />) : <Yazi soluk>Henüz il verisi yok.</Yazi>}
-            </Kart>
-          </>
-        )}
-      </View>
-    );
+    const paylasMetni = `Hedef Günlük ${bugun()}\n${turlar.map((x) => x.simge).join("")} ${toplam} puan`;
+    return <OyunSonu kazanan="gunluk" baslik="Günlük bitti" sen={toplam} turlar={turlar} paylasMetni={paylasMetni} onMenu={onMenu}
+      ek={sira ? <Siralama gen={sira.gen} il={sira.il} /> : undefined} />;
   }
   return null;
 }
+
+const Hata = ({ metin }: { metin: string }) => <Bildirim metin={metin} />;

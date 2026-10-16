@@ -2,7 +2,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, Text, TextInput, View } from "react-native";
 import H from "./cekirdek";
-import { Baslik, Dugme, Karo, Kart, Mesaj, SayacCubugu, Sira, useGeriSayim, useTema, up, Yazi } from "./ui";
+import { FONT } from "./tema";
+import { Bildirim, Dugme, Ekran, Halkalar, Karo, Kart, Metin, SayacCubugu, Sira, up, useGeriSayim, useTema, Yazi } from "./ui";
 
 export interface KelimeSonuc { word: string; score: number }
 export interface IslemSonuc { value: number; fark: number; puan: number; expr: string }
@@ -74,42 +75,47 @@ export function KelimeTuru({ harfler, sureSn, kalanSn, ust, onBitir }: Ortak & {
 
   const { k, joker } = kullanim();
   return (
-    <View>
-      {ust}
-      <Kart>
-        <SayacCubugu kalanMs={kalanMs} sureSn={sureSn} />
-        <Sira ortala bosluk={4}>
-          {giris.map((g, i) => <Karo key={i} kucuk harf={g.ch} joker={g.joker} />)}
-          {giris.length === 0 && <View style={{ height: 46 }} />}
+    <Ekran ust={ust}
+      alt={<>
+        <Sira bosluk={10} stil={{ flexWrap: "nowrap" }}>
+          <Dugme testID="sil" baslik="⌫" onPress={sil} />
+          <Dugme testID="gonder" birincil buyuk esnek baslik="Gönder" onPress={gonder} />
         </Sira>
-        <Mesaj metin={mesaj.m} iyi={mesaj.iyi} testID="mesaj" />
-        <Sira ortala bosluk={6}>
-          {harfler.map((h, i) => <Karo key={i} testID={`harf-${h}`} harf={h} kullanildi={k[i]} onPress={() => ekle(h)} />)}
-          <Karo testID="joker" joker kullanildi={joker} onPress={() => setSecici(true)} />
-        </Sira>
-        <View style={{ height: 10 }} />
-        <Sira ortala>
-          <Dugme testID="sil" baslik="⌫ Sil" onPress={sil} />
-          <Dugme testID="gonder" birincil baslik="Gönder" onPress={gonder} />
-          <Dugme testID="bitir" baslik="Bitir" onPress={bitir} />
-        </Sira>
-        <Text testID="enIyi" style={{ textAlign: "center", color: t.soluk, marginTop: 8 }}>
-          {enIyi ? `En iyin: ${up(enIyi.word)} (${enIyi.score} puan)` : "Henüz geçerli kelime yok"}
+        <Dugme testID="bitir" hayalet baslik="Turu bitir" onPress={bitir} />
+      </>}>
+      <SayacCubugu kalanMs={kalanMs} sureSn={sureSn} />
+      <View style={{ alignItems: "center", marginBottom: 10 }}>
+        <Text testID="enIyi" style={{ color: t.soluk, fontFamily: FONT.kalin, fontSize: 14 }}>
+          {enIyi ? `En iyin: ${up(enIyi.word)} · ${enIyi.score} puan` : "Henüz geçerli kelime yok"}
         </Text>
-      </Kart>
+      </View>
+      <View style={{ minHeight: 64, alignItems: "center", justifyContent: "center", marginBottom: 4 }}>
+        {giris.length === 0
+          ? <Text style={{ color: t.soluk, fontFamily: FONT.orta, fontSize: 16 }}>Harflere dokunarak kelimeni kur</Text>
+          : <Sira ortala bosluk={5}>{giris.map((g, i) => <Karo key={i} boyut="o" harf={g.ch} joker={g.joker} pop />)}</Sira>}
+      </View>
+      <View style={{ flex: 1, minHeight: 8 }} />
+      <Bildirim metin={mesaj.m} iyi={mesaj.iyi} testID="mesaj" />
+      <View style={{ height: 8 }} />
+      <Sira ortala bosluk={10}>
+        {harfler.map((h, i) => <Karo key={i} testID={`harf-${h}`} harf={h} kullanildi={k[i]} onPress={() => ekle(h)} />)}
+        <Karo testID="joker" joker kullanildi={joker} onPress={() => setSecici(true)} />
+      </Sira>
       {secici && (
-        <Kart>
-          <Baslik boyut={18}>Joker hangi harf olsun?</Baslik>
-          <Sira bosluk={6}>
-            {H.ALFABE.split("").map((c) => <Karo key={c} testID={`joker-${c}`} harf={c} onPress={() => { setSecici(false); guncelle([...girisRef.current, { ch: c, joker: true }]); }} />)}
+        <Kart stil={{ marginTop: 18 }}>
+          <Metin v="baslik" stil={{ marginBottom: 10 }}>Joker hangi harf olsun?</Metin>
+          <Sira bosluk={6} ortala>
+            {H.ALFABE.split("").map((c) => <Karo key={c} testID={`joker-${c}`} boyut="k" harf={c} onPress={() => { setSecici(false); guncelle([...girisRef.current, { ch: c, joker: true }]); }} />)}
           </Sira>
-          <View style={{ height: 8 }} />
+          <View style={{ height: 10 }} />
           <Dugme baslik="Vazgeç" onPress={() => setSecici(false)} />
         </Kart>
       )}
-    </View>
+    </Ekran>
   );
 }
+
+const OPERATORLER = ["+", "−", "×", "÷", "(", ")"];
 
 export function IslemTuru({ sayilar, hedef, sureSn, kalanSn, bonus, ust, onBitir }:
   Ortak & { sayilar: number[]; hedef: number; bonus: boolean; onBitir: (s: IslemSonuc | null) => void }) {
@@ -150,39 +156,44 @@ export function IslemTuru({ sayilar, hedef, sureSn, kalanSn, bonus, ust, onBitir
     return () => document.removeEventListener("keydown", f);
   }, []);
 
-  const kullanilanSayac: Record<string, number> = { ...kullan };
+  const kalanSayac: Record<string, number> = { ...kullan };
   return (
-    <View>
-      {ust}
-      <Kart>
-        <SayacCubugu kalanMs={kalanMs} sureSn={sureSn} />
-        <Text testID="hedef" style={{ textAlign: "center", fontSize: 54, fontWeight: "800", color: t.vurgu }}>{hedef}</Text>
-        <Sira ortala bosluk={6}>
-          {sayilar.map((n, i) => {
-            const k = String(n); const kullanildi = (kullanilanSayac[k] ?? 0) > 0;
-            if (kullanildi) kullanilanSayac[k]--;
-            return <Karo key={i} testID={`sayi-${n}`} harf={String(n)} kullanildi={kullanildi} onPress={() => setIfade((s) => s + n)} />;
-          })}
-        </Sira>
-        <View style={{ height: 10 }} />
-        <TextInput testID="ifade" value={ifade} onChangeText={setIfade} placeholder="örn. (7+3)×8−5" placeholderTextColor={t.soluk}
-          autoCapitalize="none" autoCorrect={false} onSubmitEditing={gonder}
-          style={{ color: t.yazi, borderColor: t.cizgi, borderWidth: 1, borderRadius: 10, padding: 10, fontSize: 22, textAlign: "center", backgroundColor: t.kart }} />
-        <Mesaj metin={mesaj.m} iyi={mesaj.iyi} testID="mesaj" />
-        <Sira ortala>
-          {["+", "−", "×", "÷", "(", ")"].map((o) => <Dugme key={o} testID={`op-${o}`} baslik={o} onPress={() => setIfade((s) => s + o)} />)}
+    <Ekran ust={ust}
+      alt={<>
+        <Sira bosluk={10} stil={{ flexWrap: "nowrap" }}>
           <Dugme testID="sil" baslik="⌫" onPress={() => setIfade((s) => s.slice(0, -1))} />
+          <Dugme testID="gonder" birincil buyuk esnek baslik="Gönder" onPress={gonder} />
         </Sira>
-        <View style={{ height: 10 }} />
-        <Sira ortala>
-          <Dugme testID="gonder" birincil baslik="Gönder" onPress={gonder} />
-          <Dugme testID="bitir" baslik="Bitir" onPress={bitir} />
-        </Sira>
-        <Text testID="enIyi" style={{ textAlign: "center", color: t.soluk, marginTop: 8 }}>
-          {enIyi ? `En iyin: ${enIyi.value} (fark ${enIyi.fark}, ${enIyi.puan} puan)` : "Henüz sonuç yok"}
-        </Text>
-      </Kart>
-    </View>
+        <Dugme testID="bitir" hayalet baslik="Turu bitir" onPress={bitir} />
+      </>}>
+      <SayacCubugu kalanMs={kalanMs} sureSn={sureSn} />
+      <View style={{ alignItems: "center", justifyContent: "center", height: 170 }}>
+        <Halkalar boyut={170} adet={4} mutlak />
+        <Text style={{ position: "absolute", top: 18, color: t.soluk, fontFamily: FONT.kalin, fontSize: 12, letterSpacing: 2 }}>HEDEF</Text>
+        <Text testID="hedef" style={{ fontFamily: FONT.siyah, fontSize: 68, color: t.vurguMetin }}>{hedef}</Text>
+      </View>
+      <View style={{ flex: 1, minHeight: 10 }} />
+      <Sira ortala bosluk={6}>
+        {sayilar.map((n, i) => {
+          const kk = String(n); const kullanildi = (kalanSayac[kk] ?? 0) > 0;
+          if (kullanildi) kalanSayac[kk]--;
+          return <Karo key={i} testID={`sayi-${n}`} boyut="o" harf={String(n)} kullanildi={kullanildi} onPress={() => setIfade((s) => s + n)} />;
+        })}
+      </Sira>
+      <View style={{ height: 14 }} />
+      <TextInput testID="ifade" value={ifade} onChangeText={setIfade} placeholder="(7+3)×8−5" placeholderTextColor={t.soluk}
+        autoCapitalize="none" autoCorrect={false} onSubmitEditing={gonder} inputMode="none" showSoftInputOnFocus={false}
+        style={{ color: t.yazi, backgroundColor: t.yuzey2, borderColor: t.cizgi, borderWidth: 1, borderRadius: 16, height: 62, fontSize: 28, textAlign: "center", fontFamily: FONT.kalin }} />
+      <Bildirim metin={mesaj.m} iyi={mesaj.iyi} testID="mesaj" />
+      <Sira ortala bosluk={8}>
+        {OPERATORLER.map((o) => (
+          <View key={o} style={{ width: 48 }}><Dugme testID={`op-${o}`} baslik={o} onPress={() => setIfade((s) => s + o)} /></View>
+        ))}
+      </Sira>
+      <Text testID="enIyi" style={{ textAlign: "center", color: t.soluk, fontFamily: FONT.kalin, fontSize: 14, marginTop: 12 }}>
+        {enIyi ? `En iyin: ${enIyi.value} (fark ${enIyi.fark}, ${enIyi.puan} puan)` : "Henüz sonuç yok"}
+      </Text>
+    </Ekran>
   );
 }
 
