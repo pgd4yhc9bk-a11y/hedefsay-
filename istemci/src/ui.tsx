@@ -2,7 +2,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated, Easing, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TextStyle, useWindowDimensions, View, ViewStyle,
+  Animated, Easing, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TextStyle, useWindowDimensions, View, ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FONT, Tema, useTema } from "./tema";
@@ -144,12 +144,15 @@ export function Cip({ children, renk, testID }: { children: React.ReactNode; ren
     </View>
   );
 }
-export function Avatar({ ad, boyut = 44, renk }: { ad: string; boyut?: number; renk?: string }) {
+export function Avatar({ ad, boyut = 44, renk, url }: { ad: string; boyut?: number; renk?: string; url?: string | null }) {
   const t = useTema();
   const renkler = ["#FF8A5B", "#5BC0EB", "#9BC53D", "#C77DFF", "#FFC857", "#F06C9B"];
+  const [hata, setHata] = useState(false);
   let h = 0; for (const c of ad) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const kap = { width: boyut, height: boyut, borderRadius: boyut / 2, borderWidth: 2, borderColor: t.cizgi, overflow: "hidden" as const };
+  if (url && !hata) return <Image testID="avatar-foto" source={{ uri: url }} onError={() => setHata(true)} style={kap} />;   // fotoğraf yüklenemezse baş harfe döner
   return (
-    <View style={{ width: boyut, height: boyut, borderRadius: boyut / 2, backgroundColor: renk ?? renkler[h % renkler.length], alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: t.cizgi }}>
+    <View style={[kap, { backgroundColor: renk ?? renkler[h % renkler.length], alignItems: "center", justifyContent: "center" }]}>
       <Text style={{ fontFamily: FONT.siyah, fontSize: boyut * 0.42, color: "#1B1B2F" }}>{up((ad || "?").trim().charAt(0) || "?")}</Text>
     </View>
   );
@@ -206,11 +209,13 @@ export function Logo({ boyut = 1 }: { boyut?: number }) {
   const t = useTema();
   return (
     <View style={{ alignItems: "center" }}>
-      <View style={{ width: 88 * boyut, height: 88 * boyut, alignItems: "center", justifyContent: "center" }}>
-        <Halkalar boyut={88 * boyut} adet={3} />
-        <View style={{ position: "absolute", width: 18 * boyut, height: 18 * boyut, borderRadius: 9 * boyut, backgroundColor: t.vurgu }} />
+      <View style={{ width: 80 * boyut, height: 80 * boyut, alignItems: "center", justifyContent: "center" }}>
+        <Halkalar boyut={80 * boyut} adet={3} />
+        <View style={{ position: "absolute", width: 16 * boyut, height: 16 * boyut, borderRadius: 8 * boyut, backgroundColor: t.vurgu }} />
       </View>
-      <Text style={{ fontFamily: FONT.siyah, fontSize: 40 * boyut, color: t.yazi, letterSpacing: 6 * boyut, marginTop: 6 }}>HEDEF</Text>
+      <Text style={{ fontFamily: FONT.siyah, fontSize: 36 * boyut, color: t.yazi, letterSpacing: 5 * boyut, marginTop: 6 }}>KELİME</Text>
+      <Text style={{ fontFamily: FONT.siyah, fontSize: 18 * boyut, color: t.vurguMetin, letterSpacing: 3 * boyut, marginVertical: -2 }}>ve</Text>
+      <Text style={{ fontFamily: FONT.siyah, fontSize: 36 * boyut, color: t.yazi, letterSpacing: 5 * boyut }}>İŞLEM</Text>
     </View>
   );
 }

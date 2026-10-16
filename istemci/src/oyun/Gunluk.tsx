@@ -5,6 +5,7 @@ import H from "../cekirdek";
 import * as S from "../sunucu";
 import { IslemSonuc, IslemTuru, KelimeSonuc, KelimeTuru } from "../turlar";
 import { Bildirim, UstCubuk, up } from "../ui";
+import { OYUN_ADI } from "../marka";
 import { bugun, haftaBasi } from "../zaman";
 import { HataEkrani, Profil, TUR_ADI, TurGirisi, Yukleniyor } from "./ortak";
 import { OyunSonu, Siralama, TurOzeti, TurSonucu } from "./sonuc";
@@ -102,7 +103,7 @@ export function Gunluk({ onMenu }: { onMenu: () => void }) {
           ek={!sonuc.valid ? <Hata metin={sonuc.detail} /> : undefined} />;
   }
   if (asama === "son") {
-    const paylasMetni = `Hedef Günlük ${bugun()}\n${turlar.map((x) => x.simge).join("")} ${toplam} puan`;
+    const paylasMetni = `${OYUN_ADI} · Günlük ${bugun()}\n${turlar.map((x) => x.simge).join("")} ${toplam} puan`;
     return <OyunSonu kazanan="gunluk" baslik="Günlük bitti" sen={toplam} turlar={turlar} paylasMetni={paylasMetni} onMenu={onMenu}
       ek={sira ? <Siralama gen={sira.gen} il={sira.il} /> : undefined} />;
   }

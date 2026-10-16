@@ -11,6 +11,7 @@ Bu dizin `hedef-dev` projesine uygulandı (şema + fonksiyonlar + cron); `202610
 | `functions/generate-daily-puzzle` | Cron ile günlük 4 turluk bulmacayı üretir (yayınlanmışı ezmez) |
 | `migrations/20261019000000_duello.sql` | Düello: `match_rounds` tablosu; `matches`/`match_moves` istemciye **kapatıldı** (rakibin cevabı ve maç tohumu sızmasın) |
 | `migrations/20261020000000_puzzle_tuzu.sql` | Bulmaca tuzu: migration uygulanırken veritabanında rastgele üretilir (dosyada değer yok), `puzzle_tuzu` tablosu istemciye kapalı |
+| `migrations/20261021000000_kayitli_rakip_avatar.sql` | Kayıtlı rakip + fotoğraf: `players.avatar_url` (yalnızca kendi klasörü) ve `kayit_izni` (varsayılan KAPALI), `matches.ghost_*`, `avatarlar` deposu (herkese açık okuma, kendi klasörüne yazma, 1 MB, jpeg/png/webp) |
 | `functions/duel` | Canlı düello: eşleştirme, geri sayım, tur başlat/gönder, bot; durum sunucuda, istemci `status` ile sorgular |
 | `functions/daily-round` | Turu başlatır (sunucu damgası) ve cevabı puanlar; cevapları gönderimden sonra açıklar |
 | `functions/_shared/` | `oyun.js`, `sozluk.js` (prototip ile **aynı kod**, `scripts/senkronla.sh` ile kopyalanır) ve ortak yardımcılar |
@@ -67,3 +68,9 @@ $$);
 İlk gün için bulmacayı elle üret: aynı URL'ye `{"date":"YYYY-MM-DD"}` ile POST.
 
 6. Giriş: anonim oturum (Auth ayarlarında "Anonymous sign-ins") veya e-posta; ardından istemci `players` tablosuna kendi satırını ekler (takma ad + il).
+
+## Kayıtlı rakip ve fotoğraf (gizlilik / KVKK)
+- Rakip bulunamazsa önce **kayıtlı rakip** aranır: `kayit_izni = true` olan bir oyuncunun, benim oynamadığım bitmiş bir maçtaki tarafı; aynı bulmacalar ve o oyuncunun kayıtlı hamleleri oynatılır. Rakibin adı, ili ve fotoğrafı gösterilir; arayüz **"Kayıtlı oyun"** etiketini koyar (o kişi o an oynamıyor). İzin veren yoksa yapay zekâ rakibe düşülür ("Yapay zekâ" etiketi).
+- **İzin varsayılan kapalıdır**, oyuncu kayıtta veya "Profilim"de açar ve istediği zaman kapatır. Yayından önce **aydınlatma metni** bu işlemeyi (ad, fotoğraf, oyun kaydının başkalarına gösterilmesi) açıkça anlatmalı.
+- Fotoğraflar herkese açık okunur. **Yayından önce:** uygunsuz görsel için şikâyet/kaldırma yolu ve gerekirse içerik denetimi gerekir (şu an yok).
+- Hesap silinince oyuncu satırı gider; `matches.ghost_player` `set null` olur ve o oyuncunun kayıtlı maçı artık rakip olarak seçilmez (depodaki fotoğraf dosyası ayrıca silinmelidir: henüz otomatik değil).

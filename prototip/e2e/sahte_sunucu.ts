@@ -26,12 +26,13 @@ await isleyici["generate-daily-puzzle"](new Request("http://x", {
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type, prefer, x-client-info",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, prefer, x-client-info, x-upsert",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
 };
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { "content-type": "application/json", ...cors } });
 const oturum = (id: string) => ({ access_token: "user:" + id, refresh_token: "r:" + id, expires_in: 3600, user: { id } });
 const siniflar = ["Ankara", "İstanbul", "İzmir"];
+const dosyalar = new Map<string, { tur: string; veri: Uint8Array }>();   // sahte depo: yüklenen avatarlar
 
 function toplamlar(tarih?: string) {
   const sayim: Record<string, any> = {};
@@ -66,6 +67,18 @@ gercekServe({ port: Number(Deno.env.get("PORT") ?? 8787), onListen: () => consol
   }
   if (p === "/__test/db") return json(db);
 
+  if (p.startsWith("/storage/v1/object/public/")) {   // herkese açık okuma
+    const d = dosyalar.get(p.replace("/storage/v1/object/public/", ""));
+    return d ? new Response(d.veri, { headers: { "content-type": d.tur, ...cors } }) : json({ message: "yok" }, 404);
+  }
+  if (p.startsWith("/storage/v1/object/avatarlar/") && req.method === "POST") {   // yalnızca kendi klasörüne
+    const yol = p.replace("/storage/v1/object/", "");
+    if (!uid || yol.split("/")[1] !== uid) return json({ message: "RLS: kendi klasörüne yazabilirsin" }, 403);
+    const veri = new Uint8Array(await req.arrayBuffer());
+    if (veri.length > 1048576) return json({ message: "çok büyük" }, 413);
+    dosyalar.set("avatarlar/" + yol.split("/").slice(1).join("/"), { tur: req.headers.get("content-type") ?? "image/jpeg", veri });
+    return json({ Key: yol });
+  }
   if (!uid && p.startsWith("/rest/v1/") && p !== "/rest/v1/cities") return json({ message: "JWT yok" }, 401);
   if (p === "/rest/v1/cities") return json(siniflar.map((name) => ({ name })));
   if (p === "/rest/v1/players" && req.method === "GET") return json(db.players.filter((x) => x.id === eq("id")));
@@ -73,8 +86,15 @@ gercekServe({ port: Number(Deno.env.get("PORT") ?? 8787), onListen: () => consol
     const b = await req.json();
     if (b.id !== uid) return json({ message: "RLS" }, 403);
     if (String(b.nick).length < 2) return json({ message: "nick kısa" }, 400);
-    db.players.push({ id: b.id, nick: b.nick, city: b.city });
+    db.players.push({ id: b.id, nick: b.nick, city: b.city, avatar_url: b.avatar_url ?? null, kayit_izni: b.kayit_izni ?? false });
     return new Response(null, { status: 201, headers: cors });
+  }
+  if (p === "/rest/v1/players" && req.method === "PATCH") {
+    const b = await req.json(); const satir = db.players.find((x) => x.id === eq("id"));
+    if (!satir || satir.id !== uid) return json({ message: "RLS" }, 403);
+    if (b.avatar_url && !String(b.avatar_url).includes("/storage/v1/object/public/avatarlar/" + uid + "/")) return json({ message: "avatar_url kendi klasörün olmalı" }, 400);
+    Object.assign(satir, b);
+    return new Response(null, { status: 204, headers: cors });
   }
   if (p === "/rest/v1/daily_scores") {
     return json(db.daily_scores.filter((x) => x.player_id === uid && x.date === eq("date"))
@@ -83,7 +103,7 @@ gercekServe({ port: Number(Deno.env.get("PORT") ?? 8787), onListen: () => consol
   if (p === "/rest/v1/daily_leaderboard") {
     const satirlar = toplamlar(eq("date")).map((t: any) => {
       const pl = db.players.find((x) => x.id === t.player_id);
-      return { nick: pl?.nick, city: pl?.city ?? null, total: t.total };
+      return { nick: pl?.nick, city: pl?.city ?? null, total: t.total, avatar_url: pl?.avatar_url ?? null };
     }).sort((a, b) => b.total - a.total);
     return json(satirlar.map((x, i) => ({ ...x, rank: i + 1 })));
   }

@@ -53,19 +53,37 @@ async function oturum(): Promise<Oturum> {
   return yeni();
 }
 
-export interface Oyuncu { id: string; nick: string; city: string | null }
+export interface Oyuncu { id: string; nick: string; city: string | null; avatar_url?: string | null; kayit_izni?: boolean }
 
 export const iller = async (): Promise<string[]> =>
   (await istek("/rest/v1/cities?select=name") as { name: string }[]).map((x) => x.name).sort((a, b) => a.localeCompare(b, "tr"));
 
 export async function oyuncu(): Promise<Oyuncu | null> {
   const o = await oturum();
-  const r = await istek("/rest/v1/players?select=id,nick,city&id=eq." + o.user_id, { jwt: o.access_token });
+  const r = await istek("/rest/v1/players?select=id,nick,city,avatar_url,kayit_izni&id=eq." + o.user_id, { jwt: o.access_token });
   return r?.[0] ?? null;
 }
-export async function oyuncuKaydet(nick: string, city: string): Promise<void> {
+export async function oyuncuKaydet(nick: string, city: string, kayitIzni = false, avatarUrl: string | null = null): Promise<void> {
   const o = await oturum();
-  await istek("/rest/v1/players", { method: "POST", jwt: o.access_token, headers: { Prefer: "return=minimal" }, body: { id: o.user_id, nick, city: city || null } });
+  await istek("/rest/v1/players", { method: "POST", jwt: o.access_token, headers: { Prefer: "return=minimal" },
+    body: { id: o.user_id, nick, city: city || null, kayit_izni: kayitIzni, avatar_url: avatarUrl } });
+}
+/** Oyuncu kartında değişiklik (izin, fotoğraf …) */
+export async function oyuncuGuncelle(yama: { kayit_izni?: boolean; avatar_url?: string | null; city?: string | null; nick?: string }): Promise<void> {
+  const o = await oturum();
+  await istek("/rest/v1/players?id=eq." + o.user_id, { method: "PATCH", jwt: o.access_token, headers: { Prefer: "return=minimal" }, body: yama });
+}
+/** Fotoğrafı kendi klasörüne yükler (avatarlar/<kullanıcı>/avatar.jpg) ve herkese açık adresini döner. Boyut ve tür sunucuda sınırlıdır (1 MB, jpeg/png/webp). */
+export async function avatarYukle(uri: string, mime = "image/jpeg"): Promise<string> {
+  const o = await oturum();
+  const blob = await (await fetch(uri)).blob();
+  if (blob.size > 1048576) throw new SunucuHatasi("Fotoğraf 1 MB'tan küçük olmalı", 413);
+  const yol = `${o.user_id}/avatar.${mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg"}`;
+  const r = await fetch(`${AYAR.url}/storage/v1/object/avatarlar/${yol}`, {
+    method: "POST", headers: { apikey: AYAR.anonKey, Authorization: "Bearer " + o.access_token, "content-type": mime, "x-upsert": "true" }, body: blob,
+  });
+  if (!r.ok) { let m = "Yüklenemedi"; try { m = (await r.json()).message ?? m; } catch { /* gövde yok */ } throw new SunucuHatasi(m, r.status); }
+  return `${AYAR.url}/storage/v1/object/public/avatarlar/${yol}?v=${Date.now()}`;
 }
 export async function skorlar(tarih: string): Promise<{ round: number; score: number }[]> {
   const o = await oturum();
@@ -79,9 +97,9 @@ export async function duello(action: "queue" | "status" | "bot" | "start" | "sub
   const o = await oturum();
   return istek("/functions/v1/duel", { method: "POST", jwt: o.access_token, body: { action, ...ek } });
 }
-export async function siralama(tarih: string): Promise<{ nick: string; city: string | null; total: number; rank: number }[]> {
+export async function siralama(tarih: string): Promise<{ nick: string; city: string | null; total: number; rank: number; avatar_url?: string | null }[]> {
   const o = await oturum();
-  return istek("/rest/v1/daily_leaderboard?select=nick,city,total,rank&order=rank.asc&limit=10&date=eq." + tarih, { jwt: o.access_token });
+  return istek("/rest/v1/daily_leaderboard?select=nick,city,total,rank,avatar_url&order=rank.asc&limit=10&date=eq." + tarih, { jwt: o.access_token });
 }
 export async function ilLigi(hafta: string): Promise<{ city: string; total: number; players: number; average: number }[]> {
   const o = await oturum();

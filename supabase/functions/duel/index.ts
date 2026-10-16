@@ -85,10 +85,30 @@ function turKapanis(satir: Satir, hamleler: Satir[]): number {
   const ilk = ilkGonderim(satir, hamleler);
   return ilk === null ? sonSaat : Math.min(sonSaat, ilk + RAKIP_BEKLEME_MS);
 }
+/** Rakibi sunucunun oynattığı maç: yapay zekâ veya kayıtlı oyuncu (hamleler tur satırındaki bot_move'dan gelir) */
+const tekliMac = (m: Satir) => !!m.is_bot || !!m.ghost_player;
+
+/** Kayıtlı rakip: izin vermiş bir oyuncunun, BENİM oynamadığım bitmiş bir maçtaki tarafı. Yoksa null. */
+async function kayitliRakipBul(mac: Satir, pid: string): Promise<{ m: Satir; oyuncu: Satir } | null> {
+  const adaylar = (await liste("matches", { state: "finished" }))
+    .filter((m) => !m.is_bot && !m.ghost_player && m.a && m.b && m.a !== pid && m.b !== pid)   // ikisi de gerçek oyuncu; ben o maçta olmadım (bulmacaları görmemiş olmalıyım)
+    .slice(-200);
+  const rng = H.makeRng("kayitli|" + mac.id);
+  for (let i = adaylar.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [adaylar[i], adaylar[j]] = [adaylar[j], adaylar[i]]; }
+  for (const m of adaylar) {
+    const taraflar = rng() < 0.5 ? [m.a, m.b] : [m.b, m.a];
+    for (const id of taraflar) {
+      const o = await tek("players", { id });
+      if (o?.kayit_izni) return { m, oyuncu: o };
+    }
+  }
+  return null;
+}
+
 function turBitmisMi(satir: Satir, hamleler: Satir[], mac: Satir, pid: string, an: number): boolean {
   const ben = hamleler.find((h) => h.round === satir.round && h.player_id === pid);
   const rakip = hamleler.find((h) => h.round === satir.round && h.player_id !== pid);
-  if (mac.is_bot) return !!ben || an > ms(satir.started_at) + SURE_MS + TOLERANS_MS;
+  if (tekliMac(mac)) return !!ben || an > ms(satir.started_at) + SURE_MS + TOLERANS_MS;
   return (!!ben && !!rakip) || an > turKapanis(satir, hamleler);
 }
 
@@ -97,12 +117,16 @@ async function gorunum(mac: Satir, pid: string): Promise<Response> {
   const an = simdi();
   const rakipId = mac.a === pid ? mac.b : mac.a;
   let rakip: Satir = { bot: true, nick: "Yapay zekâ" };
-  if (mac.is_bot) {
+  if (mac.ghost_player) {
+    // kayıtlı oyun: gerçek oyuncunun adı/ili/fotoğrafı; arayüz "kayıtlı oyun" etiketini gösterir
+    const o = await tek("players", { id: mac.ghost_player });
+    rakip = { bot: false, kayitli: true, nick: o?.nick ?? "Oyuncu", city: o?.city ?? null, avatar_url: o?.avatar_url ?? null };
+  } else if (mac.is_bot) {
     const k = H.botPersona(mac.seed);   // her zaman bot=true: arayüz "yapay zekâ" diye etiketler
     rakip = { bot: true, nick: k.nick, city: k.city };
   } else {
     const o = rakipId ? await tek("players", { id: rakipId }) : null;
-    rakip = o ? { bot: false, nick: o.nick, city: o.city ?? null } : { bot: false, nick: null };
+    rakip = o ? { bot: false, nick: o.nick, city: o.city ?? null, avatar_url: o.avatar_url ?? null } : { bot: false, nick: null };
   }
   const base: Satir = { match_id: mac.id, state: mac.state, rakip, server_now: new Date(an).toISOString() };
   if (mac.state === "waiting") {
@@ -120,7 +144,7 @@ async function gorunum(mac: Satir, pid: string): Promise<Response> {
     const t = turlar.find((x) => x.round === r);
     if (t && turBitmisMi(t, hamleler, mac, pid, an)) {
       const b = hamleler.find((h) => h.round === r && h.player_id === pid)?.payload;
-      const o = mac.is_bot ? t.bot_move : hamleler.find((h) => h.round === r && h.player_id !== pid)?.payload;
+      const o = tekliMac(mac) ? t.bot_move : hamleler.find((h) => h.round === r && h.player_id !== pid)?.payload;
       const bs = b?.score ?? 0, os = o?.score ?? 0;
       toplam.ben += bs; toplam.rakip += os;
       sonuclar.push({
@@ -143,9 +167,15 @@ async function gorunum(mac: Satir, pid: string): Promise<Response> {
   return json({
     ...base, bitti: false, tur: guncel, sonuclar, toplam, ben_gonderdim: benGonderdim,
     tur_basladi_ms: t ? ms(t.started_at) - an : null,   // <0: başladı, >0: geri sayım
-    rakip_kalan_ms: t && benGonderdim && !mac.is_bot ? Math.max(0, turKapanis(t, hamleler) - an) : null,   // rakibe kalan süre
+    rakip_kalan_ms: t && benGonderdim && !tekliMac(mac) ? Math.max(0, turKapanis(t, hamleler) - an) : null,   // rakibe kalan süre
     sure_ms: SURE_MS,
   });
+}
+
+/** Kayıtlı rakibin o maçtaki hamlesi (gönderilmemişse 0 puan) */
+async function kayitliHamle(mac: Satir, round: number): Promise<Satir> {
+  const h = (await liste("match_moves", { match_id: mac.ghost_of })).find((x) => x.round === round && x.player_id === mac.ghost_player);
+  return { answer: h?.payload?.answer ?? "", score: h?.payload?.score ?? 0 };
 }
 
 async function macBul(matchId: unknown, pid: string): Promise<Satir | null> {
@@ -191,7 +221,12 @@ Deno.serve(async (req) => {
       if (!mac) return hata("Maç bulunamadı", 404);
       if (mac.state !== "waiting" || mac.a !== pid) return hata("Maç bekleme durumunda değil", 409);
       if (simdi() - ms(mac.created_at) < BOT_BEKLEME_MS - 1000) return hata("Henüz erken: önce gerçek rakip aranır", 409);
-      const { data } = await admin.from("matches").update({ is_bot: true, state: "active" }).eq("id", mac.id).eq("state", "waiting").select();
+      // Önce kayıtlı rakip (gerçek oyuncunun eski maçı, adı/fotoğrafıyla), yoksa yapay zekâ
+      const kayitli = await kayitliRakipBul(mac, pid);
+      const guncel = kayitli
+        ? { ghost_player: kayitli.oyuncu.id, ghost_of: kayitli.m.id, seed: kayitli.m.seed, state: "active" }   // aynı bulmacalar: o oyuncunun oynadığı tohum
+        : { is_bot: true, state: "active" };
+      const { data } = await admin.from("matches").update(guncel).eq("id", mac.id).eq("state", "waiting").select();
       return gorunum(data?.[0] ?? (await tek("matches", { id: mac.id }))!, pid);
     }
     case "start":
@@ -220,7 +255,7 @@ Deno.serve(async (req) => {
           const yeni = {
             match_id: mac.id, round, kind: rr.kind, payload: rr.payload,
             best_score: rr.best.score, best_solution: rr.best.solution,
-            bot_move: mac.is_bot ? H.botMove(mac.seed, round - 1, rr) : null,
+            bot_move: mac.is_bot ? H.botMove(mac.seed, round - 1, rr) : mac.ghost_player ? await kayitliHamle(mac, round) : null,
             started_at: new Date(an + GERI_SAYIM_MS).toISOString(),
           };
           // iki oyuncu aynı anda çağırırsa ilk yazılan kazanır (aynı başlangıç anı)

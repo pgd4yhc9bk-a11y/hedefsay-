@@ -78,6 +78,19 @@ select pg_temp.expect_count('select 1 from public.daily_scores where player_id =
 select pg_temp.expect_count('select 1 from public.matches where b is null and seed = ''s1''', 1);                 -- rakip hesabı silinince b null kalır, maç durur
 select pg_temp.expect_count('select 1 from public.matches where seed = ''s2''', 0);                               -- a silinirse maç da gider
 
+-- ---- fotoğraf ve kayıt izni ----
+reset role; set role authenticated; set request.jwt.claim.sub = :A;
+select pg_temp.expect_count('select 1 from storage.buckets where id = ''avatarlar'' and public and file_size_limit = 1048576', 1);
+update public.players set avatar_url = 'https://x.supabase.co/storage/v1/object/public/avatarlar/00000000-0000-0000-0000-00000000000a/avatar.jpg?v=1', kayit_izni = true where id = :A;
+select pg_temp.expect_count('select 1 from public.players where id = ' || quote_literal(:A) || ' and kayit_izni', 1);
+select pg_temp.expect_error('update public.players set avatar_url = ''https://kotu.example/izleme.png'' where id = ' || quote_literal(:A));                                  -- harici adres olamaz
+select pg_temp.expect_error('update public.players set avatar_url = ''https://x.supabase.co/storage/v1/object/public/avatarlar/00000000-0000-0000-0000-00000000000c/a.jpg'' where id = ' || quote_literal(:A));  -- başkasının klasörü olamaz
+insert into storage.objects (bucket_id, name, owner) values ('avatarlar', :A || '/avatar.jpg', :A);                                   -- kendi klasörüne yazar
+select pg_temp.expect_error('insert into storage.objects (bucket_id, name) values (''avatarlar'', ''00000000-0000-0000-0000-00000000000c/avatar.jpg'')');     -- başkasının klasörüne yazamaz
+reset role; set role anon;
+select pg_temp.expect_count('select 1 from storage.objects where bucket_id = ''avatarlar''', 1);                                       -- avatarlar herkese açık okunur
+select pg_temp.expect_error('insert into storage.objects (bucket_id, name) values (''avatarlar'', ''x/y.jpg'')');                         -- anon yazamaz
+
 -- ---- anon ----
 reset role; set role anon;
 select pg_temp.expect_count('select 1 from public.cities', 81);
