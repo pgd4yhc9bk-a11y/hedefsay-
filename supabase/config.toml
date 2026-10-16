@@ -1,0 +1,6 @@
+# Minimal yapılandırma; `supabase start` / `supabase link` eksik varsayılanları kendisi tamamlar.
+project_id = "hedef"
+
+# Cron buradan çağrılır, kullanıcı JWT'si yoktur; fonksiyon kendi x-cron-secret başlığını doğrular.
+[functions.generate-daily-puzzle]
+verify_jwt = false

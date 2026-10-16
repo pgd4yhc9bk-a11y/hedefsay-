@@ -11,13 +11,18 @@ Derleme gerekmez: `prototip/index.html` dosyasını tarayıcıda aç.
 - `index.html` — arayüz: botlu düello (4 tur, harfleri turlar sırayla seçer) ve günlük mücadele (tohum = tarih, günde bir kez, paylaşım metni).
 - `test.js` — çekirdek testleri: `node prototip/test.js`
 
+## Sunucu (`supabase/`)
+
+Şema, RLS, günlük bulmaca üretimi ve skor doğrulama iskeleti: [supabase/README.md](supabase/README.md). Henüz bir projeye uygulanmadı.
+
 ## Prototipte sabitlenen / karar bekleyen değerler
 
 | Konu | Prototipteki değer |
 |---|---|
 | Tüm harfleri kullanma bonusu | +10 (belgede yalnızca "ek bonus") |
 | Kelime puanı | harf sayısı, jokersiz +3 |
-| Tam isabette süre bonusu | yalnızca günlük modda: kalan her 10 sn için +1 (`SURE_BONUS_BOLEN`) |
+| Tam isabette süre bonusu | yalnızca günlük modda: kalan her 10 sn için +1 (`SURE_BONUS_BOLEN`, çekirdekte) |
+| Günlükte süre | iki tur de 60 sn sabit (ayar yalnızca düelloda; adalet için) |
 | Bot gücü | işlemde %45 tam isabet, aksi halde 1–12 fark; kelimede en iyi 12 kelimeden ağırlıklı seçim |
 | Düello eşzamanlılığı | yok; bot sonucu tur bitince hesaplanır (gerçek düello Faz 4) |
 

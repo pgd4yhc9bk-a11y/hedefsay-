@@ -82,7 +82,6 @@
   var timer = null;      // aktif tur sayacı
   var onKey = null;      // aktif turun klavye işleyicisi
   var bitisAn = 0;       // aktif turun bitiş zamanı (ms)
-  var SURE_BONUS_BOLEN = 10; // tam isabette her 10 sn kalan için +1 (yalnızca günlük/tek oyunculu; değer ayarlanacak)
   var tickFn = null;     // sayaç çubuğunu hemen yenilemek için
   var ayar = { islemSure: 60 };
 
@@ -152,7 +151,7 @@
   // ---------- oyun akışı ----------
   function basla(mod) {
     var tohum = mod === "gunluk" ? "gunluk-" + bugun() : "oyun-" + Math.random() + "-" + Date.now();
-    G = { mod: mod, tohum: tohum, tur: 0, sonuclar: [], toplam: { ben: 0, bot: 0 }, islemSure: ayar.islemSure };
+    G = { mod: mod, tohum: tohum, tur: 0, sonuclar: [], toplam: { ben: 0, bot: 0 }, islemSure: mod === "gunluk" ? H.GUNLUK_SURE : ayar.islemSure };
     turGir();
   }
 
@@ -161,12 +160,16 @@
     var i = G.tur, tip = TURLAR[i], rr = H.makeRng(G.tohum + "|" + i);
     G.rng = rr;
     G.botRng = H.makeRng(G.tohum + "|bot|" + i);
+    if (G.mod === "gunluk") {
+      var d = H.dailyRound(bugun(), i);
+      G.tur_ = tip === "kelime" ? { tip: "kelime", harfler: d.payload.letters, secici: "sistem" }
+        : { tip: "islem", nums: d.payload.nums, target: d.payload.target, found: d.found };
+      return turGiris();
+    }
     if (tip === "kelime") {
-      var secici = G.mod === "oyun" ? (i === 0 ? "ben" : "bot") : "sistem";
+      var secici = i === 0 ? "ben" : "bot";
       if (secici === "ben") return harfSec(rr);
-      var tipler = secici === "bot" ? H.randomTypes(G.botRng) : null;
-      var harfler = secici === "bot" ? H.generateRack(rr, tipler) : H.generateRackAuto(rr);
-      G.tur_ = { tip: "kelime", harfler: harfler, secici: secici };
+      G.tur_ = { tip: "kelime", harfler: H.generateRack(rr, H.randomTypes(G.botRng)), secici: secici };
       return turGiris();
     }
     G.tur_ = Object.assign({ tip: "islem" }, H.generateNumberRound(rr));
@@ -338,7 +341,7 @@
       var r = H.evaluate(inp.value, t.nums);
       if (!r.ok) { mesajEl.className = "msg bad"; mesajEl.textContent = r.error; return; }
       var puan = H.numberScore(t.target, r.value), fark = Math.abs(t.target - r.value);
-      var bonus = fark === 0 && G.mod === "gunluk" ? Math.floor(Math.max(0, bitisAn - Date.now()) / 1000 / SURE_BONUS_BOLEN) : 0;
+      var bonus = fark === 0 && G.mod === "gunluk" ? H.timeBonus((bitisAn - Date.now()) / 1000) : 0;
       puan += bonus;
       mesajEl.className = "msg " + (puan ? "good" : "bad");
       mesajEl.textContent = "= " + r.value + (fark ? " (fark " + fark + ")" : " — tam isabet!") + " · " + puan + " puan" + (bonus ? " (süre bonusu +" + bonus + ")" : "");

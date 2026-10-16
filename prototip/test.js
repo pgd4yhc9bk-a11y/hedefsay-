@@ -87,4 +87,37 @@ t("allWords sıralı, ilk eleman en iyi; bot geçerli kelime verir", () => {
   assert.ok(H.wordInfo(b.word, L).valid);
 });
 
+t("günlük bulmaca: aynı tarih aynı bulmaca, farklı tarih farklı", () => {
+  const a = [0, 1, 2, 3].map(i => H.dailyRound("2026-10-17", i));
+  const b = [0, 1, 2, 3].map(i => H.dailyRound("2026-10-17", i));
+  const c = H.dailyRound("2026-10-18", 1);
+  assert.deepStrictEqual(a.map(x => x.payload), b.map(x => x.payload));
+  assert.notDeepStrictEqual(a[1].payload, c.payload);
+  assert.deepStrictEqual(a.map(x => x.kind), ["kelime", "islem", "kelime", "islem"]);
+  assert.ok(a[0].best.score > 0 && H.wordInfo(a[0].best.solution, a[0].payload.letters).valid);
+  assert.strictEqual(H.evaluate(a[1].best.solution, a[1].payload.nums).value, a[1].payload.target);
+});
+
+t("scoreRound: kelime, işlem, süre bonusu, süre aşımı", () => {
+  const k = H.dailyRound("2026-10-17", 0), i = H.dailyRound("2026-10-17", 1);
+  const kw = H.scoreRound("kelime", k.payload, k.best.solution, 20000);
+  assert.deepStrictEqual([kw.valid, kw.score], [true, k.best.score]);
+  assert.strictEqual(H.scoreRound("kelime", k.payload, "zzzzzz", 1000).score, 0);
+  const tam = H.scoreRound("islem", i.payload, i.best.solution, 15000);   // 45 sn kaldı -> +4
+  assert.strictEqual(tam.score, 14);
+  assert.strictEqual(H.scoreRound("islem", i.payload, i.best.solution, 59000).score, 10);
+  assert.strictEqual(H.scoreRound("islem", i.payload, i.best.solution, 64000).score, 0);   // 60+3 sn aşıldı
+  assert.strictEqual(H.scoreRound("islem", i.payload, "1+", 1000).valid, false);
+  assert.strictEqual(H.scoreRound("islem", i.payload, null, 1000).score, 0);
+});
+
+t("supabase/functions/_shared kopyaları güncel (scripts/senkronla.sh)", () => {
+  const fs = require("fs"), path = require("path");
+  for (const f of ["oyun.js", "sozluk.js"]) {
+    const a = fs.readFileSync(path.join(__dirname, f), "utf8");
+    const b = fs.readFileSync(path.join(__dirname, "../supabase/functions/_shared", f), "utf8");
+    assert.strictEqual(a, b, f + " senkron değil: scripts/senkronla.sh çalıştır");
+  }
+});
+
 console.log(`\n${n} test geçti`);

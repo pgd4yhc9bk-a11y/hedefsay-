@@ -326,6 +326,41 @@
     return { value: target, expr: found.get(target).e };
   }
 
+  // ---------- Günlük mod: sunucu ve istemci aynı kodu kullanır ----------
+  var GUNLUK_TURLAR = ["kelime", "islem", "kelime", "islem"];
+  var GUNLUK_SURE = 60;          // günlükte iki tur için sabit (adalet için ayar yok)
+  var SURE_BONUS_BOLEN = 10;     // tam isabette kalan her 10 sn için +1 (ayarlanacak)
+  var SURE_TOLERANSI = 3;        // sunucuda ağ gecikmesi payı (sn)
+
+  function timeBonus(kalanSn) { return Math.floor(Math.max(0, kalanSn) / SURE_BONUS_BOLEN); }
+
+  // i: 0..3. Aynı tarih ve tur her zaman aynı bulmacayı üretir.
+  function dailyRound(date, i) {
+    var rr = makeRng("gunluk-" + date + "|" + i), kind = GUNLUK_TURLAR[i];
+    if (kind === "kelime") {
+      var letters = generateRackAuto(rr), en = allWords(letters)[0];
+      return { kind: kind, payload: { letters: letters }, best: { score: en ? en.score : 0, solution: en ? en.word : "" } };
+    }
+    var r = generateNumberRound(rr);
+    return { kind: kind, payload: { nums: r.nums, target: r.target }, best: { score: 10, solution: r.found.get(r.target).e }, found: r.found };
+  }
+
+  // Sunucudaki puan hesabı: istemci yalnızca cevabı gönderir.
+  function scoreRound(kind, payload, answer, elapsedMs, limitSn) {
+    limitSn = limitSn || GUNLUK_SURE;
+    if (elapsedMs > (limitSn + SURE_TOLERANSI) * 1000) return { score: 0, valid: false, detail: "Süre aşıldı" };
+    answer = String(answer == null ? "" : answer);
+    if (kind === "kelime") {
+      var b = wordInfo(answer, payload.letters);
+      return b.valid ? { score: b.score, valid: true, detail: b.word } : { score: 0, valid: false, detail: b.reason };
+    }
+    var ev = evaluate(answer, payload.nums);
+    if (!ev.ok) return { score: 0, valid: false, detail: ev.error };
+    var puan = numberScore(payload.target, ev.value);
+    if (ev.value === payload.target) puan += timeBonus(limitSn - elapsedMs / 1000);
+    return { score: puan, valid: true, detail: "= " + ev.value };
+  }
+
   var Hedef = {
     SESLI: SESLI, SESSIZ: SESSIZ, ALFABE: ALFABE, MIN_SESLI: MIN_SESLI, HARF_SAYISI: HARF_SAYISI,
     trLower: trLower, makeRng: makeRng, randInt: randInt,
@@ -333,7 +368,8 @@
     drawLetter: drawLetter, completeRack: completeRack, generateRack: generateRack, generateRackAuto: generateRackAuto, randomTypes: randomTypes,
     wordInfo: wordInfo, allWords: allWords, hasLong: hasLong,
     solve: solve, generateNumberRound: generateNumberRound, evaluate: evaluate, numberScore: numberScore,
-    botWord: botWord, botNumber: botNumber
+    botWord: botWord, botNumber: botNumber,
+    GUNLUK_TURLAR: GUNLUK_TURLAR, GUNLUK_SURE: GUNLUK_SURE, timeBonus: timeBonus, dailyRound: dailyRound, scoreRound: scoreRound
   };
   if (typeof module !== "undefined" && module.exports) module.exports = Hedef;
   root.Hedef = Hedef;
