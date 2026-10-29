@@ -3,7 +3,7 @@ Kullanım: python3 tools_sprite.py <kaynak.webp|png> <hedef.png>
 Hepsi aynı ölçekle işlenir, böylece pozlar arasında boyut tutarlı kalır."""
 import sys
 from PIL import Image
-SCALE, W, H, PAD = 0.55, 640, 512, 16   # kaynak px -> çıktı px, tuval, alt boşluk
+SCALE, W, H, PAD = 0.55, 640, 576, 16   # kaynak px -> çıktı px, tuval, alt boşluk
 im = Image.open(sys.argv[1]).convert('RGBA')
 im.putalpha(im.getchannel('A').point(lambda v: 0 if v < 16 else v))  # kenar gürültüsünü sil
 im = im.crop(im.getbbox())
