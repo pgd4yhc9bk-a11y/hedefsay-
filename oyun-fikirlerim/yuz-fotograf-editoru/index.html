@@ -299,19 +299,26 @@ const cv = $("cv"), ctx = cv.getContext("2d");
 const cmpOrig = $("cmpOrig"), cmpCtx = cmpOrig.getContext("2d");
 let file = null, srcData = null, params = { ...DEFAULTS };
 let history = [], hIdx = -1, tabId = "auto", raf = 0, showOrig = false, cmpOn = false, cmpPos = 0.5;
-const MAX_PREVIEW = 1280;
+const MAX_PREVIEW = 1280, EXPORT_MAX = 3072; // iPhone belleği için güvenli sınır
 
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 1800); }
 
+function loadBitmap(f) {
+  return new Promise((res, rej) => {
+    const u = URL.createObjectURL(f), im = new Image();
+    im.onload = () => { URL.revokeObjectURL(u); res({ source: im, width: im.naturalWidth, height: im.naturalHeight }); };
+    im.onerror = () => { URL.revokeObjectURL(u); rej(new Error("decode")); };
+    im.src = u;
+  });
+}
 async function openFile(f) {
   if (!f) return;
   try {
-    // EXIF yönü otomatik uygulanır
-    const bmp = await createImageBitmap(f, { imageOrientation: "from-image" });
+    const bmp = await loadBitmap(f); // EXIF yönü tarayıcı tarafından uygulanır
     const s = Math.min(1, MAX_PREVIEW / Math.max(bmp.width, bmp.height));
     const w = Math.round(bmp.width * s), h = Math.round(bmp.height * s);
     const c = document.createElement("canvas"); c.width = w; c.height = h;
-    c.getContext("2d").drawImage(bmp, 0, 0, w, h);
+    c.getContext("2d").drawImage(bmp.source, 0, 0, w, h);
     setSource(c.getContext("2d").getImageData(0, 0, w, h), f);
   } catch (e) { toast("Fotoğraf açılamadı"); console.error(e); }
 }
@@ -424,17 +431,17 @@ $("cmpMode").onclick = () => {
   if (cmpOn) applyCmp();
 };
 
-/* Dışa aktarma: orijinal çözünürlükte yeniden işlenir (en uzun kenar ≤ 4096) */
+/* Dışa aktarma: orijinal çözünürlükte yeniden işlenir (en uzun kenar ≤ 3072) */
 $("save").onclick = async () => {
   if (!file) return;
   $("save").disabled = true; toast("Yüksek kalitede hazırlanıyor…");
   await new Promise((r) => setTimeout(r, 30));
   try {
-    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const s = Math.min(1, 4096 / Math.max(bmp.width, bmp.height));
+    const bmp = await loadBitmap(file);
+    const s = Math.min(1, EXPORT_MAX / Math.max(bmp.width, bmp.height));
     const w = Math.round(bmp.width * s), h = Math.round(bmp.height * s);
     const c = document.createElement("canvas"); c.width = w; c.height = h;
-    const x = c.getContext("2d"); x.drawImage(bmp, 0, 0, w, h);
+    const x = c.getContext("2d"); x.drawImage(bmp.source, 0, 0, w, h);
     x.putImageData(render(x.getImageData(0, 0, w, h), params), 0, 0);
     const png = file.type === "image/png";
     const blob = await new Promise((res) => c.toBlob(res, png ? "image/png" : "image/jpeg", 0.95));
