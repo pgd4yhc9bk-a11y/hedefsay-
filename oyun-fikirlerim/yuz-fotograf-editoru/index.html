@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Yüz &amp; Fotoğraf Editörü — Prototip</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --line:#262a33; --text:#eef0f4; --mute:#8b92a1; --acc:#ff6b8b; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overflow:hidden; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+  .hidden { display:none !important; }
+
+  /* Ana ekran */
+  #home { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; padding:24px 16px; text-align:center; }
+  #home .logo { font-size:44px; }
+  #home h1 { margin:0; font-size:26px; line-height:1.2; }
+  #home p { margin:0; color:var(--mute); max-width:32ch; }
+  .btn { width:min(320px,100%); padding:15px; border-radius:14px; font-weight:600; background:var(--acc); color:#fff; }
+  .btn.ghost { background:var(--panel); border:1px solid var(--line); }
+  .privacy { font-size:13px; color:var(--mute); max-width:36ch; }
+  .badges { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .badges span { font-size:12px; padding:4px 10px; border-radius:99px; border:1px solid var(--line); color:var(--mute); }
+
+  /* Editör */
+  #editor { height:100%; display:flex; flex-direction:column; padding-bottom:env(safe-area-inset-bottom); }
+  .top { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; gap:8px; }
+  .top .grp { display:flex; gap:4px; align-items:center; }
+  .ib { min-width:42px; height:42px; border-radius:12px; background:var(--panel); font-size:18px; }
+  .ib:disabled { opacity:.35; }
+  .ib.on { background:var(--acc); }
+  .save { background:var(--acc); padding:0 16px; font-weight:600; font-size:14px; }
+  #stage { flex:1; min-height:0; position:relative; display:flex; align-items:center; justify-content:center; padding:0 8px; }
+  #wrap { position:relative; max-width:100%; max-height:100%; touch-action:none; user-select:none; }
+  #wrap canvas { display:block; max-width:100%; max-height:100%; border-radius:6px; }
+  #cmpOrig { position:absolute; inset:0; width:100%; height:100%; }
+  #cmpLine { position:absolute; top:0; bottom:0; width:3px; background:#fff; box-shadow:0 0 6px #0008; transform:translateX(-1.5px); }
+  #cmpLine::after { content:"↔"; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    background:#fff; color:#111; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-size:14px; }
+  #tag { position:absolute; left:8px; top:8px; background:#000a; padding:3px 10px; border-radius:99px; font-size:12px; letter-spacing:.05em; }
+  #busy { position:absolute; right:14px; top:8px; font-size:12px; color:var(--mute); }
+
+  .dock { background:var(--panel); border-top:1px solid var(--line); }
+  .mid { display:flex; justify-content:center; padding:8px; }
+  #hold { padding:8px 22px; border-radius:99px; background:var(--bg); border:1px solid var(--line); font-size:13px; letter-spacing:.06em; }
+  #hold:active { background:var(--acc); }
+  #panel { padding:4px 16px 8px; min-height:132px; }
+  .row { display:grid; grid-template-columns:1fr auto; align-items:center; gap:2px 10px; margin:8px 0; }
+  .row label { font-size:13px; color:var(--mute); }
+  .row output { font-size:13px; font-variant-numeric:tabular-nums; }
+  .row input[type=range] { grid-column:1 / -1; width:100%; accent-color:var(--acc); height:28px; }
+  .chips { display:flex; gap:8px; overflow-x:auto; padding:6px 0 4px; }
+  .chip { flex:0 0 auto; padding:8px 14px; border-radius:99px; border:1px solid var(--line); font-size:13px; }
+  .chip.on { background:var(--acc); border-color:var(--acc); color:#fff; }
+  .actions { display:flex; justify-content:space-between; padding:2px 16px 8px; }
+  .actions button { font-size:13px; color:var(--mute); padding:6px 4px; }
+  .tabs { display:flex; overflow-x:auto; border-top:1px solid var(--line); }
+  .tab { flex:1 0 auto; padding:12px 14px; font-size:13px; color:var(--mute); white-space:nowrap; }
+  .tab.on { color:var(--text); box-shadow:inset 0 -2px 0 var(--acc); }
+  .tab.soon { opacity:.45; }
+  .note { font-size:13px; color:var(--mute); margin:12px 0; }
+  #toast { position:fixed; left:50%; bottom:90px; transform:translateX(-50%); background:#000d; padding:8px 16px;
+    border-radius:99px; font-size:13px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:9; }
+  #toast.on { opacity:1; }
+</style>
+</head>
+<body>
+
+<section id="home">
+  <div class="logo">✨</div>
+  <h1>Fotoğrafını güzelleştir.<br>Kendin olarak kal.</h1>
+  <p>Prototip: doğal cilt rötuşu, ışık/renk, filtreler ve önce/sonra karşılaştırma.</p>
+  <button class="btn" id="pick">+ FOTOĞRAF SEÇ</button>
+  <button class="btn ghost" id="cam">KAMERAYI AÇ</button>
+  <div class="badges"><span>Ücretsiz</span><span>Reklamsız</span><span>Filigransız</span><span>Üyelik yok</span></div>
+  <p class="privacy">Fotoğrafların sana ait. Düzenlemeler tamamen cihazında (tarayıcında) yapılır, hiçbir yere yüklenmez.</p>
+  <input id="file" type="file" accept="image/*" class="hidden">
+  <input id="fileCam" type="file" accept="image/*" capture="user" class="hidden">
+</section>
+
+<section id="editor" class="hidden">
+  <div class="top">
+    <div class="grp">
+      <button class="ib" id="back" title="Ana ekran">✕</button>
+      <button class="ib" id="undo" title="Geri al" disabled>↶</button>
+      <button class="ib" id="redo" title="Yinele" disabled>↷</button>
+    </div>
+    <div class="grp">
+      <button class="ib" id="cmpMode" title="Karşılaştırma çizgisi">↔</button>
+      <button class="ib save" id="save">KAYDET</button>
+    </div>
+  </div>
+  <div id="stage">
+    <div id="wrap">
+      <canvas id="cv"></canvas>
+      <canvas id="cmpOrig" class="hidden"></canvas>
+      <div id="cmpLine" class="hidden"></div>
+      <div id="tag" class="hidden">ORİJİNAL</div>
+    </div>
+    <div id="busy"></div>
+  </div>
+  <div class="dock">
+    <div class="mid"><button id="hold">BASILI TUT: ÖNCE</button></div>
+    <div id="panel"></div>
+    <div class="actions">
+      <button id="resetTool">SIFIRLA</button>
+      <button id="resetAll">TÜMÜNÜ SIFIRLA / ORİJİNALE DÖN</button>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+</section>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ============ Parametreler ============ */
+const DEFAULTS = {
+  auto: 0,
+  smooth: 0, texture: 40, skinBright: 0,
+  brightness: 0, contrast: 0, shadows: 0, highlights: 0,
+  saturation: 0, warmth: 0,
+  sharpen: 0, vignette: 0,
+  filter: "none", filterAmt: 60,
+};
+const TABS = [
+  { id: "auto", name: "Güzelleştir", sliders: [{ k: "auto", label: "Doğal ↔ Güçlü", min: 0, max: 100 }] },
+  { id: "cilt", name: "Cilt", sliders: [
+      { k: "smooth", label: "Pürüzsüzleştirme", min: 0, max: 100 },
+      { k: "texture", label: "Doku koruma", min: 0, max: 100 },
+      { k: "skinBright", label: "Cilt parlaklığı", min: -50, max: 50 } ] },
+  { id: "isik", name: "Işık", sliders: [
+      { k: "brightness", label: "Parlaklık", min: -100, max: 100 },
+      { k: "contrast", label: "Kontrast", min: -100, max: 100 },
+      { k: "shadows", label: "Gölgeler", min: -100, max: 100 },
+      { k: "highlights", label: "Parlak alanlar", min: -100, max: 100 } ] },
+  { id: "renk", name: "Renk", sliders: [
+      { k: "saturation", label: "Doygunluk", min: -100, max: 100 },
+      { k: "warmth", label: "Sıcaklık", min: -100, max: 100 } ] },
+  { id: "detay", name: "Detay", sliders: [
+      { k: "sharpen", label: "Keskinlik", min: 0, max: 100 },
+      { k: "vignette", label: "Vinyet", min: 0, max: 100 } ] },
+  { id: "filtre", name: "Filtre", filters: true, sliders: [{ k: "filterAmt", label: "Filtre yoğunluğu", min: 0, max: 100 }] },
+  { id: "yuz", name: "Yüz şekli · Makyaj (yakında)", soon: true },
+];
+const FILTERS = [
+  ["none", "Orijinal"], ["dogal", "Doğal"], ["sicak", "Sıcak"], ["soguk", "Soğuk"],
+  ["sinema", "Sinematik"], ["sb", "Siyah-beyaz"], ["vintage", "Vintage"],
+];
+
+/* ============ Görüntü işleme ============ */
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+// Ayrılabilir kutu bulanıklaştırma (2 geçiş ≈ gauss). Alfa kanalı 255 yapılır.
+function blurPass(src, dst, w, h, r, horizontal) {
+  const size = 2 * r + 1;
+  const len = horizontal ? w : h, lines = horizontal ? h : w;
+  const stride = horizontal ? 4 : w * 4, lineStride = horizontal ? w * 4 : 4;
+  for (let l = 0; l < lines; l++) {
+    const base = l * lineStride;
+    for (let c = 0; c < 3; c++) {
+      let sum = 0;
+      for (let i = -r; i <= r; i++) sum += src[base + clamp(i, 0, len - 1) * stride + c];
+      for (let i = 0; i < len; i++) {
+        dst[base + i * stride + c] = sum / size;
+        sum += src[base + clamp(i + r + 1, 0, len - 1) * stride + c]
+             - src[base + clamp(i - r, 0, len - 1) * stride + c];
+      }
+    }
+  }
+}
+function blur(src, w, h, r) {
+  const a = new Uint8ClampedArray(src.length).fill(255);
+  const b = new Uint8ClampedArray(src.length).fill(255);
+  blurPass(src, a, w, h, r, true);  blurPass(a, b, w, h, r, false);
+  blurPass(b, a, w, h, r, true);    blurPass(a, b, w, h, r, false);
+  return b;
+}
+
+// Basit YCbCr cilt maskesi, yumuşatılmış (0..255)
+function skinMask(d, w, h, long) {
+  const m = new Uint8ClampedArray(d.length).fill(255);
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+    const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+    const v = (y > 40 && r > b && cb > 77 && cb < 127 && cr > 133 && cr < 173) ? 255 : 0;
+    m[i] = m[i + 1] = m[i + 2] = v;
+  }
+  return blur(m, w, h, Math.max(3, Math.round(long / 90)));
+}
+
+// Doğal ↔ Güçlü ayarı, temel parametrelerin üstüne eklenir
+function effective(p) {
+  const e = Object.assign({}, p), a = p.auto / 100;
+  e.smooth = clamp(p.smooth + 55 * a, 0, 100);
+  e.contrast = clamp(p.contrast + 12 * a, -100, 100);
+  e.saturation = clamp(p.saturation + 10 * a, -100, 100);
+  e.shadows = clamp(p.shadows + 18 * a, -100, 100);
+  e.brightness = clamp(p.brightness + 6 * a, -100, 100);
+  e.sharpen = clamp(p.sharpen + 25 * a, 0, 100);
+  return e;
+}
+
+const _t = [0, 0, 0];
+function applyFilter(name, r, g, b) {
+  const L = 0.299 * r + 0.587 * g + 0.114 * b;
+  const sat = (s) => { r = L + (r - L) * s; g = L + (g - L) * s; b = L + (b - L) * s; };
+  const con = (c) => { r = (r - .5) * c + .5; g = (g - .5) * c + .5; b = (b - .5) * c + .5; };
+  switch (name) {
+    case "dogal":  con(1.06); sat(1.08); break;
+    case "sicak":  r *= 1.08; b *= 0.92; sat(1.06); break;
+    case "soguk":  r *= 0.93; b *= 1.08; sat(0.96); break;
+    case "sinema": con(1.14); sat(0.92);
+      r += (1 - L) * -0.04 + L * 0.06; g += (1 - L) * 0.015 + L * 0.015; b += (1 - L) * 0.06 - L * 0.05; break;
+    case "sb":     r = g = b = clamp((L - .5) * 1.15 + .5, 0, 1); break;
+    case "vintage": con(0.88); sat(0.8); r = r * 0.9 + 0.1 + 0.03; g = g * 0.9 + 0.09; b = b * 0.9 + 0.06 - 0.03; break;
+  }
+  _t[0] = r; _t[1] = g; _t[2] = b;
+}
+
+function render(src, params) {
+  const p = effective(params);
+  const w = src.width, h = src.height, long = Math.max(w, h);
+  const orig = src.data;
+  const out = new Uint8ClampedArray(orig);
+  const needMask = p.smooth > 0 || p.skinBright !== 0 || p.filter !== "none";
+  const mask = needMask ? skinMask(orig, w, h, long) : null;
+
+  // 1) Cilt: kenara duyarlı pürüzsüzleştirme + doku geri ekleme + cilt parlaklığı
+  if (p.smooth > 0 || p.skinBright !== 0) {
+    const amt = p.smooth / 100, tex = p.texture / 100, sb = p.skinBright / 100 * 60;
+    const bl = amt > 0 ? blur(orig, w, h, Math.max(2, Math.round(long / 220))) : null;
+    const sigma = 12 + amt * 30, inv = 1 / (2 * sigma * sigma);
+    for (let i = 0; i < orig.length; i += 4) {
+      const m = mask[i] / 255;
+      if (m < 0.02) continue;
+      for (let c = 0; c < 3; c++) {
+        let v = orig[i + c];
+        if (bl) {
+          const d = orig[i + c] - bl[i + c];
+          const k = Math.exp(-d * d * inv) * amt * m;
+          v = bl[i + c] * k + orig[i + c] * (1 - k) + d * k * tex;
+        }
+        out[i + c] = v + sb * m;
+      }
+    }
+  }
+
+  // 2) Işık / renk / filtre
+  const needTone = p.brightness || p.contrast || p.shadows || p.highlights || p.saturation || p.warmth || p.filter !== "none";
+  if (needTone) {
+    const br = p.brightness * 0.003, ct = 1 + p.contrast / 100, sh = p.shadows / 100 * 0.3,
+          hi = p.highlights / 100 * 0.3, sa = 1 + p.saturation / 100, wm = p.warmth / 400,
+          fa = p.filterAmt / 100;
+    for (let i = 0; i < out.length; i += 4) {
+      let r = out[i] / 255, g = out[i + 1] / 255, b = out[i + 2] / 255;
+      let L = 0.299 * r + 0.587 * g + 0.114 * b;
+      const lift = sh * (1 - L) * (1 - L) + hi * L * L + br;
+      r += lift; g += lift; b += lift;
+      r = (r - .5) * ct + .5; g = (g - .5) * ct + .5; b = (b - .5) * ct + .5;
+      r *= 1 + wm; b *= 1 - wm;
+      L = 0.299 * r + 0.587 * g + 0.114 * b;
+      r = L + (r - L) * sa; g = L + (g - L) * sa; b = L + (b - L) * sa;
+      if (p.filter !== "none") {
+        applyFilter(p.filter, r, g, b);
+        const f = fa * (1 - 0.5 * mask[i] / 255); // cilt tonunu koru
+        r += (_t[0] - r) * f; g += (_t[1] - g) * f; b += (_t[2] - b) * f;
+      }
+      out[i] = r * 255; out[i + 1] = g * 255; out[i + 2] = b * 255;
+    }
+  }
+
+  // 3) Keskinlik + vinyet
+  if (p.sharpen > 0 || p.vignette > 0) {
+    const sharp = p.sharpen / 100 * 1.5, vg = p.vignette / 100;
+    const bl = sharp > 0 ? blur(out, w, h, Math.max(1, Math.round(long / 500))) : null;
+    const cx = w / 2, cy = h / 2, maxd = Math.hypot(cx, cy);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      let f = 1;
+      if (vg > 0) { const d = Math.hypot(x - cx, y - cy) / maxd; f = 1 - vg * 0.7 * d * d; }
+      for (let c = 0; c < 3; c++) {
+        let v = out[i + c];
+        if (bl) v += (v - bl[i + c]) * sharp;
+        out[i + c] = v * f;
+      }
+    }
+  }
+  return new ImageData(out, w, h);
+}
+
+/* ============ Uygulama durumu ============ */
+const $ = (id) => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const cmpOrig = $("cmpOrig"), cmpCtx = cmpOrig.getContext("2d");
+let file = null, srcData = null, params = { ...DEFAULTS };
+let history = [], hIdx = -1, tabId = "auto", raf = 0, showOrig = false, cmpOn = false, cmpPos = 0.5;
+const MAX_PREVIEW = 1280;
+
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 1800); }
+
+async function openFile(f) {
+  if (!f) return;
+  try {
+    // EXIF yönü otomatik uygulanır
+    const bmp = await createImageBitmap(f, { imageOrientation: "from-image" });
+    const s = Math.min(1, MAX_PREVIEW / Math.max(bmp.width, bmp.height));
+    const w = Math.round(bmp.width * s), h = Math.round(bmp.height * s);
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    c.getContext("2d").drawImage(bmp, 0, 0, w, h);
+    setSource(c.getContext("2d").getImageData(0, 0, w, h), f);
+  } catch (e) { toast("Fotoğraf açılamadı"); console.error(e); }
+}
+function setSource(imgData, f) {
+  file = f; srcData = imgData; params = { ...DEFAULTS };
+  history = [{ ...params }]; hIdx = 0;
+  cv.width = cmpOrig.width = imgData.width; cv.height = cmpOrig.height = imgData.height;
+  cmpCtx.putImageData(imgData, 0, 0);
+  $("home").classList.add("hidden"); $("editor").classList.remove("hidden");
+  buildPanel(); schedule(); updateHistoryButtons();
+}
+
+function schedule() {
+  if (raf) return;
+  raf = requestAnimationFrame(() => {
+    raf = 0;
+    if (!srcData) return;
+    const t0 = performance.now();
+    ctx.putImageData(showOrig ? srcData : render(srcData, params), 0, 0);
+    $("busy").textContent = Math.round(performance.now() - t0) + " ms";
+    $("tag").classList.toggle("hidden", !showOrig);
+  });
+}
+
+/* Geçmiş (undo/redo): yalnızca parametre anlık görüntüleri saklanır */
+function commit() {
+  history = history.slice(0, hIdx + 1);
+  if (JSON.stringify(history[hIdx]) === JSON.stringify(params)) return;
+  history.push({ ...params }); hIdx++;
+  if (history.length > 100) { history.shift(); hIdx--; }
+  updateHistoryButtons();
+}
+function updateHistoryButtons() { $("undo").disabled = hIdx <= 0; $("redo").disabled = hIdx >= history.length - 1; }
+function goHistory(i) { hIdx = i; params = { ...history[hIdx] }; buildPanel(); schedule(); updateHistoryButtons(); }
+$("undo").onclick = () => hIdx > 0 && goHistory(hIdx - 1);
+$("redo").onclick = () => hIdx < history.length - 1 && goHistory(hIdx + 1);
+
+/* Panel */
+function buildTabs() {
+  $("tabs").innerHTML = "";
+  for (const t of TABS) {
+    const b = document.createElement("button");
+    b.className = "tab" + (t.id === tabId ? " on" : "") + (t.soon ? " soon" : "");
+    b.textContent = t.name;
+    b.onclick = () => { tabId = t.id; buildPanel(); };
+    $("tabs").appendChild(b);
+  }
+}
+function buildPanel() {
+  buildTabs();
+  const tab = TABS.find((t) => t.id === tabId), panel = $("panel");
+  panel.innerHTML = "";
+  if (tab.soon) {
+    panel.innerHTML = '<p class="note">Yüz şekillendirme, göz/ağız, makyaj ve saç rengi yüz noktaları (face landmarks) ve bölge maskeleri gerektirir. Bir sonraki aşamada MediaPipe ile eklenecek.</p>';
+    return;
+  }
+  if (tab.filters) {
+    const chips = document.createElement("div"); chips.className = "chips";
+    for (const [id, name] of FILTERS) {
+      const c = document.createElement("button");
+      c.className = "chip" + (params.filter === id ? " on" : ""); c.textContent = name;
+      c.onclick = () => { params.filter = id; commit(); buildPanel(); schedule(); };
+      chips.appendChild(c);
+    }
+    panel.appendChild(chips);
+  }
+  for (const s of tab.sliders) {
+    const row = document.createElement("div"); row.className = "row";
+    row.innerHTML = `<label for="s_${s.k}">${s.label}</label><output></output>
+      <input id="s_${s.k}" type="range" min="${s.min}" max="${s.max}" step="1">`;
+    const inp = row.querySelector("input"), out = row.querySelector("output");
+    inp.value = params[s.k]; out.textContent = params[s.k];
+    inp.oninput = () => { params[s.k] = +inp.value; out.textContent = inp.value; schedule(); };
+    inp.onchange = commit;
+    inp.ondblclick = () => { params[s.k] = DEFAULTS[s.k]; inp.value = DEFAULTS[s.k]; out.textContent = DEFAULTS[s.k]; commit(); schedule(); };
+    panel.appendChild(row);
+  }
+}
+$("resetTool").onclick = () => {
+  const tab = TABS.find((t) => t.id === tabId);
+  if (tab.soon) return;
+  tab.sliders.forEach((s) => (params[s.k] = DEFAULTS[s.k]));
+  if (tab.filters) params.filter = "none";
+  commit(); buildPanel(); schedule();
+};
+$("resetAll").onclick = () => { params = { ...DEFAULTS }; commit(); buildPanel(); schedule(); toast("Orijinale dönüldü"); };
+
+/* Önce / Sonra: basılı tut */
+const hold = $("hold");
+const setHold = (v) => { showOrig = v; schedule(); };
+hold.addEventListener("pointerdown", (e) => { hold.setPointerCapture(e.pointerId); setHold(true); });
+["pointerup", "pointercancel"].forEach((n) => hold.addEventListener(n, () => setHold(false)));
+$("wrap").addEventListener("pointerdown", (e) => { if (!cmpOn) setHold(true); else moveCmp(e); });
+$("wrap").addEventListener("pointermove", (e) => { if (cmpOn && e.buttons) moveCmp(e); });
+["pointerup", "pointerleave", "pointercancel"].forEach((n) => $("wrap").addEventListener(n, () => { if (!cmpOn) setHold(false); }));
+
+/* Önce / Sonra: çizgi */
+function moveCmp(e) {
+  const r = $("wrap").getBoundingClientRect();
+  cmpPos = clamp((e.clientX - r.left) / r.width, 0, 1); applyCmp();
+}
+function applyCmp() {
+  cmpOrig.style.clipPath = `inset(0 ${(1 - cmpPos) * 100}% 0 0)`;
+  $("cmpLine").style.left = cmpPos * 100 + "%";
+}
+$("cmpMode").onclick = () => {
+  cmpOn = !cmpOn;
+  $("cmpMode").classList.toggle("on", cmpOn);
+  cmpOrig.classList.toggle("hidden", !cmpOn); $("cmpLine").classList.toggle("hidden", !cmpOn);
+  if (cmpOn) applyCmp();
+};
+
+/* Dışa aktarma: orijinal çözünürlükte yeniden işlenir (en uzun kenar ≤ 4096) */
+$("save").onclick = async () => {
+  if (!file) return;
+  $("save").disabled = true; toast("Yüksek kalitede hazırlanıyor…");
+  await new Promise((r) => setTimeout(r, 30));
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const s = Math.min(1, 4096 / Math.max(bmp.width, bmp.height));
+    const w = Math.round(bmp.width * s), h = Math.round(bmp.height * s);
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const x = c.getContext("2d"); x.drawImage(bmp, 0, 0, w, h);
+    x.putImageData(render(x.getImageData(0, 0, w, h), params), 0, 0);
+    const png = file.type === "image/png";
+    const blob = await new Promise((res) => c.toBlob(res, png ? "image/png" : "image/jpeg", 0.95));
+    const name = "duzenlenmis." + (png ? "png" : "jpg");
+    const f = new File([blob], name, { type: blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [f] }) && matchMedia("(pointer:coarse)").matches) {
+      await navigator.share({ files: [f] });
+    } else {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }
+    toast(`Kaydedildi (${w}×${h})`);
+  } catch (e) { if (e.name !== "AbortError") { toast("Kaydetme hatası"); console.error(e); } }
+  $("save").disabled = false;
+};
+
+$("back").onclick = () => { $("editor").classList.add("hidden"); $("home").classList.remove("hidden"); };
+$("pick").onclick = () => $("file").click();
+$("cam").onclick = () => $("fileCam").click();
+$("file").onchange = (e) => { openFile(e.target.files[0]); e.target.value = ""; };
+$("fileCam").onchange = (e) => { openFile(e.target.files[0]); e.target.value = ""; };
+
+window.__app = { render, setSource, get params() { return params; }, set params(v) { params = v; }, schedule };
+</script>
+</body>
+</html>
