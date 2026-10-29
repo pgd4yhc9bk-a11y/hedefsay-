@@ -20,6 +20,9 @@ metin/logo/imza ekleme. Her istekte TEK görsel üret. Aynı karakter her zaman 
 Her prompt: `Stil kılavuzuna uy. <aşağıdaki açıklama>. Şeffaf arka plan, tek görsel.`
 
 ### P0: Karakterler (yanlar sağa bakar; kod ters çevirir)
+Karakter A: nane yeşili (#6FD6B5) tüylü yavru yaratık, krem göğüs/yüz/kuyruk ucu, büyük mavi gözler, yuvarlak kulaklar. Çizildi.
+Karakter B: aynı türün mercan renkli (#FF7A6B), iri ve tıknaz kardeşi (A'dan yaklaşık 1,6 kat büyük), kalın kollu, daha küçük gözlü.
+Üretim sırası: idle -> run1 -> run2 -> jump. Hazırlık: `python3 tools_sprite.py <kaynak> assets/<ad>.png`.
 | Dosya | Açıklama |
 |---|---|
 | `char_a_idle.png` | Küçük karakter A, ayakta bekleme, 512x512 |

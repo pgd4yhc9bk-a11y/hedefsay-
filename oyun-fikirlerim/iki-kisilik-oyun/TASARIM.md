@@ -1,6 +1,7 @@
 # Tasarım Belgesi (taslak v0.1)
 
-> Aşağıdaki konsept bir **öneridir**; tema ve yetenekleri birlikte kesinleştireceğiz.
+> **Karar (karakterler):** Hayvana yakın, sevimli, tüylü yaratık kardeşler. A küçük ve nane yeşili (çizildi: `assets/char_a_*.png`),
+> B aynı türün iri ve mercan renkli hali. Diğer konsept kısımları hâlâ öneridir.
 
 ## 1. Özet
 İki oyuncu, iki ayrı telefondan aynı odaya girer. Her oyuncunun karakteri farklı bir yeteneğe sahiptir
