@@ -1116,15 +1116,13 @@ func _t_cayir2() -> void:
 	await _push_to(c0, 700.0)
 	print("CAYIR2 kutu düğmede: x=", c0.global_position.x, " kapı=", level.doors[0]["open"])
 	await _wait(0.8)
-	player.override["right"] = true
-	await _until(func() -> bool: return player.global_position.x >= 1135.0 or player.dead, 15.0)
+	await _walk_auto(1135.0)
 	print("CAYIR2 kapıyı geçti: x=", player.global_position.x, " ölü=", player.dead)
 	await _hop_over()
 	player.override["right"] = false
 	print("CAYIR2 çukur sonrası: x=", player.global_position.x, " ölü=", player.dead)
 	var c1 := level.crates[1]
-	player.override["right"] = true
-	await _until(func() -> bool: return player.global_position.x >= c1.global_position.x - 45.0)
+	await _walk_auto(c1.global_position.x - 45.0)
 	player.override["right"] = false
 	await _push_to(c1, 1772.0)
 	player.global_position.x = c1.global_position.x - 50.0
@@ -1141,3 +1139,12 @@ func _t_cayir2() -> void:
 	print("CAYIR2 yüksek yer: y=", player.global_position.y, " (üst 430)")
 	await _until(func() -> bool: return idx != 12 or player.dead, 25.0)
 	print("CAYIR2 bitti? idx=", idx, " state=", state, " ölü=", player.dead)
+
+func _walk_auto(x: float) -> void:
+	player.override["right"] = true
+	await _until(func() -> bool:
+		player.override["jump"] = player.is_on_wall() and player.is_on_floor()
+		return player.global_position.x >= x or player.dead, 20.0)
+	player.override["jump"] = false
+	player.override["right"] = false
+	await _wait(0.2)
