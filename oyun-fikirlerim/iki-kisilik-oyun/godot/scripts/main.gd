@@ -452,6 +452,8 @@ func _run_test() -> void:
 			await _t_touch2()
 		"cayir":
 			await _t_cayir()
+		"cayir2":
+			await _t_cayir2()
 		"touch3":
 			await _t_touch3()
 		"touch4":
@@ -1103,3 +1105,39 @@ func _t_touch5() -> void:
 	_ev_touch(1, false, Vector2(380, 500))
 	await _wait(0.2)
 	print("T5 hepsi kalktı: right=", Input.is_action_pressed("right"), " grab=", Input.is_action_pressed("grab"))
+
+func _t_cayir2() -> void:
+	load_level(12)
+	await _wait(0.4)
+	var c0 := level.crates[0]
+	player.override["right"] = true
+	await _until(func() -> bool: return player.global_position.x >= c0.global_position.x - 45.0)
+	player.override["right"] = false
+	await _push_to(c0, 700.0)
+	print("CAYIR2 kutu düğmede: x=", c0.global_position.x, " kapı=", level.doors[0]["open"])
+	await _wait(0.8)
+	player.override["right"] = true
+	await _until(func() -> bool: return player.global_position.x >= 1135.0 or player.dead, 15.0)
+	print("CAYIR2 kapıyı geçti: x=", player.global_position.x, " ölü=", player.dead)
+	await _hop_over()
+	player.override["right"] = false
+	print("CAYIR2 çukur sonrası: x=", player.global_position.x, " ölü=", player.dead)
+	var c1 := level.crates[1]
+	player.override["right"] = true
+	await _until(func() -> bool: return player.global_position.x >= c1.global_position.x - 45.0)
+	player.override["right"] = false
+	await _push_to(c1, 1772.0)
+	player.global_position.x = c1.global_position.x - 50.0
+	await _wait(0.3)
+	player.override["right"] = true
+	player.override["jump"] = true
+	await _wait(0.35)
+	player.override["jump"] = false
+	await _until(func() -> bool: return player.is_on_floor(), 2.0)
+	player.override["jump"] = true
+	await _wait(0.5)
+	player.override["jump"] = false
+	await _until(func() -> bool: return player.is_on_floor(), 2.0)
+	print("CAYIR2 yüksek yer: y=", player.global_position.y, " (üst 430)")
+	await _until(func() -> bool: return idx != 12 or player.dead, 25.0)
+	print("CAYIR2 bitti? idx=", idx, " state=", state, " ölü=", player.dead)

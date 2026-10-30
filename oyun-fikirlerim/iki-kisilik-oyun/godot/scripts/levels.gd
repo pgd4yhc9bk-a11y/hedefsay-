@@ -105,7 +105,7 @@ static func all() -> Array:
 			"name": "Çayır: Çit", "hero": "nehir", "ribbons": true, "w": 3600.0, "start": Vector2(80, gy - 54),
 			"hint": "Kutuyu düğmenin üstüne it: kapı açık kalır. Sonra ikinci kutuyla yüksek yere çık",
 			"statics": [Rect2(0, gy, 1150, 160), Rect2(1230, gy, 570, 160), Rect2(1800, gy - 130, 1800, 290)],
-			"crates": [Vector2(250, gy - 56), Vector2(1450, gy - 56)],
+			"crates": [Vector2(250, gy - 56), Vector2(1450, gy - 56)], "mask": {},
 			"plates": [{"rect": Rect2(650, gy - 8, 90, 8), "door": 0, "heavy": false}], "doors": [Rect2(950, 300, 30, 260)],
 			"spikes": [], "saws": [], "darts": [], "water": [],
 			"checkpoints": [300.0, 1050.0, 1850.0, 2500.0], "exit": Rect2(3400, gy - 130 - 100, 70, 100),
