@@ -111,3 +111,48 @@ Stil kılavuzuna uy. Üç ayrı YATAY DÖŞENEBİLİR arka plan şeridi, 3072x10
 2. **Hikâye:** 3.1 (kurdele), 3.2 (çit), 3.5 (ev).
 3. **Ağaç ve bitki:** 2.1, 2.2, 2.3, 2.4.
 4. Kalanlar sonra.
+
+---
+# TOPLU PROMPTLAR (tek seferde çok görsel: sayfa/ızgara)
+Her prompt bir ızgara sayfası üretir. Ben kesip tek tek oyuna alırım. Kurallar (hepsinde aynı): eşit kareli ızgara, her nesne kendi karesinde ortada ve ALT KENARA OTURUR, nesneler karelerinden taşmaz ve birbirine değmez, ızgara çizgisi/yazı/numara YOK, GERÇEK şeffaf arka plan.
+Stil kılavuzu aynı sohbette verilmiş olsun (düz siyah silüet, ince koyu gri çizgi ayrıntıları, renk yok; yalnızca belirtilen tek parça renkli).
+
+## Sayfa 1: Ağaçlar (3x2 = 6 ağaç)
+```
+Stil kılavuzuna uy. TEK GÖRSEL, ızgara sayfası: 3 sütun x 2 satır, eşit boyutlu kareler, 3072x2048. Her karede ayrı bir ağaç, yandan, ağacın dibi karenin alt kenarında, kare içinde ortalı, hiçbiri karesinden taşmasın ve diğerine değmesin: (1) uzun ince çam, (2) kalın gövdeli iri çam, (3) yarı kurumuş çam, yalnızca üst dalları yeşil değil siyah, (4) tamamen ölü, yaprağı olmayan çarpık ağaç, (5) iki gövdeli çam, (6) küçük genç çam. Düz siyah silüet, ince koyu gri gövde çizgileri. Izgara çizgisi, yazı, numara yok. GERÇEK şeffaf arka plan.
+```
+
+## Sayfa 2: Bitki örtüsü (4x2 = 8 öğe)
+```
+Stil kılavuzuna uy. TEK GÖRSEL, ızgara sayfası: 4 sütun x 2 satır, eşit kareler, 4096x2048. Her karede ayrı öğe, dibi karenin alt kenarında, ortalı, karesinden taşmasın: (1) sık çalı, (2) eğrelti otları öbeği, (3) uzun kuru ot öbeği, (4) küçük mantar kümesi, (5) dikenli çalı dalları, (6) kısa çimen öbeği, (7) yaban çiçeği sapları (çiçekler küçük, siyah), (8) kök ve çalı karışık yığın. Düz siyah silüet, ince koyu gri ayrıntı çizgileri. Izgara çizgisi, yazı, numara yok. GERÇEK şeffaf arka plan.
+```
+
+## Sayfa 3: Kayalar ve kütükler (4x2 = 8 öğe)
+```
+Stil kılavuzuna uy. TEK GÖRSEL, ızgara sayfası: 4 sütun x 2 satır, eşit kareler, 4096x2048. Her karede ayrı öğe, dibi karenin alt kenarında, ortalı: (1) küçük taş, (2) orta kaya, (3) büyük kaya, üstü düz (üstünde durulabilir), (4) çatlak, iki parçalı kaya, (5) yere yatmış kalın ağaç gövdesi, kesik ucu görünür, (6) kökleri havada devrilmiş ağaç kütüğü, (7) kesilmiş ağaç kütüğü, halkaları görünür, (8) yosunlu taş yığını. Düz siyah silüet, ince koyu gri çatlak çizgileri. Izgara çizgisi, yazı yok. GERÇEK şeffaf arka plan.
+```
+
+## Sayfa 4: Hikâye eşyaları (4x2 = 8 öğe)
+```
+Stil kılavuzuna uy. TEK GÖRSEL, ızgara sayfası: 4 sütun x 2 satır, eşit kareler, 4096x2048. Her karede ayrı küçük eşya, tabanı karenin alt kenarında, ortalı: (1) eskimiş koyun çanı, (2) ahşap düdük ve ipi, (3) yere bırakılmış eski çuval, (4) kırık eski fener (içi boş, alevi yok), (5) yarım yenmiş ekmek bohçası (kumaş, düğümlü), (6) ahşap bastón, (7) eski paslı çan zinciri yığını, (8) yere düşmüş küçük bir ahşap oyuncak at. Hepsi düz siyah silüet, ince koyu gri ayrıntı çizgileri. Renk yok. Izgara çizgisi, yazı yok. GERÇEK şeffaf arka plan.
+```
+
+## Sayfa 5: İzler ve küçük zemin süsleri (2 satır şerit)
+```
+Stil kılavuzuna uy. TEK GÖRSEL: 2 satır, her satır yatay bir şerit, 4096x1024 (her satır 4096x512). Satır 1: zemine basılmış küçük çocuk botu izleri, 6 adet, düzensiz aralıkla, yandan görünen çukur izi. Satır 2: büyük yetişkin botu izleri, yarı silinmiş, 5 adet. Düz siyah silüet, ince koyu gri ayrıntı. Izgara çizgisi, yazı yok. GERÇEK şeffaf arka plan.
+```
+
+## Sayfa 6: Işıklı ev ve fener direği (2x2)
+```
+Stil kılavuzuna uy. TEK GÖRSEL, ızgara sayfası: 2 sütun x 2 satır, eşit kareler, 3072x2048. Üst sol: köy evi (taş duvar, eğimli çatı, bacası, tek penceresi, kapısı, yanında odun yığını), pencerede sıcak TURUNCU (#FF8A1F) lamba ışığı yanıyor, tek renkli parça pencere ışığı. Üst sağ: aynı ev, aynı çizim, pencere SÖNÜK ve siyah. Alt sol: eski demir fener direği, üstünde fener kafesi, alevi TURUNCU (#FF8A1F) yanıyor, tek renkli parça. Alt sağ: aynı direk, fener sönük ve boş. Evler ve direkler düz siyah silüet, ince koyu gri ayrıntı çizgileri. Izgara çizgisi, yazı yok. GERÇEK şeffaf arka plan.
+```
+
+## Sayfa 7: Sarmaşıklar ve kökler (tavandan sarkan, 3x1)
+```
+Stil kılavuzuna uy. TEK GÖRSEL, ızgara sayfası: 3 sütun x 1 satır, eşit kareler, 4608x1536. Her karede yukarıdan aşağı sarkan bir öğe, ÜST kenara bağlı ve kareden taşmaz: (1) ince sarmaşık perdesi, birkaç yaprak, (2) kalın kök sarkıtları, (3) kuru dallar ve örümcek ağı parçaları. Düz siyah silüet, ince koyu gri ayrıntı çizgileri. Izgara çizgisi, yazı yok. GERÇEK şeffaf arka plan.
+```
+
+## İpuçları
+- İlk iki sayfa (ağaçlar, bitkiler) en çok iş görür. Sırayla: 1 → 2 → 3 → 4 → 6.
+- ChatGPT bazen sayıyı yanlış çizer (7 ağaç yerine 6). Önemli değil, kaç tane geldiyse kullanırım.
+- Izgara kayarsa ("Hizası bozuk") yine gönderin, ben nesneleri bulup tek tek keserim.
