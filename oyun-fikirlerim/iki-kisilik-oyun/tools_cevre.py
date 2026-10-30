@@ -22,4 +22,21 @@ for n in ('kenar_sag', 'kenar_sol'):
     w2, h2 = round(im.width * KS), round(im.height * KS)
     im.resize((w2, h2), Image.LANCZOS).save(f'{O}/{n}.png', optimize=True)
     meta[n] = {'w': w2, 'h': h2, 'top': round(top * KS), 'res': 2}
+# dekor nesneleri ve şeritler (çit, kapı, ev, kurdele, çamur, buz)
+DEK = {'kurdele_1': 110, 'kurdele_2': 110, 'kurdele_3': 110, 'cit': 230, 'cit_kirik': 230, 'kapi_acik': 230, 'ev_sonuk': 340}   # oyunda hedef: kurdele yüksekliği, diğerleri genişlik (px)
+for n, target in DEK.items():
+    im = Image.open(f'{A}/{n}.png').convert('RGBA'); pa = np.array(im)[..., 3] > 40
+    ys, xs = np.where(pa); box = (xs.min(), ys.min(), xs.max() + 1, ys.max() + 1); im = im.crop(box); pa = pa[box[1]:box[3], box[0]:box[2]]
+    game_scale = (target / im.height) if n.startswith('kurdele') else (target / im.width)
+    sc = game_scale * 2; w2, h2 = round(im.width * sc), round(im.height * sc)
+    im.resize((w2, h2), Image.LANCZOS).save(f'{O}/{n}.png', optimize=True)
+    low = pa[int(pa.shape[0] * 0.92):]; yy, xx = np.where(low); ax = float(xx.mean()) * sc
+    meta[n] = {'w': w2, 'h': h2, 'ax': round(ax, 1), 'res': 2}
+for n in ('camur', 'buz'):
+    im = Image.open(f'{A}/{n}.png').convert('RGBA'); pa = np.array(im)[..., 3] > 40
+    ys, xs = np.where(pa); im = im.crop((0, ys.min(), im.width, ys.max() + 1)); pa = pa[ys.min():ys.max() + 1]
+    frac = pa.mean(axis=1); top = int(np.argmax(frac > (0.9 if n == 'camur' else 0.5)))
+    sc = 0.28; w2, h2 = round(im.width * sc), round(im.height * sc)
+    im.resize((w2, h2), Image.LANCZOS).save(f'{O}/{n}.png', optimize=True)
+    meta[n] = {'w': w2, 'h': h2, 'top': round(top * sc), 'res': 2}
 json.dump(meta, open(f'{O}/cevre.json', 'w'), indent=1); print(json.dumps(meta))

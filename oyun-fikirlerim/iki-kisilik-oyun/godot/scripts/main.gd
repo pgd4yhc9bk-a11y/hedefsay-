@@ -426,6 +426,14 @@ func _run_test() -> void:
 			await _t_push()
 		"sibling":
 			await _t_sibling()
+		"dereshot":
+			load_level(9)
+			players[0].global_position = Vector2(540, 540)
+			await _wait(1.2)
+			await _shot("res://../test_dere1.png")
+			players[0].global_position = Vector2(1100, 540)
+			await _wait(1.2)
+			await _shot("res://../test_dere2.png")
 		"cevreshot":
 			load_level(11)
 			players[0].override["right"] = true

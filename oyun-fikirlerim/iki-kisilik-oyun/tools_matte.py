@@ -22,3 +22,15 @@ alpha[band] = np.clip((235 - lum[band]) / 235.0 * 1.25, 0, 1) * 255
 out = np.dstack([im, alpha]).astype(np.uint8)
 Image.fromarray(out, 'RGBA').save(sys.argv[2], optimize=True)
 print(sys.argv[2], 'şeffaf yüzde', round((alpha < 10).mean() * 100, 1))
+
+# --- küçük beyaz kalıntı lekeleri temizle (dama deseninden kalan): küçük ve açık renkli bileşenler silinir
+res = np.array(Image.open(sys.argv[2]).convert('RGBA'))
+op = res[..., 3] > 3
+lab2, n2 = ndi.label(op)
+if n2:
+    sz = ndi.sum(op, lab2, range(1, n2 + 1)); lum2 = ndi.mean(res[..., :3].mean(axis=2), lab2, range(1, n2 + 1))
+    kill = [i + 1 for i in range(n2) if sz[i] < 400 and lum2[i] > 110]
+    if kill:
+        res[np.isin(lab2, kill), 3] = 0
+        Image.fromarray(res, 'RGBA').save(sys.argv[2], optimize=True)
+        print('temizlenen leke:', len(kill))

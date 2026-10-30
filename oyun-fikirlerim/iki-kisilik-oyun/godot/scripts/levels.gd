@@ -97,6 +97,7 @@ static func all() -> Array:
 		{
 			"name": "Çayır: Eşik", "hero": "nehir", "ribbons": true, "w": 3300.0, "start": Vector2(80, gy - 54),
 			"hint": "Kırmızı kurdele babanın işareti: dokunursan kontrol noktası olur. Kutuyu itmek için Tut'a basılı tut",
+			"decor": [{"n": "ev_sonuk", "x": 330, "z": -3, "shade": 0.9}, {"n": "cit", "x": 640, "z": -2}, {"n": "cit", "x": 860, "z": -2}, {"n": "cit_kirik", "x": 1130, "z": -2}, {"n": "kapi_acik", "x": 2400, "z": -2}],
 			"statics": [Rect2(0, gy, 900, 160), Rect2(980, gy, 880, 160), Rect2(1860, gy - 130, 40, 130), Rect2(1860, gy, 1440, 160), Rect2(1300, gy - 52, 70, 52)],
 			"crates": [Vector2(1450, gy - 56)], "mask": {}, "plates": [], "doors": [], "spikes": [], "saws": [], "darts": [], "water": [],
 			"checkpoints": [300.0, 950.0, 1950.0, 2600.0], "exit": Rect2(3150, gy - 100, 70, 100),
@@ -104,6 +105,7 @@ static func all() -> Array:
 		{
 			"name": "Çayır: Çit", "hero": "nehir", "ribbons": true, "w": 3600.0, "start": Vector2(80, gy - 54),
 			"hint": "Kutuyu düğmenin üstüne it: kapı açık kalır. Sonra ikinci kutuyla yüksek yere çık",
+			"decor": [{"n": "cit", "x": 200, "z": -2}, {"n": "cit", "x": 1050, "z": -2, "flip": true}, {"n": "cit_kirik", "x": 1450, "z": -2}, {"n": "kapi_acik", "x": 2500, "z": -2}],
 			"statics": [Rect2(0, gy, 1150, 160), Rect2(1230, gy, 570, 160), Rect2(1800, gy - 130, 1800, 290)],
 			"crates": [Vector2(250, gy - 56), Vector2(1450, gy - 56)], "mask": {},
 			"plates": [{"rect": Rect2(650, gy - 8, 90, 8), "door": 0, "heavy": false}], "doors": [Rect2(950, 300, 30, 260)],

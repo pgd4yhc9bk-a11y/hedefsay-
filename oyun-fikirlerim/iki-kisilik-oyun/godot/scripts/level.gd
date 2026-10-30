@@ -39,6 +39,8 @@ func build(d: Dictionary, ps: Array) -> void:
 		_make_ice(r)
 	for r: Rect2 in d.get("mud", []):
 		_make_mud(r)
+	for dc: Dictionary in d.get("decor", []):
+		_make_decor(dc)
 	for pos: Vector2 in d["crates"]:
 		var c := PushBody.new()
 		add_child(c)
@@ -109,7 +111,7 @@ func _load_cevre() -> void:
 	if f == null:
 		return
 	cev = JSON.parse_string(f.get_as_text())
-	for n: String in ["cim", "toprak", "kenar_sag", "kenar_sol"]:
+	for n: String in cev.keys():
 		cev_tex[n] = load("res://assets/cevre/%s.png" % n)
 
 func _make_static(r: Rect2) -> void:
@@ -209,6 +211,43 @@ func hook_point(i: int) -> Vector2:
 func hook_active(i: int) -> bool:
 	return lamp != null and lamp.state == "hung" and lamp.global_position.distance_to(hook_point(i)) < 4.0
 
+func _make_decor(dc: Dictionary) -> void:   # arka plan nesnesi: x = orta, tabanı zemine oturur
+	_load_cevre()
+	if cev.is_empty() or not cev.has(dc["n"]):
+		return
+	var m: Dictionary = cev[dc["n"]]
+	var sp := Sprite2D.new()
+	sp.texture = cev_tex[dc["n"]]
+	sp.centered = false
+	sp.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	sp.scale = Vector2(0.5, 0.5)
+	sp.flip_h = bool(dc.get("flip", false))
+	sp.position = Vector2(float(dc["x"]) - float(m["w"]) / 4.0, float(dc.get("y", 560.0)) + 3.0 - float(m["h"]) / 2.0)
+	sp.z_index = int(dc.get("z", -1))
+	sp.modulate = Color(1, 1, 1, 1) * float(dc.get("shade", 1.0))
+	add_child(sp)
+
+func _strip(name: String, r: Rect2, dark_under: float) -> void:   # yatay döşenen şerit (çamur, buz): yüzeyi r.position.y'de
+	var m: Dictionary = cev[name]
+	var res := float(m["res"])
+	var tw := float(m["w"]) / res
+	var y := r.position.y - float(m["top"]) / res + 1.0
+	var x := r.position.x
+	while x < r.end.x:
+		var sp := Sprite2D.new()
+		sp.texture = cev_tex[name]
+		sp.centered = false
+		sp.position = Vector2(x, y)
+		sp.scale = Vector2(1.0 / res, 1.0 / res)
+		sp.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		sp.z_index = 2
+		var wpx := minf(tw, r.end.x - x)
+		if wpx < tw:
+			sp.region_enabled = true
+			sp.region_rect = Rect2(0, 0, wpx * res, float(m["h"]))
+		add_child(sp)
+		x += tw
+
 func _make_ice(r: Rect2) -> void:   # buz: kaygan zemin (üstü parlak)
 	var sb := StaticBody2D.new()
 	sb.collision_layer = 1
@@ -224,6 +263,11 @@ func _make_ice(r: Rect2) -> void:   # buz: kaygan zemin (üstü parlak)
 	cs.position = r.position + r.size / 2.0
 	sb.add_child(cs)
 	add_child(sb)
+	_load_cevre()
+	if cev.has("buz"):
+		_poly(PackedVector2Array([r.position + Vector2(0, 10), Vector2(r.end.x, r.position.y + 10), r.end, Vector2(r.position.x, r.end.y)]), BLACK)
+		_strip("buz", r, 0.0)
+		return
 	_poly(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]), Color("#1d2026"))
 	var sheen := Line2D.new()
 	sheen.points = PackedVector2Array([r.position + Vector2(0, 1.5), Vector2(r.end.x, r.position.y + 1.5)])
@@ -257,6 +301,12 @@ func _make_mud(r: Rect2) -> void:   # çamur: yavaşlatır, zor sıçratır
 		if b is Player:
 			(b as Player).mud = maxi(0, (b as Player).mud - 1))
 	add_child(a)
+	_load_cevre()
+	if cev.has("camur"):
+		var under := _poly(PackedVector2Array([Vector2(r.position.x, r.position.y - 3.0), Vector2(r.end.x, r.position.y - 3.0), Vector2(r.end.x, r.position.y + 40.0), Vector2(r.position.x, r.position.y + 40.0)]), BLACK)
+		under.z_index = 1
+		_strip("camur", r, 0.0)
+		return
 	var pts := PackedVector2Array([Vector2(r.position.x, r.position.y + 6.0)])
 	var x := r.position.x
 	var rng := RandomNumberGenerator.new()
@@ -443,15 +493,31 @@ func _make_exit(r: Rect2) -> void:
 
 var ribbons: Array = []
 
-func _make_ribbon(x: float) -> void:   # babanın bağladığı kırmızı kurdele: kontrol noktası işareti
-	var post := _poly(PackedVector2Array([Vector2(x - 3, 480), Vector2(x + 3, 480), Vector2(x + 3, 566), Vector2(x - 3, 566)]), BLACK)
-	var rib := Polygon2D.new()
-	rib.polygon = PackedVector2Array([Vector2(0, 0), Vector2(26, -4), Vector2(44, 6), Vector2(30, 12), Vector2(46, 26), Vector2(20, 22), Vector2(0, 14)])
-	rib.color = Color("#C0392B")
-	rib.position = Vector2(x + 3, 488)
-	rib.z_index = 5
-	add_child(rib)
-	ribbons.append({"n": rib, "x": x, "on": false})
+func _make_ribbon(x: float) -> void:   # babanın bağladığı kırmızı kurdele (direk + 3 kare rüzgâr): kontrol noktası işareti
+	_load_cevre()
+	if cev.is_empty():
+		return
+	var sp := Sprite2D.new()
+	sp.centered = false
+	sp.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	sp.z_index = -1
+	add_child(sp)
+	ribbons.append({"n": sp, "x": x, "on": false, "frame": ""})
+
+func _ribbon_frame(sp: Sprite2D, rb: Dictionary) -> void:
+	var w := sin(t * 0.9 + float(rb["x"]) * 0.013) + sin(t * 2.3 + float(rb["x"])) * 0.35
+	var name := "kurdele_1"
+	if w > 0.7:
+		name = "kurdele_3"
+	elif w < -0.7:
+		name = "kurdele_2"
+	if name == rb["frame"]:
+		return
+	rb["frame"] = name
+	var m: Dictionary = cev[name]
+	sp.texture = cev_tex[name]
+	sp.scale = Vector2(0.5, 0.5)
+	sp.position = Vector2(float(rb["x"]) - float(m["ax"]) / 2.0, 563.0 - float(m["h"]) / 2.0)
 
 func _make_checkpoint(i: int, x: float) -> void:
 	var a := Area2D.new()
@@ -507,9 +573,7 @@ func restore(s: Dictionary) -> void:
 func _physics_process(delta: float) -> void:
 	t += delta
 	for rb: Dictionary in ribbons:
-		var n: Polygon2D = rb["n"]
-		n.rotation = sin(t * 2.2 + float(rb["x"]) * 0.01) * 0.12
-		n.scale = Vector2(1.0 + sin(t * 3.1 + float(rb["x"])) * 0.06, 1.0)
+		_ribbon_frame(rb["n"], rb)
 		var near: bool = player != null and absf(player.global_position.x - float(rb["x"])) < 40.0
 		if near and not rb["on"]:
 			rb["on"] = true
