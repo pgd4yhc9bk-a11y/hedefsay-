@@ -1158,6 +1158,8 @@ func _walk_auto(tx: float) -> void:
 		await _wait(0.05)
 		t0 += 0.05
 		player.override["jump"] = player.is_on_wall() and player.is_on_floor()
+		if int(t0 * 20.0) % 20 == 0:
+			print("WA t=%.1f x=%.1f y=%.1f wall=%s floor=%s dead=%s right=%s" % [t0, player.global_position.x, player.global_position.y, player.is_on_wall(), player.is_on_floor(), player.dead, player.override.get("right")])
 	player.override["jump"] = false
 	player.override["right"] = false
 	await _wait(0.2)
