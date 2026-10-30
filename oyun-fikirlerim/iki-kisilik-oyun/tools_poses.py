@@ -19,7 +19,7 @@ SCALE_FIX = {
               '13_fener_kaldirma': 0.88, '14_tirmanma': 0.88, '16_aglama': 0.88, '17_korku_cinari_koruma': 0.70, '15_sarilma_nehir_cinar': 0.70, '18_sirtta_tasima': 0.70},
     'cinar': {'04_kosma': 1.0, '05_ziplama_yukselis': 0.94, '06_ziplama_tepe': 0.89, '07_dusme': 0.91, '08_inis_comelme': 0.88, '09_yuvarlanma': 1.0,
               '10_buzda_kayma_neseli': 0.94, '11_camurda_yuruyus': 0.97, '12_surunme': 0.70, '13_bekleme_yukari_bakis': 0.65, '14_tirmanma': 0.88,
-              '15_el_uzatma': 0.88, '16_korku_comelme': 0.64},
+              '15_el_uzatma': 0.88, '16_korku_comelme': 0.64, '17_aglama': 0.88, '18_tavsana_sarilma': 0.88, '19_oturma_uyuma': 0.70},
 }
 out_all = {}
 for who in ('nehir', 'cinar'):
