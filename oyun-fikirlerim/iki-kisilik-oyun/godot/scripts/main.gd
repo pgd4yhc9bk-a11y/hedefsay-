@@ -273,6 +273,8 @@ func _process(delta: float) -> void:
 		if dark_on and players.size() > 1:
 			var kul: Player = players[1]
 			var ep := kul.rig.ember_world(kul) if kul.rig != null and kul.rig.spr.has("ember") else kul.global_position
+			if level.lamp != null:
+				ep = level.lamp.light_pos()
 			level.light_pos = ep
 			var fl := sin(state_t * 7.0) * 0.015 + sin(state_t * 13.0) * 0.01
 			var lp := ep - Vector2(cam_x, 0.0)
@@ -352,6 +354,9 @@ func _run_test() -> void:
 		"coop":
 			await _t_c1()
 			await _t_c2()
+			await _t_c3()
+		"c3":
+			await _t_c3()
 		"all":
 			await _t_l2()
 			await _t_l4()
@@ -556,3 +561,54 @@ func _tap_p(p: Player, action: String) -> void:
 	await get_tree().physics_frame
 	p.override[action] = false
 	await get_tree().physics_frame
+
+func _t_c3() -> void:
+	load_level(8)
+	await _wait(0.5)
+	var kb: Player = players[0]
+	var kl: Player = players[1]
+	print("C3 başta lamba Kül'de: ", kl.has_lamp, " durum=", level.lamp.state)
+	await _pwalk(kl, 690.0)
+	await _tap_p(kl, "mask")
+	await _wait(1.0)
+	print("C3 lamba asıldı: ", level.lamp.state, " kapı açıklığı=", level.doors[0]["open"], " Kül lamba: ", kl.has_lamp)
+	await _shot("res://../test_c3a.png")
+	await _pwalk(kb, 915.0)
+	await _wait(0.3)
+	await _tap_p(kl, "mask")
+	await _wait(1.0)
+	print("C3 lamba geri alındı: ", level.lamp.state, " Kül lamba: ", kl.has_lamp, " kapı açıklığı (Kapıcı tutuyor)=", level.doors[0]["open"])
+	await _pwalk(kl, 1090.0)
+	print("C3 Kül kapıyı geçti: x=", kl.global_position.x, " dead=", kl.dead)
+	await _pjump(kl, 0.45)
+	await _pland(kl)
+	await _pwalk(kl, 1240.0)
+	await _pjump(kl, 0.45)
+	await _pland(kl)
+	kl.override["right"] = false
+	print("C3 Kül ghost2: ", kl.global_position, " dead=", kl.dead)
+	await _pwalk(kb, 1090.0)
+	await _pjump(kb, 0.45)
+	await _pland(kb)
+	await _pwalk(kb, 1240.0)
+	await _pjump(kb, 0.45)
+	await _pland(kb)
+	await _pwalk(kb, 1400.0)
+	await _pjump(kb, 0.45)
+	await _pland(kb)
+	await _pwalk(kb, 1560.0)
+	await _pjump(kb, 0.45)
+	await _pland(kb)
+	kb.override["right"] = false
+	print("C3 Kapıcı ghost4'te: ", kb.global_position, " dead=", kb.dead)
+	await _pwalk(kl, 1400.0)
+	await _pjump(kl, 0.45)
+	await _pland(kl)
+	await _pwalk(kl, 1560.0)
+	await _pjump(kl, 0.45)
+	await _pland(kl)
+	await _shot("res://../test_c3b.png")
+	await _pwalk(kb, 2440.0)
+	await _pwalk(kl, 2440.0)
+	await _wait(0.6)
+	print("C3 bitti? state=", state, " idx=", idx)

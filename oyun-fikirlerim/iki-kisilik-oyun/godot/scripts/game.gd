@@ -20,7 +20,7 @@ func _setup_inputs() -> void:
 		"grab": [KEY_SHIFT, KEY_E], "mask": [KEY_Q, KEY_F], "restart": [KEY_R],
 		# yerel co-op testi: Kabuk (p1) oklar, Kül (p2) A D W
 		"p1_left": [KEY_LEFT], "p1_right": [KEY_RIGHT], "p1_jump": [KEY_UP], "p1_grab": [KEY_SHIFT, KEY_SLASH], "p1_mask": [KEY_PERIOD],
-		"p2_left": [KEY_A], "p2_right": [KEY_D], "p2_jump": [KEY_W, KEY_SPACE], "p2_grab": [], "p2_mask": [],
+		"p2_left": [KEY_A], "p2_right": [KEY_D], "p2_jump": [KEY_W, KEY_SPACE], "p2_grab": [], "p2_mask": [KEY_E],
 	}
 	for action: String in map:
 		if not InputMap.has_action(action):

@@ -55,7 +55,7 @@ static func all() -> Array:
 		},
 		{
 			"name": "Fener", "coop": true, "dark": true, "w": 2600.0, "start": Vector2(60, gy - 54), "start2": Vector2(100, gy - 54),
-			"hint": "Kül ışığıyla yolu açar. Kül ortada durmalı: ışık değen platformlar katıdır",
+			"lamp": {"holder": 1}, "hint": "Kandil'in lambası yolu açar. Kül ortada durmalı: ışık değen platformlar katıdır",
 			"statics": [Rect2(0, gy, 1000, 160), Rect2(1560, gy, 1040, 160)],
 			"ghosts": [Rect2(1070, 530, 90, 16), Rect2(1230, 520, 90, 16), Rect2(1390, 530, 90, 16)],
 			"crates": [], "mask": {}, "plates": [], "doors": [], "spikes": [], "saws": [], "darts": [], "water": [],
@@ -63,10 +63,19 @@ static func all() -> Array:
 		},
 		{
 			"name": "Siper", "coop": true, "dark": true, "w": 2300.0, "start": Vector2(60, gy - 54), "start2": Vector2(20, gy - 54),
-			"hint": "Kabuk kalkanla önde yürür, Kül arkasından ışık tutar. Sonra maske basamak olur",
+			"lamp": {"holder": 1}, "hint": "Kapı kalkanla önde yürür, lamba arkasından ışık tutar. Sonra maske basamak olur",
 			"statics": [Rect2(0, gy, 2300, 160), Rect2(1750, 420, 550, 300)],
 			"crates": [], "mask": {"worn": true}, "plates": [], "doors": [], "spikes": [], "saws": [], "water": [],
 			"darts": [{"x": 1746.0, "y": gy - 30, "dir": -1, "every": 1.7, "phase": 0.4}, {"x": 1746.0, "y": gy - 46, "dir": -1, "every": 1.7, "phase": 1.25}],
 			"checkpoints": [900.0, 1450.0], "exit": Rect2(2100, 320, 70, 100),
+		},
+		{
+			"name": "Kanca", "coop": true, "dark": true, "w": 2600.0, "start": Vector2(60, gy - 54), "start2": Vector2(20, gy - 54),
+			"lamp": {"holder": 1}, "hooks": [{"pos": Vector2(700, 480), "door": 0}],
+			"hint": "Lambayı kancaya as: göz parlar, kapı açılır. Biri kapıda dururken lambayı geri al",
+			"statics": [Rect2(0, gy, 1100, 160), Rect2(1700, gy, 900, 160)],
+			"ghosts": [Rect2(1160, 530, 90, 16), Rect2(1320, 520, 90, 16), Rect2(1480, 530, 90, 16), Rect2(1610, 520, 90, 16)],
+			"crates": [], "mask": {}, "plates": [], "doors": [Rect2(900, 300, 30, 260)], "spikes": [], "saws": [], "darts": [], "water": [],
+			"checkpoints": [980.0, 1750.0], "exit": Rect2(2450, gy - 100, 70, 100),
 		},
 	]

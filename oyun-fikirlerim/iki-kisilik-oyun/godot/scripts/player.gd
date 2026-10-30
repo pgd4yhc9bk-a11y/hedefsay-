@@ -8,6 +8,7 @@ const MASK_SIZE := Vector2(39, 67)
 
 var face := 1
 var worn := false
+var has_lamp := false
 var grab := false
 var anim := 0.0
 var squash := 0.0
@@ -144,8 +145,31 @@ func _process(_delta: float) -> void:
 	if rig != null and not dead:
 		rig.update_pose(self, t)
 
+func lamp_hand() -> Vector2:
+	return rig.hand_world(self) + Vector2(face * 3.0, 9.0)
+
+func _near_rect() -> Rect2:
+	return Rect2(global_position.x - SIZE.x / 2.0 - 30.0, global_position.y - SIZE.y - 10.0, SIZE.x + 60.0, SIZE.y + 20.0)
+
 func mask_action() -> void:
-	if skin != "kabuk" or level == null or level.mask == null:
+	if level == null:
+		return
+	var lamp := level.lamp
+	if has_lamp:   # lamba elde: kancaya as ya da at
+		var hp := lamp_hand()
+		var hook := level.hook_near(hp, 55.0)
+		if hook >= 0:
+			lamp.hang(level.hook_point(hook))
+			Sfx.play("clink")
+		else:
+			lamp.drop(hp, Vector2(300.0 * face, -280.0))
+			Sfx.play("whoosh")
+		return
+	if lamp != null and lamp.state != "held" and not worn and _near_rect().intersects(lamp.rect().grow(14.0)):
+		lamp.take(self)
+		Sfx.play("clink")
+		return
+	if skin != "kabuk" or level.mask == null:
 		return
 	var m := level.mask
 	if worn:

@@ -13,6 +13,8 @@ var ghosts: Array = []
 var exit_in := {}
 var crates: Array[PushBody] = []
 var mask: PushBody = null
+var lamp: Lamp = null
+var hooks: Array = []
 var plates: Array = []
 var doors: Array = []
 var saws: Array = []
@@ -49,6 +51,18 @@ func build(d: Dictionary, ps: Array) -> void:
 			mask.setup("mask", msz, d["start"] + Vector2(13, 0), water_rects)
 			mask.deactivate()
 			player.worn = true
+	var ld: Dictionary = d.get("lamp", {})
+	if not ld.is_empty():
+		lamp = Lamp.new()
+		add_child(lamp)
+		if ld.has("holder"):
+			var hp: Player = players[ld["holder"]]
+			lamp.setup(d["start"] + Vector2(13, 20))
+			lamp.take(hp)
+		else:
+			lamp.setup(ld["pos"])
+	for h: Dictionary in d.get("hooks", []):
+		_make_hook(h)
 	for i in d["doors"].size():
 		_make_door(d["doors"][i])
 	for pl: Dictionary in d["plates"]:
@@ -101,6 +115,31 @@ func _make_static(r: Rect2) -> void:
 			x += 9.0
 	pts.append(r.end)
 	_poly(pts, BLACK)
+
+func _make_hook(h: Dictionary) -> void:   # lamba kancası: direk + kol; ışık kapısına bağlı olabilir
+	var pos: Vector2 = h["pos"]
+	_poly(PackedVector2Array([Vector2(pos.x - 22, 560), Vector2(pos.x - 16, 560), Vector2(pos.x - 16, pos.y - 10), Vector2(pos.x - 22, pos.y - 10)]), BLACK)
+	_poly(PackedVector2Array([Vector2(pos.x - 22, pos.y - 10), Vector2(pos.x + 2, pos.y - 10), Vector2(pos.x + 2, pos.y - 5), Vector2(pos.x - 22, pos.y - 5)]), BLACK)
+	_poly(PackedVector2Array([Vector2(pos.x + 2, pos.y - 10), Vector2(pos.x + 6, pos.y - 10), Vector2(pos.x + 6, pos.y - 2), Vector2(pos.x + 2, pos.y - 2)]), BLACK)
+	var eye: Polygon2D = null
+	if int(h.get("door", -1)) >= 0:   # ışık gözü: lamba asılınca parlar
+		var pts := PackedVector2Array()
+		for i in 12:
+			pts.append(Vector2(pos.x - 19 + cos(float(i) / 12.0 * TAU) * 6.0, pos.y - 24 + sin(float(i) / 12.0 * TAU) * 6.0))
+		eye = _poly(pts, Color("#3a3c40"))
+	hooks.append({"pos": pos, "door": int(h.get("door", -1)), "eye": eye})
+
+func hook_near(p: Vector2, r: float) -> int:
+	for i in hooks.size():
+		if (hooks[i]["pos"] as Vector2).distance_to(p) < r:
+			return i
+	return -1
+
+func hook_point(i: int) -> Vector2:
+	return (hooks[i]["pos"] as Vector2) + Vector2(0, 10)
+
+func hook_active(i: int) -> bool:
+	return lamp != null and lamp.state == "hung" and lamp.global_position.distance_to(hook_point(i)) < 4.0
 
 func _make_ghost(r: Rect2) -> void:   # yalnızca Kül'ün ışığı değdiğinde var olan platform
 	var sb := StaticBody2D.new()
@@ -294,7 +333,11 @@ func _on_hazard(b: Node) -> void:
 		(b as Player).die()
 
 func snapshot() -> Dictionary:
-	var s := {"crates": [], "mask_active": false, "mask_pos": Vector2.ZERO, "worn": player.worn}
+	var s := {"crates": [], "mask_active": false, "mask_pos": Vector2.ZERO, "worn": player.worn, "lamp_state": "", "lamp_pos": Vector2.ZERO, "lamp_holder": -1}
+	if lamp != null:
+		s["lamp_state"] = lamp.state
+		s["lamp_pos"] = lamp.global_position
+		s["lamp_holder"] = players.find(lamp.holder)
 	for c in crates:
 		s["crates"].append(c.global_position)
 	if mask != null:
@@ -308,6 +351,16 @@ func restore(s: Dictionary) -> void:
 	if mask != null:
 		mask.reset_to(s["mask_pos"], s["mask_active"])
 	player.worn = s["worn"]
+	if lamp != null:
+		for pl: Player in players:
+			pl.has_lamp = false
+		match s["lamp_state"]:
+			"held":
+				lamp.take(players[s["lamp_holder"]])
+			"hung":
+				lamp.hang(s["lamp_pos"])
+			_:
+				lamp.drop(s["lamp_pos"], Vector2.ZERO)
 	for a in arrows.get_children():
 		a.queue_free()
 
@@ -342,6 +395,9 @@ func _physics_process(delta: float) -> void:
 		for p: Dictionary in plates:
 			if p["door"] == i and p["pressed"]:
 				hold = true
+		for j in hooks.size():
+			if hooks[j]["door"] == i and hook_active(j):
+				hold = true
 		if not hold and dr["open"] > 0.3:
 			for b in (dr["zone"] as Area2D).get_overlapping_bodies():
 				if b is Player or (b is PushBody and (b as PushBody).active):
@@ -364,6 +420,9 @@ func _physics_process(delta: float) -> void:
 		(sw["blade"] as Polygon2D).rotation += delta * 9.0
 		if float(s["y1"]) != float(s["y2"]):
 			(sw["rail"] as Line2D).points = PackedVector2Array([Vector2(pos.x, 0), pos])
+	for j in hooks.size():
+		if hooks[j]["eye"] != null:
+			(hooks[j]["eye"] as Polygon2D).color = Color("#ffb347") if hook_active(j) else Color("#3a3c40")
 	# ok atıcılar
 	for dd: Dictionary in darts:
 		dd["t"] += delta

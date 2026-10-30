@@ -7,6 +7,7 @@ var skin := "kabuk"
 var A := {}                      # anchors.json
 var spr := {}                    # düğüm adı -> Sprite2D
 var K := {}                      # rol -> piksel ölçeği
+var hand_local := Vector2.ZERO   # ön elin yerel konumu (lamba buraya asılır)
 
 func _ready() -> void:
 	var f := FileAccess.open("res://assets/%s/anchors.json" % skin, FileAccess.READ)
@@ -121,6 +122,10 @@ func update_pose(p: Player, t: float) -> void:
 	elif pushing:
 		a1 = _arm(1.5, 0.05, sh, A1)
 		a2 = _arm(1.35, 0.1, sh, A1)
+	elif p.has_lamp and grounded:
+		var sway := sin(ph) * 0.12 if run else sin(t * 1.8) * 0.03
+		a1 = _arm(1.05 + sway, 0.35, sh, A1)      # lamba öne uzatılmış
+		a2 = _arm(-0.12 + sway, 0.15, sh, A1) if not run else _arm(sin(ph) * 0.5, 0.5, sh, A1)
 	elif not grounded:
 		if p.velocity.y < 0.0:
 			a1 = _arm(2.5, 0.2, sh, A1)
@@ -135,6 +140,8 @@ func update_pose(p: Player, t: float) -> void:
 		var br := sin(t * 1.8) * 0.04
 		a1 = _arm(0.1 + br, 0.15, sh, A1)
 		a2 = _arm(-0.12 - br, 0.15, sh, A1)
+	var A2 := _len("larm", true)
+	hand_local = Vector2(a1.ex, a1.ey) + Vector2(sin(a1.ba), cos(a1.ba)) * A2
 	# parçaları yerleştir
 	_place("uleg_b", "uleg", hp, l2.a)
 	_place("lleg_b", "lleg", hp + Vector2(l2.kx, l2.ky), l2.sa)
@@ -154,6 +161,7 @@ func update_pose(p: Player, t: float) -> void:
 		e.position = hp + Vector2(sin(lean), -cos(lean)) * TORSO * 0.55 + Vector2(1.5, 0.0)
 		var pulse := 1.0 + sin(t * 5.0) * 0.12
 		e.scale = Vector2(pulse, pulse) * float(A["ember"]["k"])
+		e.visible = not (p.level != null and p.level.lamp != null)   # lamba varsa köz gizlenir
 	var m: Sprite2D = spr["mask"] if spr.has("mask") else null
 	if m != null:
 		m.visible = worn
@@ -163,6 +171,9 @@ func update_pose(p: Player, t: float) -> void:
 		m.scale = Vector2(0.065, 0.065)
 	var sqk := 1.0 - p.squash * 0.9 if p.squash > 0.0 else 1.0
 	scale = Vector2(p.face * (2.0 - sqk), sqk)
+
+func hand_world(p: Player) -> Vector2:
+	return p.global_position + Vector2(hand_local.x * p.face, hand_local.y)
 
 func ember_world(p: Player) -> Vector2:
 	var s: Sprite2D = spr["ember"]
