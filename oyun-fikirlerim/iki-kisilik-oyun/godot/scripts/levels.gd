@@ -7,14 +7,14 @@ static func all() -> Array:
 	var gy := GY
 	return [
 		{
-			"name": "Sis", "w": 2700.0, "start": Vector2(60, gy - 54), "hint": "",
+			"name": "Sis", "w": 2700.0, "start": Vector2(60, gy - 54), "hint": "Kutuya yaklaş, Tut'u basılı tut: it ve çek",
 			"statics": [Rect2(0, gy, 800, 160), Rect2(870, gy, 630, 160), Rect2(1100, 500, 60, 60), Rect2(1500, 430, 400, 290), Rect2(1900, gy, 800, 160)],
 			"crates": [Vector2(1250, gy - 56)], "mask": {}, "plates": [], "doors": [],
 			"spikes": [Rect2(2000, gy - 24, 48, 24)], "saws": [], "darts": [], "water": [],
 			"checkpoints": [900.0, 1950.0], "exit": Rect2(2550, gy - 100, 70, 100),
 		},
 		{
-			"name": "Ağırlık", "w": 2500.0, "start": Vector2(60, gy - 54), "hint": "",
+			"name": "Ağırlık", "w": 2500.0, "start": Vector2(60, gy - 54), "hint": "Kutuyu düğmenin üstüne it: Tut basılıyken yürü",
 			"statics": [Rect2(0, gy, 1500, 160), Rect2(1570, gy, 340, 160), Rect2(1910, 430, 590, 290)],
 			"crates": [Vector2(300, gy - 56), Vector2(1700, gy - 56)], "mask": {},
 			"plates": [{"rect": Rect2(700, gy - 8, 90, 8), "door": 0, "heavy": false}], "doors": [Rect2(1000, 300, 30, 260)],

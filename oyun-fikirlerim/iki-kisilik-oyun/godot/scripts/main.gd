@@ -369,6 +369,8 @@ func _run_test() -> void:
 			print("L1 çukur sonrası x=", player.global_position.x, " dead=", player.dead)
 			_hold("right", false)
 			await _shot("res://../test_l1.png")
+		"push":
+			await _t_push()
 		"touch":
 			await _t_touch()
 		"touch2":
@@ -413,10 +415,12 @@ func _t_l2() -> void:
 	load_level(1)
 	await _wait(0.3)
 	_hold("right", true)
+	_hold("grab", true)
 	await _until(func() -> bool: return level.crates[0].global_position.x >= 700.0)
 	await _wait(0.6)
 	print("L2 kapı açıklığı=", level.doors[0]["open"], " kutu x=", level.crates[0].global_position.x)
 	_hold("right", false)
+	_hold("grab", false)
 	await _shot("res://../test_l2.png")
 
 func _t_l4() -> void:
@@ -781,3 +785,19 @@ func _t_touch3() -> void:
 	print("TOUCH3 kutu itildi mi: kutu x=", crate.global_position.x, " oyuncu x=", player.global_position.x)
 	_ev_touch(1, false, Vector2(900, 500))
 	_ev_touch(0, false, Vector2(470, 400))
+
+func _t_push() -> void:
+	load_level(1)
+	await _wait(0.4)
+	var c := level.crates[0]
+	var cx0 := c.global_position.x
+	# tut basılı DEĞİLken kutuya yürü: kutu kıpırdamamalı
+	_hold("right", true)
+	await _wait(2.5)
+	print("PUSH tutsuz: kutu x ", cx0, " -> ", c.global_position.x, " oyuncu x=", player.global_position.x)
+	# tut basılıyken it: kutu hareket etmeli
+	_hold("grab", true)
+	await _wait(1.2)
+	print("PUSH tutlu: kutu x=", c.global_position.x, " oyuncu x=", player.global_position.x)
+	_hold("right", false)
+	_hold("grab", false)

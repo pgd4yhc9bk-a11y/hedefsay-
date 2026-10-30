@@ -107,18 +107,13 @@ func _physics_process(delta: float) -> void:
 	if not j and velocity.y < -200.0:
 		velocity.y *= 0.55
 	velocity.y = minf(950.0, velocity.y + _gravity * delta)
-	if grab and not adj.is_empty():   # çekme: kutu, oyuncuyla aynı adımda aynı hızla uzaklaşır
+	if grab and not adj.is_empty():   # kutu yalnızca "tut" basılıyken oyuncuyla aynı adımda aynı hızla itilir/çekilir
+		var toward: bool = (adj["side"] > 0 and velocity.x > 1.0) or (adj["side"] < 0 and velocity.x < -1.0)
 		var away: bool = (adj["side"] > 0 and velocity.x < -1.0) or (adj["side"] < 0 and velocity.x > 1.0)
-		if away:
+		if toward or away:
 			(adj["b"] as PushBody).push(velocity.x)
 	var pre := velocity
 	move_and_slide()
-	# kasa itme / çekme
-	for i in get_slide_collision_count():
-		var c := get_slide_collision(i)
-		var col := c.get_collider() as PushBody
-		if col != null and absf(c.get_normal().x) > 0.7 and col.active and signf(pre.x) == -signf(c.get_normal().x) and absf(pre.x) > 1.0:
-			col.push(-c.get_normal().x * minf(absf(pre.x), 100.0))
 	if grab and not adj.is_empty():
 		var moving_away: bool = (adj["side"] > 0 and velocity.x < -1.0) or (adj["side"] < 0 and velocity.x > 1.0)
 		if moving_away:
