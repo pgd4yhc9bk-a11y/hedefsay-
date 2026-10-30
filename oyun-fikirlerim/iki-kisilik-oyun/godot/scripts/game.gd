@@ -4,7 +4,7 @@ extends Node
 var test_mode := false
 var shake_amt := 0.0
 var touch_ui := false
-var zoom := 1.7                # kamera yakınlığı: 1.0 = uzak, büyük = yakın
+var zoom := 2.0                # kamera yakınlığı (seçim: C = 2.0)
 var mouse_touch := false      # masaüstünde fareyi parmak gibi kullan (--touch)
 
 func _ready() -> void:
