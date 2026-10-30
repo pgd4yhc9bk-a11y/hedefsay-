@@ -41,6 +41,7 @@
   <div id="menu">
     <div class="sub">Çalışma adı</div><h1>SİS</h1>
     <div class="lv" id="lv"></div>
+    <div class="lv"><button id="snd">Ses: açık</button></div>
     <div id="help">← → / A D yürü · ↑ / W / Boşluk zıpla · Shift / E tut ve çek · Q / F maske (tak, fırlat) · R yeniden</div>
   </div>
   <div id="end" hidden><div style="font-size:22px">Bölümler bitti</div><div style="color:#8e9094">Sıradaki: ikinci oyuncu ve sesli co-op</div><button id="toMenu">Menü</button></div>
@@ -49,7 +50,7 @@
 
 <script>
 "use strict";
-const W = 1280, H = 720, G = 1900, DT = 1 / 120;
+const W = 1280, H = 720, G = 2300, DT = 1 / 120;
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
 const SC = Math.min(window.devicePixelRatio || 1, 2);
 cv.width = W * SC; cv.height = H * SC;
@@ -58,38 +59,38 @@ cv.width = W * SC; cv.height = H * SC;
 const GY = 560;
 const LEVELS = [
   { name: "Sis", w: 2700, start: { x: 60, y: GY - 54 },
-    statics: [{ x: 0, y: GY, w: 800, h: 160 }, { x: 920, y: GY, w: 580, h: 160 }, { x: 1100, y: 470, w: 60, h: 90 },
-              { x: 1500, y: 410, w: 400, h: 310 }, { x: 1900, y: GY, w: 800, h: 160 }],
+    statics: [{ x: 0, y: GY, w: 800, h: 160 }, { x: 870, y: GY, w: 630, h: 160 }, { x: 1100, y: 500, w: 60, h: 60 },
+              { x: 1500, y: 430, w: 400, h: 290 }, { x: 1900, y: GY, w: 800, h: 160 }],
     crates: [{ x: 1250, y: GY - 56 }], plates: [], doors: [],
-    spikes: [{ x: 2000, y: GY - 24, w: 100, h: 24 }], saws: [], checkpoints: [930, 1950],
+    spikes: [{ x: 2000, y: GY - 24, w: 48, h: 24 }], saws: [], checkpoints: [900, 1950],
     exit: { x: 2550, y: GY - 100, w: 70, h: 100 } },
   { name: "Ağırlık", w: 2500, start: { x: 60, y: GY - 54 },
-    statics: [{ x: 0, y: GY, w: 1500, h: 160 }, { x: 1610, y: GY, w: 300, h: 160 }, { x: 1910, y: 400, w: 590, h: 320 }],
+    statics: [{ x: 0, y: GY, w: 1500, h: 160 }, { x: 1570, y: GY, w: 340, h: 160 }, { x: 1910, y: 430, w: 590, h: 290 }],
     crates: [{ x: 300, y: GY - 56 }, { x: 1700, y: GY - 56 }],
     plates: [{ x: 700, y: GY - 8, w: 90, h: 8, door: 0 }], doors: [{ x: 1000, y: 300, w: 30, h: 260 }],
     spikes: [], saws: [], checkpoints: [1060, 1650],
-    exit: { x: 2300, y: 300, w: 70, h: 100 } },
-  { name: "Testere", w: 2800, start: { x: 60, y: GY - 54 },
-    statics: [{ x: 0, y: GY, w: 700, h: 160 }, { x: 820, y: GY, w: 900, h: 160 }, { x: 1830, y: GY, w: 970, h: 160 }],
+    exit: { x: 2300, y: 330, w: 70, h: 100 } },
+  { name: "Testere", w: 2800, start: { x: 60, y: GY - 54 }, hint: "Testere yukarı çıkınca altından geç",
+    statics: [{ x: 0, y: GY, w: 700, h: 160 }, { x: 770, y: GY, w: 950, h: 160 }, { x: 1790, y: GY, w: 1010, h: 160 }],
     crates: [{ x: 1860, y: GY - 56 }],
     plates: [{ x: 2020, y: GY - 8, w: 90, h: 8, door: 0 }], doors: [{ x: 2330, y: 300, w: 30, h: 260 }],
-    spikes: [{ x: 1000, y: GY - 24, w: 90, h: 24 }, { x: 2190, y: GY - 24, w: 80, h: 24 }],
-    saws: [{ x1: 1250, x2: 1550, y: GY - 30, r: 30, period: 3.6 }], checkpoints: [850, 1850],
+    spikes: [{ x: 1000, y: GY - 24, w: 48, h: 24 }, { x: 2190, y: GY - 24, w: 48, h: 24 }],
+    saws: [{ x1: 1400, x2: 1400, y1: GY - 22, y2: GY - 160, r: 26, period: 2.8 }], checkpoints: [850, 1850],
     exit: { x: 2650, y: GY - 100, w: 70, h: 100 } },
   { name: "Kabuk", w: 2000, start: { x: 60, y: GY - 54 }, hint: "Q / 🎭: maskeyi al · tekrar bas: fırlat · maske ağırdır, düğmeye basar",
-    statics: [{ x: 0, y: GY, w: 1300, h: 160 }, { x: 1410, y: GY, w: 590, h: 160 }],
+    statics: [{ x: 0, y: GY, w: 1300, h: 160 }, { x: 1370, y: GY, w: 630, h: 160 }],
     mask: { x: 190, y: GY - 70 }, crates: [],
     plates: [{ x: 560, y: GY - 8, w: 90, h: 8, door: 0, heavy: true }], doors: [{ x: 820, y: 300, w: 30, h: 260 }],
-    spikes: [], saws: [], checkpoints: [900, 1450], exit: { x: 1850, y: GY - 100, w: 70, h: 100 } },
+    spikes: [], saws: [], checkpoints: [900, 1420], exit: { x: 1850, y: GY - 100, w: 70, h: 100 } },
   { name: "Kalkan", w: 2300, start: { x: 60, y: GY - 54 }, hint: "Maske takılıyken oklara dön: kalkan olur. Çıkarırsan siper veya basamak olur",
-    statics: [{ x: 0, y: GY, w: 2300, h: 160 }, { x: 1750, y: 390, w: 550, h: 330 }],
+    statics: [{ x: 0, y: GY, w: 2300, h: 160 }, { x: 1750, y: 420, w: 550, h: 300 }],
     mask: { worn: true }, crates: [], plates: [], doors: [],
     darts: [{ x: 1746, y: GY - 30, dir: -1, every: 1.7, phase: 0.4 }, { x: 1746, y: GY - 46, dir: -1, every: 1.7, phase: 1.25 }],
-    spikes: [], saws: [], checkpoints: [900, 1450], exit: { x: 2100, y: 290, w: 70, h: 100 } },
+    spikes: [], saws: [], checkpoints: [900, 1450], exit: { x: 2100, y: 320, w: 70, h: 100 } },
   { name: "Sular", w: 2100, start: { x: 60, y: GY - 54 }, hint: "Maske suda yüzer: fırlat, üstüne çık, karşıya geç",
-    statics: [{ x: 0, y: GY, w: 700, h: 160 }, { x: 940, y: GY, w: 1160, h: 160 }, { x: 1560, y: 390, w: 540, h: 330 }],
-    water: [{ x: 700, y: GY + 8, w: 240 }], mask: { x: 300, y: GY - 70 }, crates: [{ x: 1150, y: GY - 56 }],
-    plates: [], doors: [], spikes: [], saws: [], checkpoints: [980], exit: { x: 1950, y: 290, w: 70, h: 100 } },
+    statics: [{ x: 0, y: GY, w: 700, h: 160 }, { x: 870, y: GY, w: 1230, h: 160 }, { x: 1560, y: 430, w: 540, h: 290 }],
+    water: [{ x: 700, y: GY + 8, w: 170 }], mask: { x: 300, y: GY - 70 }, crates: [{ x: 1150, y: GY - 56 }],
+    plates: [], doors: [], spikes: [], saws: [], checkpoints: [920], exit: { x: 1950, y: 330, w: 70, h: 100 } },
 ];
 
 /* ============ Durum ============ */
@@ -97,6 +98,8 @@ const P = { x: 0, y: 0, w: 26, h: 54, vx: 0, vy: 0, face: 1, onGround: false, st
 let lvlIdx = 0, L = null, crates = [], plates = [], doors = [], saws = [], darts = [], arrows = [], cp = null, cpSnap = null;
 const M = { kind: "mask", state: "none", w: 46, h: 70, x: 0, y: 0, vx: 0, vy: 0, dx: 0, x0: 0, y0: 0, onGround: false };   // Kabuk'un maskesi: none | worn | ground
 const bodies = () => (M.state === "ground" ? crates.concat([M]) : crates);
+let lastDrag = 0, shakeT = 0, look = 0;
+const shake = (a) => { shakeT = Math.max(shakeT, Math.min(1, a)); };
 let mode = "menu", fade = 1, fadeTarget = 0, deadT = 0, T = 0, cam = 0, titleT = 0, unlocked = 1;
 const keys = {}, touch = {};
 
@@ -109,7 +112,7 @@ function loadLevel(i) {
   darts = (L.darts || []).map((d) => ({ ...d, t: d.phase || 0 })); arrows = [];
   plates = L.plates.map((p) => ({ ...p, pressed: false }));
   doors = L.doors.map((d) => ({ ...d, open: 0 }));
-  saws = L.saws.map((s) => ({ ...s, x: s.x1 }));
+  saws = L.saws.map((s) => ({ ...s, x: s.x1, y: s.y1 ?? s.y }));
   cp = { x: L.start.x, y: L.start.y, idx: -1 }; snapshot();
   respawn(); titleT = L.hint ? 6 : 3; cam = 0; mode = "play"; fade = 1; fadeTarget = 0;
   document.getElementById("menu").hidden = true;
@@ -121,7 +124,7 @@ function respawn() {
   if (L.mask) { M.state = cpSnap.m.state; M.x = cpSnap.m.x; M.y = cpSnap.m.y; M.vx = M.vy = 0; }
   arrows = [];
 }
-function die() { if (mode !== "play") return; mode = "dead"; deadT = 0; fadeTarget = 1; burst(P.x + 13, P.y + 27); }
+function die() { if (mode !== "play") return; sfx.die(); shake(0.6); mode = "dead"; deadT = 0; fadeTarget = 1; burst(P.x + 13, P.y + 27); }
 
 /* ============ Fizik ============ */
 const ov = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -148,7 +151,9 @@ function moveY(dy) {
   const prevBottom = P.y + P.h; P.y += dy;
   const solids = worldSolids().concat(bodies());
   for (const s of solids) if (ov(P, s)) {
-    if (dy > 0) { P.y = s.y - P.h; if (P.vy > 420) P.squash = 0.14; P.vy = 0; P.onGround = true; P.standing = bodies().includes(s) ? s : null; }
+    if (dy > 0 && prevBottom > s.y + 8) continue;                 // yandan kenara sürtünme: yatay çözüm halleder
+    if (dy < 0 && prevBottom - P.h < s.y + s.h - 8) continue;
+    if (dy > 0) { P.y = s.y - P.h; if (P.vy > 300) { P.squash = Math.min(0.22, 0.06 + P.vy / 4500); sfx.land(P.vy); shake(P.vy / 1400); if (P.vy > 720) P.recover = 0.3; } P.vy = 0; P.onGround = true; P.standing = bodies().includes(s) ? s : null; }
     else if (dy < 0) { P.y = s.y + s.h; P.vy = 0; }
   }
 }
@@ -179,13 +184,13 @@ function maskAction() {
   if (M.state === "worn") {                                   // fırlat
     const x = P.face > 0 ? P.x + P.w + 2 : P.x - M.w - 2, y = P.y + P.h - M.h, r = { x, y, w: M.w, h: M.h };
     if (worldSolids().some((s) => ov(r, s)) || crates.some((c) => ov(r, c))) return;
-    Object.assign(M, { state: "ground", x, y, vx: 260 * P.face, vy: -380 });
+    Object.assign(M, { state: "ground", x, y, vx: 260 * P.face, vy: -380 }); sfx.whoosh();
   } else if (M.state === "ground" && ov({ x: P.x - 30, y: P.y - 10, w: P.w + 60, h: P.h + 20 }, M)) {   // al
-    M.state = "worn"; M.vx = M.vy = 0;
+    M.state = "worn"; M.vx = M.vy = 0; sfx.clink();
   }
 }
 function stepArrows(dt) {
-  for (const d of darts) { d.t += dt; if (d.t >= d.every) { d.t -= d.every; arrows.push({ x: d.dir < 0 ? d.x - 26 : d.x, y: d.y, w: 26, h: 6, vx: d.dir * 420 }); } }
+  for (const d of darts) { d.t += dt; if (d.t >= d.every) { d.t -= d.every; arrows.push({ x: d.dir < 0 ? d.x - 26 : d.x, y: d.y, w: 26, h: 6, vx: d.dir * 420 }); if (Math.abs(d.x - P.x) < 900) sfx.fire(); } }
   for (let i = arrows.length - 1; i >= 0; i--) {
     const a = arrows[i]; a.x += a.vx * dt;
     if (a.x < -60 || a.x > L.w + 60) { arrows.splice(i, 1); continue; }
@@ -204,13 +209,16 @@ function step(dt) {
   fade += (fadeTarget - fade) * Math.min(1, dt * 5);
   titleT = Math.max(0, titleT - dt);
   // plateler, kapılar
+  for (const p of plates) p.was = p.pressed;
   for (const p of plates) p.pressed = (!p.heavy && ov(P, p)) || bodies().some((c) => ov(c, { x: p.x, y: p.y - 2, w: p.w, h: p.h + 4 }));
+  for (const p of plates) if (p.was !== undefined && p.was !== p.pressed) sfx.plate();
   doors.forEach((d, i) => {
     const hold = plates.some((p) => p.door === i && p.pressed) ||
       (d.open > 0.3 && (ov(P, { x: d.x - 4, y: d.y, w: d.w + 8, h: d.h }) || bodies().some((c) => ov(c, { x: d.x - 4, y: d.y, w: d.w + 8, h: d.h }))));
+    if ((hold && d.open < 0.02) || (!hold && d.open > 0.98)) sfx.door();
     d.open += ((hold ? 1 : 0) - d.open) * Math.min(1, dt * 5); if (hold && d.open > 0.98) d.open = 1;
   });
-  for (const s of saws) { const k = (Math.sin(T * 2 * Math.PI / s.period) + 1) / 2; s.x = s.x1 + (s.x2 - s.x1) * k; s.rot = (s.rot || 0) + dt * 9; }
+  for (const s of saws) { const k = (Math.sin(T * 2 * Math.PI / s.period) + 1) / 2; s.x = s.x1 + (s.x2 - s.x1) * k; if (s.y1 !== undefined) s.y = s.y1 + (s.y2 - s.y1) * k; s.rot = (s.rot || 0) + dt * 9; }
   stepCrates(dt); stepArrows(dt);
   if (mode !== "play") { P.vx = 0; return; }
   if (P.maskReq) { P.maskReq = false; if (M.state !== "none") maskAction(); }
@@ -222,16 +230,17 @@ function step(dt) {
   P.grab = k.grab && grounded && !!adj;
   const dir = (k.right ? 1 : 0) - (k.left ? 1 : 0);
   const worn = M.state === "worn";
-  let speed = P.grab ? 110 : worn ? 160 : 210;
+  if (P.recover > 0) P.recover -= dt;
+  let speed = (P.grab ? 85 : worn ? 120 : 165) * (P.recover > 0 ? 0.35 : 1);
   if (dir && !P.grab) P.face = dir;
   if (P.grab) P.face = adj.side;
-  const acc = (grounded ? 3200 : 1700) * dt, target = dir * speed;
+  const acc = (grounded ? (dir ? 900 : 1500) : 260) * dt, target = dir * speed;   // yerde ivmeli, havada momentum korunur
   P.vx += Math.max(-acc, Math.min(acc, target - P.vx));
   P.coyote = grounded ? 0.1 : P.coyote - dt;
   if (P.jumpReq > 0) P.jumpReq -= dt;
-  if (P.jumpReq > 0 && P.coyote > 0) { P.vy = worn ? -620 : -700; P.coyote = 0; P.jumpReq = 0; }
-  if (!k.jump && P.vy < -260) P.vy *= 0.6;
-  P.vy += G * dt;
+  if (P.jumpReq > 0 && P.coyote > 0) { P.vy = worn ? -560 : -660; P.coyote = 0; P.jumpReq = 0; sfx.jump(); }
+  if (!k.jump && P.vy < -200) P.vy *= 0.55;
+  P.vy = Math.min(950, P.vy + G * dt);
   const before = P.x;
   // üstünde durduğu kutuyla taşın
   if (P.standLast) moveX(P.standLast.dx);
@@ -244,7 +253,11 @@ function step(dt) {
   moveY(P.vy * dt);
   P.standLast = P.standing;
   if (P.squash > 0) P.squash -= dt;
-  if (Math.abs(P.vx) > 20 && grounded) { P.anim += dt * Math.abs(P.vx) / 22; if (Math.floor(P.anim * 2) % 2 === 0 && Math.random() < 0.02) dust(P.x + 13, P.y + P.h); }
+  if (Math.abs(P.vx) > 20 && grounded) {
+    P.anim += dt * Math.abs(P.vx) / 50;
+    const f = Math.floor(P.anim); if (f !== P.lastStep) { P.lastStep = f; sfx.step(); if (Math.abs(P.vx) > 90) dust(P.x + 13, P.y + P.h); }
+  }
+  if (grounded && adj && P.grab && Math.abs(moved) > 0.05 && T - lastDrag > 0.16) { lastDrag = T; sfx.drag(); }
   // checkpoint
   L.checkpoints.forEach((x, i) => { if (i > cp.idx && P.x > x) { cp = { x: x, y: P.y, idx: i }; snapshot(); } });
   // tehlikeler
@@ -252,12 +265,59 @@ function step(dt) {
   for (const s of L.spikes) if (ov(body, { x: s.x + 6, y: s.y + 4, w: s.w - 12, h: s.h })) die();
   for (const s of saws) if (Math.hypot(P.x + 13 - s.x, P.y + 27 - s.y) < s.r + 14) die();
   if (P.y > H + 80) die();
-  if (ov(P, L.exit) && mode === "play") { mode = "win"; deadT = 0; fadeTarget = 1; unlocked = Math.max(unlocked, lvlIdx + 2); }
+  if (ov(P, L.exit) && mode === "play") { mode = "win"; sfx.win(); deadT = 0; fadeTarget = 1; unlocked = Math.max(unlocked, lvlIdx + 2); }
 }
 function nextLevel() {
   if (lvlIdx + 1 < LEVELS.length) loadLevel(lvlIdx + 1);
   else { mode = "menu"; document.getElementById("end").hidden = false; }
 }
+
+/* ============ Ses (Web Audio ile üretilir) ============ */
+const sfx = (() => {
+  let ac = null, master = null, nb = null, muted = false;
+  const R = Math.random;
+  function init() {
+    if (ac) { if (ac.state === "suspended") ac.resume(); return; }
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = muted ? 0 : 0.6; master.connect(ac.destination);
+      nb = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = R() * 2 - 1;
+      ambient();
+    } catch (e) { ac = null; }
+  }
+  function noise(dur, f, q, g, type, f2) {
+    if (!ac) return; const t = ac.currentTime, s = ac.createBufferSource(); s.buffer = nb; s.loop = true;
+    const fl = ac.createBiquadFilter(); fl.type = type || "lowpass"; fl.frequency.setValueAtTime(f, t); if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur); fl.Q.value = q;
+    const gn = ac.createGain(); gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(Math.max(0.0002, g), t + Math.min(0.02, dur / 3)); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(fl); fl.connect(gn); gn.connect(master); s.start(t, R() * 0.5); s.stop(t + dur + 0.05);
+  }
+  function tone(f, dur, g, type, f2) {
+    if (!ac) return; const t = ac.currentTime, o = ac.createOscillator(), gn = ac.createGain(); o.type = type || "sine"; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(Math.max(0.0002, g), t + 0.01); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(gn); gn.connect(master); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function ambient() {   // rüzgâr + düşük uğultu
+    const s = ac.createBufferSource(); s.buffer = nb; s.loop = true; const fl = ac.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = 380; fl.Q.value = 0.7;
+    const gn = ac.createGain(); gn.gain.value = 0.09; const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 0.11; lg.gain.value = 0.05; lfo.connect(lg); lg.connect(gn.gain);
+    s.connect(fl); fl.connect(gn); gn.connect(master); s.start(); lfo.start();
+    for (const f of [49, 73.5]) { const o = ac.createOscillator(), g2 = ac.createGain(); o.type = "sine"; o.frequency.value = f; g2.gain.value = 0.035; const l2 = ac.createOscillator(), lg2 = ac.createGain(); l2.frequency.value = 0.07 + f / 2000; lg2.gain.value = 0.02; l2.connect(lg2); lg2.connect(g2.gain); o.connect(g2); g2.connect(master); o.start(); l2.start(); }
+  }
+  return {
+    init, get muted() { return muted; }, setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.6; },
+    step() { noise(0.07, 650 + R() * 350, 1.2, 0.10); },
+    jump() { noise(0.14, 1100, 0.8, 0.05, "bandpass", 450); },
+    land(v) { const g = Math.min(0.5, v / 1500); noise(0.2, 320, 1, g); tone(80, 0.2, g * 0.9, "sine", 38); },
+    clink() { tone(1500 + R() * 200, 0.4, 0.06, "triangle"); tone(2260, 0.28, 0.03, "sine"); },
+    whoosh() { noise(0.16, 1300, 0.7, 0.06, "bandpass", 420); },
+    fire() { noise(0.12, 2600, 0.8, 0.035, "bandpass", 900); },
+    block() { tone(420, 0.12, 0.09, "square", 180); noise(0.08, 2000, 1, 0.07, "highpass"); },
+    door() { noise(0.7, 260, 2, 0.12, "lowpass", 110); },
+    plate() { noise(0.05, 1400, 1, 0.1, "bandpass"); tone(140, 0.12, 0.12, "square", 90); },
+    drag() { noise(0.14, 520, 1.5, 0.08, "lowpass", 260); },
+    die() { tone(120, 0.7, 0.18, "sawtooth", 38); noise(0.5, 700, 1, 0.2, "lowpass", 90); },
+    win() { tone(392, 1.2, 0.07, "sine"); tone(587, 1.4, 0.05, "sine"); },
+  };
+})();
+addEventListener("pointerdown", sfx.init); addEventListener("keydown", sfx.init);
 
 /* ============ Girdi ============ */
 const keyMap = { ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right", ArrowUp: "jump", KeyW: "jump", Space: "jump", ShiftLeft: "grab", ShiftRight: "grab", KeyE: "grab", KeyQ: "mask", KeyF: "mask" };
@@ -275,7 +335,7 @@ const inputState = () => ({ left: keys.left || touch.left, right: keys.right || 
 /* ============ Parçacıklar ============ */
 const parts = [];
 function dust(x, y) { parts.push({ x, y, vx: (Math.random() - .5) * 30, vy: -10 - Math.random() * 20, life: .5, max: .5, r: 2 + Math.random() * 2, c: 0 }); }
-function spark(x, y) { for (let i = 0; i < 8; i++) { const a = Math.random() * 7; parts.push({ x, y, vx: Math.cos(a) * 160, vy: Math.sin(a) * 160 - 40, life: .25, max: .25, r: 1.5 + Math.random() * 1.5, c: 0 }); } }
+function spark(x, y) { sfx.block(); for (let i = 0; i < 8; i++) { const a = Math.random() * 7; parts.push({ x, y, vx: Math.cos(a) * 160, vy: Math.sin(a) * 160 - 40, life: .25, max: .25, r: 1.5 + Math.random() * 1.5, c: 0 }); } }
 function burst(x, y) { for (let i = 0; i < 24; i++) { const a = Math.random() * 7; parts.push({ x, y, vx: Math.cos(a) * 140, vy: Math.sin(a) * 140 - 60, life: .7, max: .7, r: 2 + Math.random() * 3, c: 1 }); } }
 
 /* ============ Çizim ============ */
@@ -344,7 +404,8 @@ function drawWorld() {
   ctx.fillStyle = "#0b0b0c";
   for (const s of L.spikes) { ctx.beginPath(); for (let x = s.x; x < s.x + s.w; x += 12) { ctx.moveTo(x, s.y + s.h); ctx.lineTo(x + 6, s.y); ctx.lineTo(x + 12, s.y + s.h); } ctx.fill(); }
   // testereler
-  for (const s of saws) { ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rot); ctx.fillStyle = "#0b0b0c"; ctx.beginPath();
+  for (const s of saws) { if (s.y1 !== undefined) { ctx.strokeStyle = "#0b0b0c"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(s.x, 0); ctx.lineTo(s.x, s.y); ctx.stroke(); }
+    ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rot); ctx.fillStyle = "#0b0b0c"; ctx.beginPath();
     for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, r1 = i % 2 ? s.r - 8 : s.r + 3; ctx.lineTo(Math.cos(a) * r1, Math.sin(a) * r1); } ctx.fill();
     ctx.fillStyle = "#6a6c70"; ctx.beginPath(); ctx.arc(0, 0, 5, 0, 7); ctx.fill(); ctx.restore(); }
   // kutular
@@ -362,27 +423,41 @@ function drawMaskItem(x, y, w, h) {   // kırık porselen maske: oyunun tek aç�
   ctx.strokeStyle = "#3a3a3c"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + w * 0.62, y + h * 0.42, 6, 0.2, Math.PI - 0.2); ctx.stroke();   // kapalı göz
   ctx.beginPath(); ctx.moveTo(x + w * 0.2, y + 6); ctx.lineTo(x + w * 0.38, y + h * 0.3); ctx.lineTo(x + w * 0.28, y + h * 0.5); ctx.lineTo(x + w * 0.45, y + h * 0.75); ctx.stroke();   // çatlak
 }
-/* Geçici silüet karakter (tasarım gelince sprite ile değişecek) */
+/* Geçici silüet karakter: iskeletli (iki kemikli bacak/kol), tasarım gelince sprite parçalarıyla değişecek */
 function drawPlayer() {
-  const cx = P.x + P.w / 2, bot = P.y + P.h, run = Math.abs(P.vx) > 20 && P.onGround, ph = P.anim * Math.PI;
-  const sq = P.squash > 0 ? 1 - P.squash * 1.5 : 1;
-  ctx.save(); ctx.translate(cx, bot); ctx.scale(P.face * (2 - sq), sq); ctx.fillStyle = ctx.strokeStyle = "#050506"; ctx.lineCap = "round"; ctx.lineJoin = "round";
-  const bob = run ? Math.abs(Math.sin(ph)) * 2 : Math.sin(T * 2) * 0.8;
-  // bacaklar
-  ctx.lineWidth = 7;
-  const leg = (a) => { ctx.beginPath(); ctx.moveTo(0, -24); const kx = Math.sin(a) * 10, ky = -12; ctx.lineTo(kx, ky); ctx.lineTo(kx + Math.sin(a - 0.4) * 5, 0); ctx.stroke(); };
-  if (!P.onGround) { leg(0.9); leg(-0.5); } else if (run) { leg(Math.sin(ph)); leg(-Math.sin(ph)); } else { leg(0.15); leg(-0.15); }
-  // gövde
-  ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(0, -24 - bob); ctx.lineTo(1, -38 - bob); ctx.stroke();
-  // kollar
-  ctx.lineWidth = 5;
-  if (P.grab) { ctx.beginPath(); ctx.moveTo(2, -38 - bob); ctx.lineTo(18, -34 - bob); ctx.stroke(); }
-  else if (!P.onGround) { ctx.beginPath(); ctx.moveTo(2, -38); ctx.lineTo(14, -52); ctx.moveTo(0, -38); ctx.lineTo(-10, -50); ctx.stroke(); }
-  else { const s = run ? Math.sin(ph) * 10 : 0; ctx.beginPath(); ctx.moveTo(1, -38 - bob); ctx.lineTo(4 + s, -26 - bob); ctx.moveTo(1, -38 - bob); ctx.lineTo(-s, -27 - bob); ctx.stroke(); }
-  // baş
-  ctx.beginPath(); ctx.arc(2, -47 - bob, 8.5, 0, 7); ctx.fill();
-  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(6, -48 - bob, 1.9, 0, 7); ctx.fill();
-  if (M.state === "worn") { ctx.save(); ctx.translate(9, -34); ctx.scale(1, 1); drawMaskItem(-M.w / 2 + 3, -M.h / 2, M.w - 6, M.h - 4); ctx.restore(); }   // maske önde, kalkan
+  const worn = M.state === "worn", spd = Math.abs(P.vx), run = P.onGround && spd > 20, ph = P.anim * Math.PI;
+  const crouch = P.squash > 0 ? Math.min(1, P.squash * 5) : (P.recover > 0 ? 0.6 : 0);
+  const L1 = 13, L2 = 12, TORSO = 15, HEAD = 7.5;
+  const pushing = P.grab, pulling = P.grab && ((P.vx > 0) !== (P.face > 0)) && spd > 5;
+  let lean = run ? 0.06 + Math.min(1, spd / 165) * 0.1 : 0; if (pushing) lean = pulling ? -0.18 : 0.28; if (crouch) lean += 0.25 * crouch;
+  const leg = (a, bend) => { const kx = Math.sin(a) * L1, ky = Math.cos(a) * L1, sa = a - bend; return { kx, ky, fx: kx + Math.sin(sa) * L2, fy: ky + Math.cos(sa) * L2 }; };
+  let l1, l2;
+  if (!P.onGround) { l1 = P.vy < 0 ? leg(0.95, 1.25) : leg(0.55, 0.5); l2 = P.vy < 0 ? leg(-0.35, 0.6) : leg(-0.3, 0.3); }
+  else if (crouch) { l1 = leg(0.8, 1.5 * crouch + 0.1); l2 = leg(-0.2, 1.2 * crouch); }
+  else if (run) { const sw = pushing ? 0.35 : 0.62; l1 = leg(Math.sin(ph) * sw, Math.max(0, Math.cos(ph)) * 0.95); l2 = leg(-Math.sin(ph) * sw, Math.max(0, -Math.cos(ph)) * 0.95); }
+  else { l1 = leg(0.12, 0.05); l2 = leg(-0.1, 0.05); }
+  const hipY = P.onGround ? -Math.max(l1.fy, l2.fy) : -(L1 + L2) * 0.95;
+  const bob = run ? Math.abs(Math.sin(ph)) * 1.6 : Math.sin(T * 1.8) * 0.5;
+  const hx = 0, hy = hipY - bob, sx = hx + Math.sin(lean) * TORSO, sy = hy - Math.cos(lean) * TORSO;
+  const arm = (a, bend) => { const ex = sx + Math.sin(a) * 10, ey = sy + Math.cos(a) * 10, ba = a + bend; return { ex, ey, hx: ex + Math.sin(ba) * 9, hy: ey + Math.cos(ba) * 9 }; };
+  let a1, a2;
+  if (pushing) { a1 = arm(1.5, 0.05); a2 = arm(1.35, 0.1); }
+  else if (!P.onGround) { a1 = P.vy < 0 ? arm(2.5, 0.2) : arm(1.9, 0.3); a2 = P.vy < 0 ? arm(2.0, 0.3) : arm(-1.2, 0.2); }
+  else if (run) { a1 = arm(-Math.sin(ph) * 0.7, 0.5 + Math.max(0, Math.sin(ph)) * 0.5); a2 = arm(Math.sin(ph) * 0.7, 0.5 + Math.max(0, -Math.sin(ph)) * 0.5); }
+  else { const br = Math.sin(T * 1.8) * 0.04; a1 = arm(0.1 + br, 0.15); a2 = arm(-0.12 - br, 0.15); }
+  const sqk = P.squash > 0 ? 1 - P.squash * 0.9 : 1;
+  ctx.save(); ctx.translate(P.x + P.w / 2, P.y + P.h + 2); ctx.scale(P.face * (2 - sqk), sqk);
+  ctx.fillStyle = ctx.strokeStyle = "#050506"; ctx.lineCap = ctx.lineJoin = "round"; ctx.lineWidth = 6;
+  const limb = (x0, y0, x1, y1, x2, y2) => { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); };
+  limb(hx, hy, hx + l2.kx, hy + l2.ky, hx + l2.fx, hy + l2.fy);         // arka bacak
+  limb(sx, sy, a2.ex, a2.ey, a2.hx, a2.hy);                              // arka kol
+  ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(sx, sy); ctx.stroke();   // gövde
+  const hdx = sx + Math.sin(lean) * 5 + 1.5, hdy = sy - HEAD - 1 - Math.cos(lean) * 2;
+  ctx.beginPath(); ctx.arc(hdx, hdy, HEAD, 0, 7); ctx.fill();            // baş
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(hdx + 3.6, hdy - 0.8, 1.7, 0, 7); ctx.fill(); ctx.fillStyle = "#050506";
+  ctx.lineWidth = 6; limb(hx, hy, hx + l1.kx, hy + l1.ky, hx + l1.fx, hy + l1.fy);   // ön bacak
+  limb(sx, sy, a1.ex, a1.ey, a1.hx, a1.hy);                              // ön kol
+  if (worn) { ctx.save(); ctx.translate(8, hy - 18 + Math.sin(T * 1.8) * 0.6); drawMaskItem(-M.w / 2 + 3, -M.h / 2, M.w - 6, M.h - 4); ctx.restore(); }   // maske önde, kalkan
   ctx.restore();
 }
 function drawFront() {
@@ -399,7 +474,9 @@ function drawFront() {
 function draw() {
   ctx.setTransform(SC, 0, 0, SC, 0, 0);
   if (!L) { ctx.fillStyle = "#222"; ctx.fillRect(0, 0, W, H); return; }
-  const tx = Math.max(0, Math.min(L.w - W, P.x - W * 0.38)); cam += (tx - cam) * 0.08;
+  look += ((Math.abs(P.vx) > 10 ? P.face * 90 : P.face * 30) - look) * 0.02;
+  const tx = Math.max(0, Math.min(L.w - W, P.x - W * 0.4 + look)); cam += (tx - cam) * 0.07;
+  shakeT = Math.max(0, shakeT - 0.012); if (shakeT > 0) ctx.translate((Math.random() - .5) * shakeT * 14, (Math.random() - .5) * shakeT * 14);
   drawBackground(); drawWorld(); drawFront();
 }
 let acc = 0, last = performance.now();
@@ -415,6 +492,7 @@ function buildMenu() {
   const lv = document.getElementById("lv"); lv.innerHTML = "";
   LEVELS.forEach((l, i) => { const b = document.createElement("button"); b.textContent = `${i + 1} ${l.name}`; b.onclick = () => { document.getElementById("end").hidden = true; loadLevel(i); }; lv.appendChild(b); });
 }
+document.getElementById("snd").onclick = (e) => { sfx.setMuted(!sfx.muted); e.target.textContent = sfx.muted ? "Ses: kapalı" : "Ses: açık"; };
 document.getElementById("toMenu").onclick = () => { document.getElementById("end").hidden = true; document.getElementById("menu").hidden = false; };
 function checkRot() { document.getElementById("rot").hidden = !(matchMedia("(pointer:coarse)").matches && innerHeight > innerWidth); }
 addEventListener("resize", checkRot); checkRot();
