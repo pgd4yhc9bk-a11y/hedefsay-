@@ -23,6 +23,7 @@ big.sort(key=lambda i: (objs[i - 1][0].start // 200, objs[i - 1][1].start))   # 
 os.makedirs(f'{HERE}/assets/{name}/parts', exist_ok=True); os.makedirs(f'{HERE}/prototip-sis/sprites', exist_ok=True)
 # bileşen numaralarını yukarıdaki tabloyla eşle (etiketleme sırası y.start artan, scipy find_objects sırası)
 anchors = {}
+full = {}
 for idx, role in ROLES.items():
     sl = objs[idx - 1]; m = (lab[sl] == idx)
     crop = src[sl].copy(); crop[..., 3] = np.where(m, src[sl][..., 3], 0)
@@ -52,6 +53,12 @@ for idx, role in ROLES.items():
     s = SCALE * PART_SCALE.get(role, 1)
     out = img.resize((max(1, round(w * s)), max(1, round(h * s))), Image.LANCZOS)
     out.save(f'{HERE}/prototip-sis/sprites/{name}_{role}.png', optimize=True)
+    full[role] = {'w': w, 'h': h, 'k': round(s / 2, 5), **an}   # Godot için: tam çözünürlük pikseli, k = oyun pikseli/kaynak pikseli
     anchors[role] = {'w': out.width, 'h': out.height, **{k: [round(v[0] * s, 1), round(v[1] * s, 1)] for k, v in an.items()}}
     print(role, (w, h), '->', (out.width, out.height), an)
 json.dump(anchors, open(f'{HERE}/prototip-sis/sprites/{name}_anchors.json', 'w'), indent=1)
+
+gd = f'{HERE}/godot/assets/{name}'; os.makedirs(gd, exist_ok=True)
+json.dump(full, open(f'{gd}/anchors.json', 'w'), indent=1)
+import shutil
+for r in ROLES.values(): shutil.copy(f'{HERE}/assets/{name}/parts/{r}.png', f'{gd}/{r}.png')
