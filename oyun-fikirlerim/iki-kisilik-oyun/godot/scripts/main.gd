@@ -421,6 +421,8 @@ func _run_test() -> void:
 			players[0].override["right"] = true
 			await _wait(0.8)
 			await _shot("res://../test_nehir2.png")
+			await _wait(0.13)
+			await _shot("res://../test_nehir2b.png")
 			players[0].override["jump"] = true
 			await _wait(0.25)
 			await _shot("res://../test_nehir3.png")

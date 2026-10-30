@@ -5,6 +5,8 @@ class_name PoseRig extends Node2D
 var who := "nehir"
 var meta := {}
 var tex := {}
+var cyc := {}                    # döngü adı -> {meta, kareler}
+var _idle_t := 0.0
 var spr: Sprite2D
 var cur := ""
 var _cur_t := 0.0
@@ -17,6 +19,12 @@ func _ready() -> void:
 	meta = all[who]
 	for n: String in meta:
 		tex[n] = load("res://assets/%s/poz/%s.png" % [who, n])
+	var cm: Dictionary = all[who + "_cycles"]
+	for cn: String in cm:
+		var frames: Array = []
+		for i in int(cm[cn]["n"]):
+			frames.append(load("res://assets/%s/dongu/%s_%02d.png" % [who, cn, i]))
+		cyc[cn] = {"m": cm[cn], "f": frames}
 	spr = Sprite2D.new()
 	spr.centered = false
 	spr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
@@ -51,7 +59,33 @@ func _pick(p: Player, t: float) -> String:
 		return "01_yuruyus_a" if step else "03_yuruyus_b"
 	return "03_yuruyus_b" if n else "13_bekleme_yukari_bakis"
 
+func _cycle_for(p: Player, t: float) -> Array:
+	# [döngü adı, kare no] veya boş (tek poz kullan)
+	if not p.is_on_floor() or p.recover > 0.0 or p.squash > 0.0 or p.on_ice or (p.mud > 0) or (p.grab and who == "nehir"):
+		return []
+	var spd := absf(p.velocity.x)
+	if spd > 20.0:
+		if spd >= 130.0:
+			return ["kosma", int(floor(p.anim * 2.6)) % 8]
+		return ["yuruyus", int(floor(p.anim * 2.4)) % 8]
+	return ["bekleme", int(floor(t * 5.0)) % 4]
+
 func update_pose(p: Player, t: float) -> void:
+	var cy := _cycle_for(p, t)
+	if not cy.is_empty():
+		var c: Dictionary = cyc[cy[0]]
+		var cm: Dictionary = c["m"]
+		spr.texture = c["f"][cy[1]]
+		var ck := 1.0 / float(cm["res"])
+		spr.scale = Vector2(ck, ck)
+		spr.offset = Vector2(-float(cm["ax"]), -float(cm["ay"]))
+		var cb := 0.0
+		if cy[0] != "bekleme":
+			cb = -absf(sin(p.anim * PI)) * 0.6
+		position.y = cb
+		scale = Vector2(p.face, 1.0)
+		rotation = 0.0
+		return
 	var name := _pick(p, t)
 	if not meta.has(name):
 		name = meta.keys()[0]
