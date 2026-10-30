@@ -587,12 +587,20 @@ func _t_c3() -> void:
 	await _pland(kl)
 	kl.override["right"] = false
 	print("C3 Kül ghost2: ", kl.global_position, " dead=", kl.dead)
+	# Kapıcı ghost1 ve ghost2'ye çıkar (Kül ghost2'de ışık tutuyor)
 	await _pwalk(kb, 1090.0)
 	await _pjump(kb, 0.45)
 	await _pland(kb)
 	await _pwalk(kb, 1240.0)
 	await _pjump(kb, 0.45)
 	await _pland(kb)
+	kb.override["right"] = false
+	print("C3 Kapıcı ghost2'de: ", kb.global_position, " dead=", kb.dead)
+	# Kül öne geçer (ışık ilerler), Kapıcı ardından
+	await _pwalk(kl, 1400.0)
+	await _pjump(kl, 0.45)
+	await _pland(kl)
+	kl.override["right"] = false
 	await _pwalk(kb, 1400.0)
 	await _pjump(kb, 0.45)
 	await _pland(kb)
@@ -601,11 +609,11 @@ func _t_c3() -> void:
 	await _pland(kb)
 	kb.override["right"] = false
 	print("C3 Kapıcı ghost4'te: ", kb.global_position, " dead=", kb.dead)
-	await _pwalk(kl, 1400.0)
-	await _pjump(kl, 0.45)
-	await _pland(kl)
 	await _pwalk(kl, 1560.0)
 	await _pjump(kl, 0.45)
+	await _pland(kl)
+	await _pwalk(kl, 1720.0)
+	await _pjump(kl, 0.3)
 	await _pland(kl)
 	await _shot("res://../test_c3b.png")
 	await _pwalk(kb, 2440.0)
