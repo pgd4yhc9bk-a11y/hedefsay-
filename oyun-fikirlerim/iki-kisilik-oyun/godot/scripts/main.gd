@@ -426,6 +426,12 @@ func _run_test() -> void:
 			await _t_push()
 		"sibling":
 			await _t_sibling()
+		"cayirshot":
+			for lv in [11, 12]:
+				load_level(lv)
+				players[0].global_position = Vector2(560 if lv == 11 else 1000, 540)
+				await _wait(1.0)
+				await _shot("res://../test_cayir%d.png" % lv)
 		"dereshot":
 			load_level(9)
 			players[0].global_position = Vector2(540, 540)

@@ -222,7 +222,10 @@ func _make_decor(dc: Dictionary) -> void:   # arka plan nesnesi: x = orta, taban
 	sp.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	sp.scale = Vector2(0.5, 0.5)
 	sp.flip_h = bool(dc.get("flip", false))
-	sp.position = Vector2(float(dc["x"]) - float(m["w"]) / 4.0, float(dc.get("y", 560.0)) + 3.0 - float(m["h"]) / 2.0)
+	if dc.get("hang", false):   # tavandan sarkan: y = bağlandığı üst kenar
+		sp.position = Vector2(float(dc["x"]) - float(m["w"]) / 4.0, float(dc.get("y", 0.0)))
+	else:
+		sp.position = Vector2(float(dc["x"]) - float(m["w"]) / 4.0, float(dc.get("y", 560.0)) + 3.0 - float(m["h"]) / 2.0)
 	sp.z_index = int(dc.get("z", -1))
 	sp.modulate = Color(1, 1, 1, 1) * float(dc.get("shade", 1.0))
 	add_child(sp)
