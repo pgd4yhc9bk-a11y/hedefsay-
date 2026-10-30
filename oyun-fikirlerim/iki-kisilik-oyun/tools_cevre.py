@@ -34,7 +34,8 @@ for n, target in DEK.items():
     meta[n] = {'w': w2, 'h': h2, 'ax': round(ax, 1), 'res': 2}
 
 # ızgara sayfalarından gelen nesneler (tools_sheets.py): (dosya, ad, 'h'=hedef yükseklik | 'w'=hedef genişlik, oyun px)
-OGE = [('bitki_00','cali',60,'h'),('bitki_01','egrelti',55,'h'),('bitki_02','ot',85,'h'),('bitki_03','mantar',45,'h'),('bitki_04','dikenli_cali',75,'h'),
+OGE = [('agac_00','agac_ince',330,'h'),('agac_01','agac_kalin',420,'h'),('agac_02','agac_kuru_cam',380,'h'),('agac_03','agac_olu',330,'h'),('agac_04','agac_cift',400,'h'),('agac_05','agac_genc',230,'h'),
+       ('bitki_00','cali',60,'h'),('bitki_01','egrelti',55,'h'),('bitki_02','ot',85,'h'),('bitki_03','mantar',45,'h'),('bitki_04','dikenli_cali',75,'h'),
        ('bitki_05','cimen_oku',35,'h'),('bitki_06','cicek',80,'h'),('bitki_07','kok_yigin',65,'h'),
        ('kaya_00','tas',50,'w'),('kaya_01','kaya_orta',95,'w'),('kaya_02','kaya_buyuk',140,'w'),('kaya_03','kaya_catlak',125,'w'),('kaya_04','govde_yatan',160,'w'),
        ('kaya_05','kutuk_devrik',125,'w'),('kaya_06','kutuk_kesik',85,'w'),('kaya_07','tas_yigin',110,'w'),
