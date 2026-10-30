@@ -139,7 +139,7 @@ func _build_ui() -> void:
 		touch = TouchControls.new()
 		add_child(touch)
 		touch_hint = Label.new()
-		touch_hint.text = "Sağa / sola kaydır: yürü   ·   yukarı kaydır: zıpla\nİkinci parmakla dokun: eşya   ·   ikinci parmağı basılı tut: tut ve çek"
+		touch_hint.text = "Sol parmak sağa / sola kaydır: yürü   ·   sağ parmak yukarı kaydır: zıpla\nSağ parmak dokun: eşya   ·   sağ parmağı basılı tut: tut, sol parmakla çek"
 		touch_hint.position = Vector2(0, 600)
 		touch_hint.size = Vector2(1280, 90)
 		touch_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -373,6 +373,8 @@ func _run_test() -> void:
 			await _t_touch()
 		"touch2":
 			await _t_touch2()
+		"touch3":
+			await _t_touch3()
 		"coop":
 			await _t_c1()
 			await _t_c2()
@@ -737,3 +739,45 @@ func _t_touch2() -> void:
 	_ev_touch(0, false, Vector2(300, 400))
 	await _wait(0.4)
 	print("TOUCH2 tek parmak kısa dokunuşla alındı mı: ", player.worn)
+
+func _t_touch3() -> void:
+	Game.touch_ui = true
+	load_level(1)
+	await _wait(0.4)
+	touch = TouchControls.new()
+	add_child(touch)
+	touch.enabled = true
+	state = "play"
+	# sol parmak sağa kaydırır (yürür), sağ parmak yukarı kaydırır (zıplar): aynı anda
+	var x0 := player.global_position.x
+	_ev_touch(0, true, Vector2(200, 400))
+	await get_tree().physics_frame
+	_ev_drag(0, Vector2(270, 400))
+	await _wait(0.4)
+	_ev_touch(1, true, Vector2(900, 500))
+	await get_tree().physics_frame
+	_ev_drag(1, Vector2(900, 420))
+	await _wait(0.2)
+	print("TOUCH3 yürürken zıplama: right=", Input.is_action_pressed("right"), " jump=", Input.is_action_pressed("jump"), " havada=", not player.is_on_floor(), " dx=", player.global_position.x - x0)
+	_ev_touch(1, false, Vector2(900, 420))
+	_ev_touch(0, false, Vector2(270, 400))
+	await _wait(1.0)
+	# kutuyu çek: sağ parmak basılı (tut), sol parmak sola sürüklenir
+	var crate := level.crates[0]
+	player.global_position = Vector2(crate.global_position.x - 28.0 - 13.0 - 1.0, 560.0)
+	player.velocity = Vector2.ZERO
+	await _wait(0.5)
+	var cx0 := crate.global_position.x
+	_ev_touch(1, true, Vector2(900, 500))
+	await _wait(0.5)
+	print("TOUCH3 sağ parmak basılı -> grab: ", Input.is_action_pressed("grab"), " tutuyor=", player.grab)
+	_ev_touch(0, true, Vector2(400, 400))
+	await get_tree().physics_frame
+	_ev_drag(0, Vector2(330, 400))
+	await _wait(1.0)
+	print("TOUCH3 kutu çekildi mi: kutu x ", cx0, " -> ", crate.global_position.x, " oyuncu x=", player.global_position.x)
+	_ev_drag(0, Vector2(470, 400))
+	await _wait(0.8)
+	print("TOUCH3 kutu itildi mi: kutu x=", crate.global_position.x, " oyuncu x=", player.global_position.x)
+	_ev_touch(1, false, Vector2(900, 500))
+	_ev_touch(0, false, Vector2(470, 400))
