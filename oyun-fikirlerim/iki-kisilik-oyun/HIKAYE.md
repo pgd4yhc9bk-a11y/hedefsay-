@@ -1,4 +1,4 @@
-# Sis: Hikâye (taslak v0.2): "Kurdeleleri Takip Et"
+# Sis: Hikâye (taslak v0.3): "Kurdeleleri Takip Et"
 
 > Sessiz anlatım: oyunda konuşma ve yazı yok. Hikâye ortam, nesneler, ışık, ses ve karakter hareketleriyle anlatılır
 > (Limbo/Inside gibi). Bu belge ekibin ortak referansıdır. Karakterler ve olay akışı değişebilir.
@@ -43,7 +43,79 @@ izleyerek onu bulur ve ikisi birlikte köylerine geri dönmeye çalışır.
    Kamera yavaşça yükselir; ormanda kırmızı kurdeleler şafağın ışığında görünür. Son kare: kapının yanındaki çiviye
    asılı baba feneri, şimdi yanıyor. (Baba'nın akıbeti söylenmez, ışık "bir gün dönebilir" duygusunu bırakır.)
 
-## Duygu hedefi
+## Hikâyenin derinliği
+
+### Ana tema
+**Kayıp ve bağlılık.** Sis, kaybolanları yutan şey değil, **kaybın kendisi**: ışığa sırtını dönenin, yasını içine gömenin üstüne çöker.
+Işık yalnızca yolu göstermez, birbirimize ait olduğumuzu hatırlatır. Oyun, Nehir'in yasını bastırmayı bırakıp
+kardeşiyle paylaşmayı öğrenmesinin hikâyesidir.
+
+### Geçmiş (oyunda ortam ve nesnelerle anlatılır)
+- **Fener Geleneği:** Köyde her kış başında çocuklar bir dileği **kırmızı kurdeleye** bağlar, fenercinin yanında ormanın kenarına asar.
+  "Dilek kurdeleyi bağlayan, o dilek sahibini eve çağırır" derler. Baba her yıl herkesin kurdelesini asan kişiydi.
+- **İki kış önce:** Sis erken geldi. Köyün koyunları ormana dağıldı. Baba, kimse kaybolmasın diye yol boyunca ağaçlara
+  kurdeleler bağlayarak ormana girdi. Koyunları getirdi (köydeki kuzular o geceden), kendisi dönmedi.
+- **Pofuk:** Çınar'ın bez tavşanını baba dikmişti. Kulağındaki yamuk dikiş babanın. Çınar babayı çok az hatırlıyor,
+  ama tavşanın kokusu ve kulağı onun babası. Tavşanı aramak aslında babayı aramak.
+- **Nehir:** İki kıştır evin büyüğü gibi davranıyor. Ağlamıyor. Annenin akşam lambasını o yakıyor, çünkü annenin elleri titriyor.
+  Babanın fenerini yedekte saklıyor ve bir gün gerekli olacağını biliyor.
+- **Anne:** Her akşam camda bir lamba bırakır. İki yıldır. Camdaki yağ azaldı ama o bırakmıyor.
+
+### Karakter yayları
+- **Nehir:** "Ben güçlü olmalıyım" → "Güçlü olmak, bazen ağlamak ve yardım istemek."
+  Yayın zirvesi: Yamaç perdesinde babanın son kurdelesini ve koparılmış halatı bulur; Çınar görmesin diye onun gözlerini örter.
+  Köy yoluna varırken **ilk kez ağlar** ve Çınar onun elini tutar. Final sahnesinde annenin kollarında kendini bırakır.
+- **Çınar:** "Korkuyorum, Pofuk'a sığınıyorum" → "Abla benim yanımda, ben de ona sığınak olabilirim."
+  Küçük cesaretleri: karanlıkta feneri onun elinden tutması, abla yorulunca ona kendi atkısını sarması.
+
+### Tekrarlayan motifler
+| Motif | Anlamı | Nerede |
+|---|---|---|
+| **Kırmızı kurdele** | Sevgi, yolu bulma, baba | Kontrol noktaları, ağaçlar, Çınar'ın atkısı, finalde Nehir'in bağladığı yeni kurdeleler |
+| **Turuncu fener alevi** | Umut, güvence | Nehir'in elinde, mağara, baba feneri |
+| **Krem bez tavşan** | Hatıra, çocukluk | Çınar'ın elinde, bulunan parçalar, düşüş sahnesi |
+| **Pencere lambası** | Beklenen, eve çağrı | İlk ve son sahne, ormandan uzakta görünen nokta |
+| **Siyah silüet** | Kayıp, gölge | Tüm dünya; tek renkli öğeler yalnızca sevilen şeylerdir |
+
+### Perde perde duygusal anlar (kısa sahne planı)
+1. **Çayır:** Çit kenarında kırmızı bir kurdele ucu, küçük ayak izleri. Nehir kurdeleye dokunur; ilk kontrol noktası ve ilk "baba" anı
+   (gözleri bir an kurdelede kalır). Uzakta evin penceresi: ışık hâlâ yanıyor.
+2. **Orman:** Çamurda iki iz: küçük çizmeler ve çok eski, yarı silinmiş büyük çizme izi. Bir dalda Pofuk'un kopmuş kulağı.
+   Nehir kulağı atkısının cebine koyar. İlk kez tek başına ormanın derin sesi: rüzgâr, çıtırdayan dallar, uzakta bir düdük (babanın düdüğü gibi).
+3. **Dere:** Buz. Nehir kayar, düşer (kısa şok), kalkar. Karşı kıyıdan Çınar'ın hıçkırığı. Nehir feneri kaldırır, Çınar ışığa koşar,
+   buz çatlar, Nehir yakalar. **Sarılma.** Sonra tek bir **oyun anı**: Çınar buzda kaymayı keşfeder, gülerler; çok kısa, ama oyundaki
+   en neşeli an. Ardından yeniden ciddiyet: eve dönmeleri gerek.
+4. **Değirmen:** Babanın bir gece orada konakladığı belli: söndürülmüş ateş, battaniye, yarım bir ahşap tavşan oyuncağı
+   (Çınar için yapılıyordu). Çınar oyuncağı alır, Pofuk'un yanına sıkıştırır. Co-op başlar: Nehir kuvvet, Çınar dar geçit.
+5. **Mağara:** Karanlık. Sisliler fener ışığından kaçar. Karanlıkta **babanın düdüğü** duyulur (Sisliler'in tuzağı: ses taklidi).
+   Çınar sesin peşinden gitmek ister; Nehir elini bırakmaz, feneri onun avucuna verir ve "ben yanındayım" der gibi omzuna sarılır.
+   Fener el değiştirir: ilk kez Çınar ışığı taşır, bu onun cesaret anıdır.
+6. **Yamaç:** Kayan çakıl. Uçurum kenarında babanın **son kurdelesi** ve kopmuş, eskimiş bir halat. Nehir anlar. Çınar'ın gözlerini örter,
+   Çınar'ın elinden Pofuk uçuruma düşer. Çınar uzanır, Nehir yakalar (kardeşini seçer). Pofuk gider. Çınar ağlar. Nehir kendi atkısının
+   ucunu keser, Çınar'ın bileğine kurdele gibi bağlar: "Baban yanında."
+7. **Köy yolu:** Sabaha doğru. Nehir yorgun, Çınar'ı sırtına alır (yeni mekanik: sırtta taşıma, yavaş ve ağır). Ağaçlardaki kurdeleler
+   köye doğru sıklaşır. Nehir yolda **ilk kez ağlar**; Çınar uykulu elini onun yanağına koyar. Yolun sonunda direğe asılı baba feneri.
+   Nehir kendi fenerinin son alevini ona verir, fener yanar, köyün üstüne ışık yayılır.
+**Final:** Köyde lambalar tek tek yanar. Annenin penceresindeki lamba bu kez söner (yağı bitti) ama çünkü sabah oldu. Kapı açılır,
+anne ikisine sarılır. Nehir ilk kez annesine ağlar. Son plan: kamera yükselir, ormanda ağaçlardaki kırmızı kurdeleler günışığında
+parlıyor. Kapının yanındaki çiviye asılı baba feneri hâlâ yanıyor.
+**Son kare (epilog):** Çınar'ın bileğindeki kurdele ile Nehir ormanın kenarına yeni bir kurdele bağlar: "Dönen biri olursa yolu bulsun."
+(Babanın dönebilme ihtimali kapalı bırakılmaz, ama bekleyiş artık yas değil, sevgidir.)
+
+### Sisliler ve ses
+- **Sisliler:** Ormanın gölge yaratıkları; ışıktan kaçar, karanlıkta kovalar. Kötü değil, **kaybolmuşlar**: kaybolanların yankısı.
+  Fener ışığına tutulunca ağlar gibi sessizleşir; sonlara doğru ışıkta bir an gerçek hâllerine (kaybolmuş koyun, eski bir çocuk) benzerler.
+- **Ses:** Rüzgâr, adımlar, kurdele sesi, uzak düdük. Müzik çok az: Nehir'in mırıldandığı ninni (annenin ninnisi) yalnızca
+  buluşmada ve finalde. Konuşma yok; Çınar'ın hıçkırığı, gülüşü, "abla" demeyen ama ablasının adını andıran bir nefesi.
+
+### Yeni oyun mekanikleri (duyguya bağlı)
+- **El tutma:** Birbirine yakın giden iki karakter el ele; yavaşlarlar ama düşmeye karşı korunurlar. Elini bırakmak risk ve tercihtir.
+- **Sırtta taşıma:** Nehir Çınar'ı sırtına alır: yavaş, düşük zıplama; ama Çınar'ın küçük ışığı ve gözleri yolu gösterir.
+- **Fenerin devri:** Fener el değiştirir; ışık kimdeyse o önde yürür. Karanlıkta fenersiz kalan karakter yavaşlar (korkar).
+- **Kurdele düğümü:** Her kontrol noktasında Nehir kurdele bağlar; kurdeleler sonraki perdelerde ormanda görünür.
+- **Pofuk:** Çınar'ın elinde taşınan eşya; düşerse alınır (hikâye anlarında "kaybı" belirler).
+
+## Duygu hedefi (özet)
 Korku değil, **kaygı ve şefkat**. Oyuncu Nehir'in sorumluluğunu ve Çınar'ın kırılganlığını fiziksel olarak hissetmeli:
 kardeşine bakarken yavaşlamak, onu beklemek, elini tutmak, ışığı ona vermek.
 
