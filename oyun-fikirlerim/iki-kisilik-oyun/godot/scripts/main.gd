@@ -1127,7 +1127,7 @@ func _t_cayir2() -> void:
 	await _push_to(c0, 700.0)
 	print("CAYIR2 kutu düğmede: x=", c0.global_position.x, " kapı=", level.doors[0]["open"])
 	await _wait(0.8)
-	await _walk_auto(1135.0)
+	await _walk_auto(1140.0, false)
 	print("CAYIR2 kapıyı geçti: x=", player.global_position.x, " ölü=", player.dead)
 	await _hop_over()
 	player.override["right"] = false
@@ -1151,7 +1151,7 @@ func _t_cayir2() -> void:
 	await _until(func() -> bool: return idx != 12 or player.dead, 25.0)
 	print("CAYIR2 bitti? idx=", idx, " state=", state, " ölü=", player.dead)
 
-func _walk_auto(tx: float) -> void:
+func _walk_auto(tx: float, release: bool = true) -> void:
 	player.override["right"] = true
 	var t0 := 0.0
 	var hold := 0.0
@@ -1164,5 +1164,6 @@ func _walk_auto(tx: float) -> void:
 			hold = 0.45   # engelde zıplamayı basılı tut (yüksek zıplama)
 		player.override["jump"] = hold > 0.0
 	player.override["jump"] = false
-	player.override["right"] = false
-	await _wait(0.2)
+	if release:
+		player.override["right"] = false
+		await _wait(0.2)
