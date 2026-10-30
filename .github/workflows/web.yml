@@ -26,6 +26,12 @@ jobs:
           mkdir -p build/web
           godot --headless --import || true
           godot --headless --export-release "Web" build/web/index.html
+      - name: Web sürümünü indirilebilir paket olarak sakla (itch.io için)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sis-web
+          path: oyun-fikirlerim/iki-kisilik-oyun/godot/build/web
+          retention-days: 30
       - name: gh-pages dalına yayınla
         uses: peaceiris/actions-gh-pages@v4
         with:
