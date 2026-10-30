@@ -4,6 +4,7 @@ extends Node
 var test_mode := false
 var shake_amt := 0.0
 var touch_ui := false
+var zoom := 1.7                # kamera yakınlığı: 1.0 = uzak, büyük = yakın
 var mouse_touch := false      # masaüstünde fareyi parmak gibi kullan (--touch)
 
 func _ready() -> void:
@@ -11,6 +12,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--test"):
 			test_mode = true
+		if a.begins_with("--zoom="):
+			zoom = float(a.substr(7))
 		if a == "--touch":
 			touch_ui = true
 			mouse_touch = true

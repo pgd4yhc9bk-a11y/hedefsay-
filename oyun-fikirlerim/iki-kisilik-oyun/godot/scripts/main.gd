@@ -14,6 +14,7 @@ var cam: Camera2D
 var backdrop: Backdrop
 var world: Node2D
 var cam_x := 0.0
+var cam_y := 0.0
 var look := 0.0
 var state := "menu"            # menu | play | dead | win
 var cp := {"pos": Vector2.ZERO, "idx": -1, "snap": {}}
@@ -34,6 +35,7 @@ func _ready() -> void:
 	add_child(world)
 	cam = Camera2D.new()
 	cam.position = Vector2(640, 360)
+	cam.zoom = Vector2(Game.zoom, Game.zoom)
 	add_child(cam)
 	cam.make_current()
 	_build_ui()
@@ -161,7 +163,7 @@ func _build_ui() -> void:
 func command_at(screen_pos: Vector2) -> void:
 	if companion == null or state != "play":
 		return
-	var wx := cam_x + screen_pos.x
+	var wx := cam_x + screen_pos.x / Game.zoom
 	if absf(wx - companion.me.global_position.x) < 50.0:
 		companion.toggle_wait()
 	else:
@@ -234,6 +236,7 @@ func load_level(i: int) -> void:
 	dark_on = d.get("dark", false)
 	dark_layer.visible = dark_on
 	cam_x = 0.0
+	cam_y = 0.0
 	look = 0.0
 	state = "play"
 	state_t = 0.0
@@ -316,14 +319,20 @@ func _process(delta: float) -> void:
 		mid /= players.size()
 		var moving := absf(player.velocity.x) > 10.0
 		look = lerpf(look, player.face * (90.0 if moving else 30.0), 0.02)
-		var tx := clampf(mid - 1280.0 * 0.4 + look, 0.0, w - 1280.0)
+		var z := Game.zoom
+		var vw := 1280.0 / z
+		var tx := clampf(mid - vw * 0.4 + look, 0.0, maxf(0.0, w - vw))
 		cam_x = lerpf(cam_x, tx, 0.07)
+		# dikey: zemin ekranın alt kısmında, karakterin üstünde boşluk kalsın
+		var ty := player.global_position.y - 0.70 * 720.0 / z   # karakterin ayakları ekranın %70 yüksekliğinde
+		cam_y = lerpf(cam_y, clampf(ty, 0.0, 720.0 - 720.0 / z), 0.08)
 		var sh := Vector2(randf() - 0.5, randf() - 0.5) * Game.shake_amt * 14.0
-		cam.position = Vector2(cam_x + 640.0, 360.0) + sh
-		backdrop.update(cam_x)
+		cam.zoom = Vector2(z, z)
+		cam.position = Vector2(cam_x + vw / 2.0, cam_y + 360.0 / z) + sh
+		backdrop.update(cam_x, cam_y, z)
 		if players.size() > 1:   # iki oyuncu aynı ekranda kalır: kenarlara çarpar
 			for p: Player in players:
-				var nx := clampf(p.global_position.x, cam_x + 24.0, cam_x + 1256.0)
+				var nx := clampf(p.global_position.x, cam_x + 24.0, cam_x + vw - 24.0)
 				if nx != p.global_position.x:
 					p.global_position.x = nx
 					p.velocity.x = 0.0
@@ -336,7 +345,9 @@ func _process(delta: float) -> void:
 				ep = level.lamp.light_pos()
 			level.light_pos = ep
 			var fl := sin(state_t * 7.0) * 0.015 + sin(state_t * 13.0) * 0.01
-			var lp := ep - Vector2(cam_x, 0.0)
+			var lp := Vector2((ep.x - cam_x) * z, (ep.y - cam_y) * z)
+			dark_mat.set_shader_parameter("radius", 270.0 * z)
+			glow_mat.set_shader_parameter("radius", 270.0 * z)
 			dark_mat.set_shader_parameter("light_px", lp)
 			dark_mat.set_shader_parameter("flicker", fl)
 			glow_mat.set_shader_parameter("light_px", lp)
@@ -414,6 +425,13 @@ func _run_test() -> void:
 			await _t_push()
 		"sibling":
 			await _t_sibling()
+		"zoomshot":
+			load_level(10)
+			players[0].override["right"] = true
+			await _wait(1.6)
+			players[0].override["right"] = false
+			await _wait(0.8)
+			await _shot("res://../test_zoom.png")
 		"nehirshot":
 			load_level(10)
 			await _wait(1.0)
@@ -434,6 +452,8 @@ func _run_test() -> void:
 			await _t_touch2()
 		"touch3":
 			await _t_touch3()
+		"touch4":
+			await _t_touch4()
 		"coop":
 			await _t_c1()
 			await _t_c2()
@@ -942,3 +962,43 @@ func _t_sibling() -> void:
 	await _until(func() -> bool: return ci.global_position.x > 2000.0, 12.0)
 	await _until(func() -> bool: return state == "win" or idx != 10, 12.0)
 	print("SIB bitti? state=", state, " Nehir=", nh.global_position.x, " Çınar=", ci.global_position.x)
+
+func _t_touch4() -> void:
+	Game.touch_ui = true
+	load_level(0)
+	await _wait(0.4)
+	touch = TouchControls.new()
+	add_child(touch)
+	touch.enabled = true
+	state = "play"
+	var x0 := player.global_position.x
+	# SAĞ başparmak sağa kaydırır: yürür
+	_ev_touch(1, true, Vector2(900, 500))
+	await get_tree().physics_frame
+	_ev_drag(1, Vector2(960, 500))
+	await _wait(0.8)
+	print("TOUCH4 sağ parmak sağa: right=", Input.is_action_pressed("right"), " dx=", player.global_position.x - x0)
+	# aynı parmak sola: geri yürür
+	_ev_drag(1, Vector2(880, 500))
+	await _wait(0.2)
+	print("TOUCH4 sağ parmak sola: left=", Input.is_action_pressed("left"), " right=", Input.is_action_pressed("right"))
+	_ev_touch(1, false, Vector2(880, 500))
+	await _wait(0.3)
+	print("TOUCH4 bırakınca: left=", Input.is_action_pressed("left"), " right=", Input.is_action_pressed("right"))
+	# SOL parmak yürür, sağ parmak yukarı kaydırır (zıplar), sonra sağ parmak sola kaydırıp yönü değiştirir
+	_ev_touch(0, true, Vector2(200, 400))
+	await get_tree().physics_frame
+	_ev_drag(0, Vector2(270, 400))
+	await _wait(0.3)
+	_ev_touch(1, true, Vector2(900, 500))
+	await get_tree().physics_frame
+	_ev_drag(1, Vector2(900, 420))
+	await _wait(0.15)
+	print("TOUCH4 iki parmak: right=", Input.is_action_pressed("right"), " jump=", Input.is_action_pressed("jump"))
+	_ev_touch(1, false, Vector2(900, 420))
+	_ev_touch(0, false, Vector2(270, 400))
+	# tutmak hâlâ çalışıyor mu (sağ parmak basılı, hareket yok)
+	_ev_touch(1, true, Vector2(900, 500))
+	await _wait(0.5)
+	print("TOUCH4 sağ basılı: grab=", Input.is_action_pressed("grab"), " right=", Input.is_action_pressed("right"))
+	_ev_touch(1, false, Vector2(900, 500))

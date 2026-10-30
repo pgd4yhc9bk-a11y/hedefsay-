@@ -140,9 +140,13 @@ func _fog_rect(r: Rect2, strength: float) -> ColorRect:
 	c.material = m
 	return c
 
-func update(cam_x: float) -> void:
+func update(cam_x: float, cam_y: float = 0.0, z: float = 1.0) -> void:
+	# yakınlaşınca arka plan katmanları dünyaya göre kayar; zemin hattı çam diplerini takip eder
+	var gy_screen := (560.0 - cam_y) * z
 	for i in 3:
-		pines[i].position.x = -cam_x * pine_par[i]
+		var s := 1.0 + (z - 1.0) * (0.45 + 0.2 * i)
+		pines[i].scale = Vector2(s, s)
+		pines[i].position = Vector2(-cam_x * pine_par[i] * z, gy_screen - 560.0 * s)
 	for i in fogs.size():
 		var par: float = fog_par[i] if i < 3 else 0.6
 		(fogs[i].material as ShaderMaterial).set_shader_parameter("scroll", cam_x * par / 1280.0)

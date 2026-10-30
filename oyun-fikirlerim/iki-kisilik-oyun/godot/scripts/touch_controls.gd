@@ -80,9 +80,8 @@ func _touch(i: int, pressed: bool, pos: Vector2) -> void:
 		return
 	var f: Dictionary = fingers[i]
 	var quick: bool = (_now - float(f["t0"])) < TAP_TIME and not f["moved"]
+	f["dir"] = 0
 	if f["role"] == "move":
-		_press("left", false)
-		_press("right", false)
 		_set_jump("move", false)
 		if quick:
 			if _now - _last_tap_t < 0.35 and f["pos"].distance_to(_last_tap_pos) < 70.0:
@@ -101,6 +100,7 @@ func _touch(i: int, pressed: bool, pos: Vector2) -> void:
 			_item_tap()
 		act_id = -1
 	fingers.erase(i)
+	_apply_dir()
 
 func _drag(i: int, pos: Vector2) -> void:
 	if not fingers.has(i):
@@ -110,12 +110,14 @@ func _drag(i: int, pos: Vector2) -> void:
 	var off: Vector2 = pos - (f["origin"] as Vector2)
 	if off.length() > 18.0:
 		f["moved"] = true
-	if f["role"] == "move":
+	if f["role"] == "move" or (not grab_down and absf(off.x) > DEAD):   # sağ parmak da kaydırınca yürütür (tutmaya başlamadıysa)
 		if absf(off.x) > FOLLOW:   # başlangıç noktası parmağı izler
 			f["origin"].x = pos.x - signf(off.x) * FOLLOW
 			off.x = signf(off.x) * FOLLOW
-		_press("right", off.x > DEAD)
-		_press("left", off.x < -DEAD)
+		f["dir"] = 1 if off.x > DEAD else (-1 if off.x < -DEAD else 0)
+		f["walker"] = true
+		_apply_dir()
+	if f["role"] == "move":
 		_vertical("move", f, pos, off)
 	else:
 		_vertical("act", f, pos, off)
@@ -129,6 +131,17 @@ func _vertical(src: String, f: Dictionary, pos: Vector2, off: Vector2) -> void:
 		f["origin"].y = pos.y
 	if off.y > 30.0:   # aşağı dönünce bir sonraki yukarı kaydırma yine zıplatsın
 		f["origin"].y = pos.y - 30.0
+
+func _apply_dir() -> void:
+	# iki parmak da yürütebilir: yönü olan parmak kazanır, ikisi de varsa ekranda daha sonra hareket eden (sağ) parmak
+	var d := 0
+	for i in fingers:
+		var fd: Dictionary = fingers[i]
+		var v: int = fd.get("dir", 0)
+		if v != 0:
+			d = v
+	_press("right", d > 0)
+	_press("left", d < 0)
 
 func _item_tap() -> void:
 	_press("mask", true)
