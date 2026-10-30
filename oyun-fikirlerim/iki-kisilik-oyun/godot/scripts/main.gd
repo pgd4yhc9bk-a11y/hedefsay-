@@ -619,4 +619,4 @@ func _t_c3() -> void:
 	await _pwalk(kb, 2440.0)
 	await _pwalk(kl, 2440.0)
 	await _wait(0.6)
-	print("C3 bitti? state=", state, " idx=", idx)
+	print("C3 bitti? state=", state, " idx=", idx, " Kapıcı=", kb.global_position, " Kül=", kl.global_position, " çıkışta=", level.exit_in.size())
