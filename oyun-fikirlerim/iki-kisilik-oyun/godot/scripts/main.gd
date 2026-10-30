@@ -5,6 +5,11 @@ var levels: Array = Levels.all()
 var idx := 0
 var level: LevelRoot
 var player: Player
+var players: Array = []
+var dark_on := false
+var dark_layer: CanvasLayer
+var dark_mat: ShaderMaterial
+var glow_mat: ShaderMaterial
 var cam: Camera2D
 var backdrop: Backdrop
 var world: Node2D
@@ -36,6 +41,24 @@ func _ready() -> void:
 
 # ---------- arayüz ----------
 func _build_ui() -> void:
+	dark_layer = CanvasLayer.new()
+	dark_layer.layer = 6
+	add_child(dark_layer)
+	var dk := ColorRect.new()
+	dk.size = Vector2(1280, 720)
+	dk.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dark_mat = ShaderMaterial.new()
+	dark_mat.shader = load("res://shaders/dark.gdshader")
+	dk.material = dark_mat
+	dark_layer.add_child(dk)
+	var gl := ColorRect.new()
+	gl.size = Vector2(1280, 720)
+	gl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glow_mat = ShaderMaterial.new()
+	glow_mat.shader = load("res://shaders/glow.gdshader")
+	gl.material = glow_mat
+	dark_layer.add_child(gl)
+	dark_layer.visible = false
 	var ui := CanvasLayer.new()
 	ui.layer = 20
 	add_child(ui)
@@ -66,14 +89,14 @@ func _build_ui() -> void:
 	title.add_theme_font_size_override("font_size", 96)
 	menu.add_child(title)
 	var row := HBoxContainer.new()
-	row.position = Vector2(240, 340)
-	row.size = Vector2(800, 60)
+	row.position = Vector2(40, 340)
+	row.size = Vector2(1200, 60)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 14)
 	menu.add_child(row)
 	for i in levels.size():
 		var b := Button.new()
-		b.text = "%d  %s" % [i + 1, levels[i]["name"]]
+		b.text = "%d  %s" % [i + 1, levels[i]["name"]] + ("\nco-op" if levels[i].get("coop", false) else "")
 		b.custom_minimum_size = Vector2(120, 54)
 		b.pressed.connect(func() -> void: start_level(i))
 		row.add_child(b)
@@ -139,33 +162,55 @@ func load_level(i: int) -> void:
 	for c in world.get_children():
 		c.queue_free()
 	var d: Dictionary = levels[i]
-	player = Player.new()
+	var coop: bool = d.get("coop", false)
+	players.clear()
+	var kabuk := Player.new()
+	if coop:
+		kabuk.prefix = "p1_"
+	players.append(kabuk)
+	if coop:
+		var kul := Player.new()
+		kul.skin = "kul"
+		kul.prefix = "p2_"
+		players.append(kul)
+	player = kabuk
 	level = LevelRoot.new()
 	world.add_child(level)
-	world.add_child(player)
-	player.level = level
-	level.build(d, player)
+	for p: Player in players:
+		world.add_child(p)
+		p.level = level
+		p.died.connect(_on_died)
+	level.build(d, players)
 	var start: Vector2 = d["start"]
-	player.global_position = start + Vector2(13, 54)
-	player.died.connect(_on_died)
+	kabuk.global_position = start + Vector2(13, 54)
+	if coop:
+		players[1].global_position = (d["start2"] as Vector2) + Vector2(13, 54)
 	level.exit_reached.connect(_on_exit)
 	level.checkpoint_reached.connect(_on_checkpoint)
-	cp = {"pos": player.global_position, "idx": -1, "snap": level.snapshot()}
+	cp = {"pos": kabuk.global_position, "idx": -1, "snap": level.snapshot()}
+	dark_on = d.get("dark", false)
+	dark_layer.visible = dark_on
 	cam_x = 0.0
 	look = 0.0
 	state = "play"
 	state_t = 0.0
 	fade.color.a = 1.0
 	var h: String = d["hint"]
-	hint.text = "%d · %s\n%s" % [i + 1, String(d["name"]).to_upper(), h]
+	var label := "%d · %s" % [i + 1, String(d["name"]).to_upper()]
+	if coop:
+		label += "  (co-op)"
+	hint.text = label + "\n" + h
 	hint.modulate.a = 1.0
-	create_tween().tween_property(hint, "modulate:a", 0.0, 1.0).set_delay(3.5)
+	create_tween().tween_property(hint, "modulate:a", 0.0, 1.0).set_delay(4.5)
 
 func _on_died() -> void:
 	if state != "play":
 		return
 	state = "dead"
 	state_t = 0.0
+	for p: Player in players:
+		if not p.dead:
+			p.die()
 
 func _on_exit() -> void:
 	if state != "play":
@@ -176,11 +221,12 @@ func _on_exit() -> void:
 
 func _on_checkpoint(i: int, x: float) -> void:
 	if i > cp["idx"]:
-		cp = {"pos": Vector2(x, player.global_position.y), "idx": i, "snap": level.snapshot()}
+		cp = {"pos": Vector2(x, players[0].global_position.y), "idx": i, "snap": level.snapshot()}
 
 func _respawn() -> void:
 	level.restore(cp["snap"])
-	player.revive(cp["pos"])
+	for k in players.size():
+		players[k].revive(cp["pos"] + Vector2(-30.0 * k, 0.0))
 	state = "play"
 
 func _process(delta: float) -> void:
@@ -204,16 +250,36 @@ func _process(delta: float) -> void:
 				player.die()
 		"menu":
 			fade.color.a = move_toward(fade.color.a, 0.0, delta * 2.0)
-	# kamera: oyuncuya göre, baktığı yöne ileri bakış, ağır olaylarda sarsıntı
+	# kamera: oyuncuya (co-op'ta iki oyuncunun ortasına) göre, baktığı yöne ileri bakış, ağır olaylarda sarsıntı
 	if player != null and level != null:
 		var w: float = levels[idx]["w"]
+		var mid := 0.0
+		for p: Player in players:
+			mid += p.global_position.x
+		mid /= players.size()
 		var moving := absf(player.velocity.x) > 10.0
 		look = lerpf(look, player.face * (90.0 if moving else 30.0), 0.02)
-		var tx := clampf(player.global_position.x - 1280.0 * 0.4 + look, 0.0, w - 1280.0)
+		var tx := clampf(mid - 1280.0 * 0.4 + look, 0.0, w - 1280.0)
 		cam_x = lerpf(cam_x, tx, 0.07)
 		var sh := Vector2(randf() - 0.5, randf() - 0.5) * Game.shake_amt * 14.0
 		cam.position = Vector2(cam_x + 640.0, 360.0) + sh
 		backdrop.update(cam_x)
+		if players.size() > 1:   # iki oyuncu aynı ekranda kalır: kenarlara çarpar
+			for p: Player in players:
+				var nx := clampf(p.global_position.x, cam_x + 24.0, cam_x + 1256.0)
+				if nx != p.global_position.x:
+					p.global_position.x = nx
+					p.velocity.x = 0.0
+		if dark_on and players.size() > 1:
+			var kul: Player = players[1]
+			var ep := kul.rig.ember_world(kul) if kul.rig != null and kul.rig.spr.has("ember") else kul.global_position
+			level.light_pos = ep
+			var fl := sin(state_t * 7.0) * 0.015 + sin(state_t * 13.0) * 0.01
+			var lp := ep - Vector2(cam_x, 0.0)
+			dark_mat.set_shader_parameter("light_px", lp)
+			dark_mat.set_shader_parameter("flicker", fl)
+			glow_mat.set_shader_parameter("light_px", lp)
+			glow_mat.set_shader_parameter("flicker", fl)
 
 # ---------- otomatik test (ekran görüntüsü ve davranış doğrulama) ----------
 func _hold(action: String, v: bool) -> void:
@@ -248,6 +314,22 @@ func _run_test() -> void:
 			load_level(1)
 			await _wait(1.0)
 			await _shot("res://../test_shot.png")
+		"coop_shot":
+			load_level(6)
+			await _wait(1.0)
+			await _shot("res://../test_coop1.png")
+			players[1].global_position = Vector2(1265, 520)
+			players[0].global_position = Vector2(1100, 520)
+			await _wait(1.2)
+			await _shot("res://../test_coop2.png")
+		"kul_pose":
+			load_level(6)
+			dark_on = false
+			dark_layer.visible = false
+			players[1].global_position = Vector2(300, 560)
+			players[0].global_position = Vector2(200, 560)
+			await _wait(1.0)
+			await _shot("res://../test_kul.png")
 		"dbg":
 			load_level(0)
 			await _wait(0.3)
@@ -267,6 +349,9 @@ func _run_test() -> void:
 			print("L1 çukur sonrası x=", player.global_position.x, " dead=", player.dead)
 			_hold("right", false)
 			await _shot("res://../test_l1.png")
+		"coop":
+			await _t_c1()
+			await _t_c2()
 		"all":
 			await _t_l2()
 			await _t_l4()
@@ -363,3 +448,111 @@ func _t_l6() -> void:
 	_hold("right", false)
 	await _wait(0.3)
 	print("L6 karşıda: x=", player.global_position.x, " y=", player.global_position.y, " dead=", player.dead)
+
+func _pwalk(p: Player, x: float) -> void:
+	p.override["right"] = true
+	await _until(func() -> bool: return p.global_position.x >= x or p.dead)
+	p.override["right"] = false
+
+func _pjump(p: Player, hold_sec: float, run_dir: bool = true) -> void:
+	p.override["right"] = run_dir
+	p.override["jump"] = true
+	await _wait(hold_sec)
+	p.override["jump"] = false
+
+func _pland(p: Player) -> void:
+	await _until(func() -> bool: return p.is_on_floor() or p.dead, 3.0)
+
+func _t_c1() -> void:
+	load_level(6)
+	await _wait(0.5)
+	var kb: Player = players[0]
+	var kl: Player = players[1]
+	# Kül önce geçer
+	await _pwalk(kl, 985.0)
+	await _pjump(kl, 0.45)
+	await _pland(kl)
+	print("C1 Kül ghost1: x=", kl.global_position.x, " y=", kl.global_position.y, " dead=", kl.dead)
+	await _pwalk(kl, 1140.0)
+	await _pjump(kl, 0.45)
+	await _pland(kl)
+	kl.override["right"] = false
+	print("C1 Kül ghost2: x=", kl.global_position.x, " y=", kl.global_position.y, " dead=", kl.dead)
+	# Kabuk geçer (Kül ortada durur)
+	await _pwalk(kb, 985.0)
+	await _pjump(kb, 0.45)
+	await _pland(kb)
+	await _pwalk(kb, 1140.0)
+	await _pjump(kb, 0.45)
+	await _pland(kb)
+	await _pwalk(kb, 1300.0)
+	await _pjump(kb, 0.45)
+	await _pland(kb)
+	await _pwalk(kb, 1460.0)
+	await _pjump(kb, 0.45)
+	await _pland(kb)
+	kb.override["right"] = false
+	print("C1 Kabuk karşıda: x=", kb.global_position.x, " y=", kb.global_position.y, " dead=", kb.dead)
+	await _shot("res://../test_c1.png")
+	# Kül devam eder
+	await _pwalk(kl, 1300.0)
+	await _pjump(kl, 0.45)
+	await _pland(kl)
+	await _pwalk(kl, 1460.0)
+	await _pjump(kl, 0.45)
+	await _pland(kl)
+	print("C1 Kül karşıda: x=", kl.global_position.x, " dead=", kl.dead)
+	await _pwalk(kb, 2440.0)
+	await _pwalk(kl, 2440.0)
+	await _wait(0.5)
+	print("C1 bitti? lvl idx=", idx, " state=", state)
+
+func _t_c2() -> void:
+	load_level(7)
+	await _wait(0.5)
+	var kb: Player = players[0]
+	var kl: Player = players[1]
+	print("C2 başta Kabuk maske takılı: ", kb.worn)
+	# Kabuk kalkanla önde, Kül arkasında
+	kb.override["right"] = true
+	await _until(func() -> bool:
+		kl.override["right"] = kl.global_position.x < kb.global_position.x - 45.0   # Kül kalkanın arkasında kalır
+		return kb.global_position.x >= 1600.0 or kb.dead, 40.0)
+	kb.override["right"] = false
+	await _until(func() -> bool:
+		kl.override["right"] = kl.global_position.x < 1560.0
+		return kl.global_position.x >= 1560.0 or kl.dead, 10.0)
+	kl.override["right"] = false
+	print("C2 koridor: Kabuk x=", kb.global_position.x, " dead=", kb.dead, " | Kül x=", kl.global_position.x, " dead=", kl.dead)
+	await _shot("res://../test_c2.png")
+	# Kabuk maskeyi duvara fırlatır (siper+basamak), ikisi de tırmanır
+	await _until(func() -> bool: return arrows_gap(), 6.0)
+	await _tap_p(kb, "mask")
+	await _wait(1.0)
+	print("C2 maske x=", level.mask.global_position.x, " Kabuk dead=", kb.dead, " Kül dead=", kl.dead)
+	for p: Player in [kb, kl]:
+		await _pwalk(p, level.mask.global_position.x - 50.0)
+		await _pjump(p, 0.3)
+		await _pland(p)
+		await _pjump(p, 0.5)
+		await _pland(p)
+		p.override["right"] = false
+	print("C2 tırmandı: Kabuk (", kb.global_position, ") Kül (", kl.global_position, ") ölü=", kb.dead or kl.dead)
+	await _pwalk(kb, 2100.0)
+	await _pwalk(kl, 2100.0)
+	await _wait(0.5)
+	print("C2 bitti? state=", state, " idx=", idx)
+
+func arrows_gap() -> bool:
+	for a in level.arrows.get_children():
+		var x: float = a.global_position.x
+		if x > player.global_position.x - 40.0 and x < 1760.0:
+			return false
+	return true
+
+func _tap_p(p: Player, action: String) -> void:
+	p.override[action] = true
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	p.override[action] = false
+	await get_tree().physics_frame

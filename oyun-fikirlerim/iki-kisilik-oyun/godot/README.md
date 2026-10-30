@@ -8,6 +8,11 @@ Limbo/Inside tarzı atmosferik bulmaca-platform. Solo ve (sonraki aşamada) onli
 3. Kontroller: `←/→` veya `A/D` yürü, `↑/W/Boşluk` zıpla, `Shift/E` tut-çek, `Q/F` maske, `R` yeniden.
    Dokunmatik cihazda ekran düğmeleri otomatik çıkar (`-- --touch` ile masaüstünde de gösterilir).
 
+## Co-op (yerel test)
+Bölüm 7 ve 8 iki karakterlidir. Bir klavyede test için: **Kabuk** `←/→` yürü, `↑` zıpla, `Shift` tut-çek, `.` maske;
+**Kül** `A/D` yürü, `W/Boşluk` zıpla. Kül'ün közü karanlıkta ışık verir; ışık değen gizli platformlar belirir ve katı olur.
+Online sürümde her oyuncu kendi cihazından bir karakteri yönetecek.
+
 ## Yapı
 - `scripts/main.gd` akış, menü, kamera, otomatik testler
 - `scripts/player.gd` Kabuk'un hareketi, kasa itme/çekme, maske

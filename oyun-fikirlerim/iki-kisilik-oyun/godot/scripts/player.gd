@@ -18,6 +18,8 @@ var dead := false
 var override := {}               # test için: {"left": true, ...}
 var level: LevelRoot
 var rig: Rig
+var skin := "kabuk"        # "kabuk" | "kul"
+var prefix := ""           # yerel co-op: "p1_" / "p2_"
 var _last_step := 0
 var _edge := {"jump": false, "mask": false}
 var _gravity := 2300.0
@@ -34,6 +36,7 @@ func _ready() -> void:
 	cs.position = Vector2(0, -SIZE.y / 2.0)
 	add_child(cs)
 	rig = Rig.new()
+	rig.skin = skin
 	add_child(rig)
 	floor_snap_length = 4.0
 	floor_stop_on_slope = true
@@ -42,7 +45,8 @@ func _ready() -> void:
 func _in(n: String) -> bool:
 	if override.has(n):
 		return override[n]
-	return Input.is_action_pressed(n)
+	var a := prefix + n
+	return InputMap.has_action(a) and Input.is_action_pressed(a)
 
 func _adjacent() -> Dictionary:
 	var pr := Rect2(global_position.x - SIZE.x / 2.0, global_position.y - SIZE.y, SIZE.x, SIZE.y)
@@ -66,9 +70,9 @@ func _physics_process(delta: float) -> void:
 	var grounded := is_on_floor()
 	var d := int(_in("right")) - int(_in("left"))
 	var adj := _adjacent()
-	grab = _in("grab") and grounded and not adj.is_empty()
+	grab = skin == "kabuk" and _in("grab") and grounded and not adj.is_empty()
 	recover = maxf(0.0, recover - delta)
-	var speed := 165.0
+	var speed := 175.0 if skin == "kul" else 165.0
 	if grab:
 		speed = 85.0
 	elif worn:
@@ -95,7 +99,7 @@ func _physics_process(delta: float) -> void:
 	coyote = 0.08 if grounded else coyote - delta
 	jump_buf -= delta
 	if jump_buf > 0.0 and coyote > 0.0:
-		velocity.y = -560.0 if worn else -660.0
+		velocity.y = -690.0 if skin == "kul" else (-560.0 if worn else -660.0)
 		coyote = 0.0
 		jump_buf = 0.0
 		Sfx.play("jump")
@@ -141,7 +145,7 @@ func _process(_delta: float) -> void:
 		rig.update_pose(self, t)
 
 func mask_action() -> void:
-	if level == null or level.mask == null:
+	if skin != "kabuk" or level == null or level.mask == null:
 		return
 	var m := level.mask
 	if worn:

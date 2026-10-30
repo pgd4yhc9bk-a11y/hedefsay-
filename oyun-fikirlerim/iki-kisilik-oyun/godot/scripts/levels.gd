@@ -53,4 +53,20 @@ static func all() -> Array:
 			"plates": [], "doors": [], "spikes": [], "saws": [], "darts": [],
 			"checkpoints": [920.0], "exit": Rect2(1950, 330, 70, 100),
 		},
+		{
+			"name": "Fener", "coop": true, "dark": true, "w": 2600.0, "start": Vector2(60, gy - 54), "start2": Vector2(100, gy - 54),
+			"hint": "Kül ışığıyla yolu açar. Kül ortada durmalı: ışık değen platformlar katıdır",
+			"statics": [Rect2(0, gy, 1000, 160), Rect2(1560, gy, 1040, 160)],
+			"ghosts": [Rect2(1070, 530, 90, 16), Rect2(1230, 520, 90, 16), Rect2(1390, 530, 90, 16)],
+			"crates": [], "mask": {}, "plates": [], "doors": [], "spikes": [], "saws": [], "darts": [], "water": [],
+			"checkpoints": [900.0, 1600.0], "exit": Rect2(2450, gy - 100, 70, 100),
+		},
+		{
+			"name": "Siper", "coop": true, "dark": true, "w": 2300.0, "start": Vector2(60, gy - 54), "start2": Vector2(20, gy - 54),
+			"hint": "Kabuk kalkanla önde yürür, Kül arkasından ışık tutar. Sonra maske basamak olur",
+			"statics": [Rect2(0, gy, 2300, 160), Rect2(1750, 420, 550, 300)],
+			"crates": [], "mask": {"worn": true}, "plates": [], "doors": [], "spikes": [], "saws": [], "water": [],
+			"darts": [{"x": 1746.0, "y": gy - 30, "dir": -1, "every": 1.7, "phase": 0.4}, {"x": 1746.0, "y": gy - 46, "dir": -1, "every": 1.7, "phase": 1.25}],
+			"checkpoints": [900.0, 1450.0], "exit": Rect2(2100, 320, 70, 100),
+		},
 	]

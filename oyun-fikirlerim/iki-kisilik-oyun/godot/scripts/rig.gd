@@ -2,7 +2,7 @@ class_name Rig extends Node2D
 ## Parça görsellerinden iskelet: kod her karede eklem açılarını hesaplar.
 ## Karakter değişirse yalnızca assets/<ad>/ klasörü ve anchors.json değişir.
 
-const ORDER := ["uleg_b", "lleg_b", "uarm_b", "larm_b", "torso", "head", "uleg_f", "lleg_f", "uarm_f", "larm_f", "mask"]
+const ORDER := ["uleg_b", "lleg_b", "uarm_b", "larm_b", "torso", "ember", "head", "uleg_f", "lleg_f", "uarm_f", "larm_f", "mask"]
 var skin := "kabuk"
 var A := {}                      # anchors.json
 var spr := {}                    # düğüm adı -> Sprite2D
@@ -13,6 +13,8 @@ func _ready() -> void:
 	A = JSON.parse_string(f.get_as_text())
 	for node_name: String in ORDER:
 		var role := node_name.split("_")[0]
+		if not A.has(role):
+			continue
 		var s := Sprite2D.new()
 		s.texture = load("res://assets/%s/%s.png" % [skin, role])
 		s.centered = false
@@ -27,7 +29,8 @@ func _ready() -> void:
 		add_child(s)
 		spr[node_name] = s
 	# maske yalnızca takılıyken görünür
-	spr["mask"].visible = false
+	if spr.has("mask"):
+		spr["mask"].visible = false
 
 func _anchor(role: String) -> Vector2:
 	var a: Dictionary = A[role]
@@ -35,7 +38,7 @@ func _anchor(role: String) -> Vector2:
 		return Vector2(a["hip"][0], a["hip"][1])
 	if role == "head":
 		return Vector2(a["neck"][0], a["neck"][1])
-	if role == "mask":
+	if role == "mask" or role == "ember":
 		return Vector2(a["w"] / 2.0, a["h"] / 2.0)
 	return Vector2(a["top"][0], a["top"][1])
 
@@ -146,14 +149,24 @@ func update_pose(p: Player, t: float) -> void:
 	_place("lleg_f", "lleg", hp + Vector2(l1.kx, l1.ky), l1.sa)
 	_place("uarm_f", "uarm", sh, a1.a)
 	_place("larm_f", "larm", Vector2(a1.ex, a1.ey), a1.ba)
-	var m: Sprite2D = spr["mask"]
-	m.visible = worn
-	if worn:
+	if spr.has("ember"):   # köz: göğüste, hafif nabız gibi parlar
+		var e: Sprite2D = spr["ember"]
+		e.position = hp + Vector2(sin(lean), -cos(lean)) * TORSO * 0.55 + Vector2(1.5, 0.0)
+		var pulse := 1.0 + sin(t * 5.0) * 0.12
+		e.scale = Vector2(pulse, pulse) * float(A["ember"]["k"])
+	var m: Sprite2D = spr["mask"] if spr.has("mask") else null
+	if m != null:
+		m.visible = worn
+	if worn and m != null:
 		var mh := float(A["mask"]["h"]) * float(A["mask"]["k"])
 		m.position = Vector2(15.0, -mh / 2.0 - 2.0 + sin(t * 1.8) * 0.6)
 		m.scale = Vector2(0.065, 0.065)
 	var sqk := 1.0 - p.squash * 0.9 if p.squash > 0.0 else 1.0
 	scale = Vector2(p.face * (2.0 - sqk), sqk)
+
+func ember_world(p: Player) -> Vector2:
+	var s: Sprite2D = spr["ember"]
+	return p.global_position + Vector2(s.position.x * p.face, s.position.y)
 
 func _leg(a: float, bend: float, u1: float, u2: float) -> Dictionary:
 	var kx := sin(a) * u1

@@ -7,6 +7,10 @@ signal checkpoint_reached(idx: int, pos_x: float)
 const BLACK := Color("#0b0b0c")
 var data: Dictionary
 var player: Player
+var players: Array = []
+var light_pos := Vector2(-9999, -9999)   # Kül'ün köz konumu (yoksa çok uzakta)
+var ghosts: Array = []
+var exit_in := {}
 var crates: Array[PushBody] = []
 var mask: PushBody = null
 var plates: Array = []
@@ -17,15 +21,18 @@ var water_rects: Array = []
 var arrows: Node2D
 var t := 0.0
 
-func build(d: Dictionary, p: Player) -> void:
+func build(d: Dictionary, ps: Array) -> void:
 	data = d
-	player = p
+	players = ps
+	player = ps[0] as Player
 	for r: Rect2 in d["water"]:
 		water_rects.append(r)
 	for r: Rect2 in d["statics"]:
 		_make_static(r)
 	for r: Rect2 in d["water"]:
 		_make_water(r)
+	for r: Rect2 in d.get("ghosts", []):
+		_make_ghost(r)
 	for pos: Vector2 in d["crates"]:
 		var c := PushBody.new()
 		add_child(c)
@@ -41,7 +48,7 @@ func build(d: Dictionary, p: Player) -> void:
 		else:
 			mask.setup("mask", msz, d["start"] + Vector2(13, 0), water_rects)
 			mask.deactivate()
-			p.worn = true
+			player.worn = true
 	for i in d["doors"].size():
 		_make_door(d["doors"][i])
 	for pl: Dictionary in d["plates"]:
@@ -94,6 +101,22 @@ func _make_static(r: Rect2) -> void:
 			x += 9.0
 	pts.append(r.end)
 	_poly(pts, BLACK)
+
+func _make_ghost(r: Rect2) -> void:   # yalnızca Kül'ün ışığı değdiğinde var olan platform
+	var sb := StaticBody2D.new()
+	sb.collision_layer = 1
+	sb.collision_mask = 0
+	var cs := CollisionShape2D.new()
+	var rs := RectangleShape2D.new()
+	rs.size = r.size
+	cs.shape = rs
+	cs.position = r.position + r.size / 2.0
+	cs.disabled = true
+	sb.add_child(cs)
+	add_child(sb)
+	var vis := _poly(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]), BLACK)
+	vis.modulate.a = 0.0
+	ghosts.append({"rect": r, "shape": cs, "vis": vis, "lit": false})
 
 func _make_water(r: Rect2) -> void:
 	var p := _poly(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]), Color(0.1, 0.12, 0.14, 0.93))
@@ -245,7 +268,10 @@ func _make_exit(r: Rect2) -> void:
 	a.add_child(cs)
 	a.body_entered.connect(func(b: Node) -> void:
 		if b is Player and not (b as Player).dead:
-			exit_reached.emit())
+			exit_in[b] = true
+			if exit_in.size() >= players.size():
+				exit_reached.emit())
+	a.body_exited.connect(func(b: Node) -> void: exit_in.erase(b))
 	add_child(a)
 
 func _make_checkpoint(i: int, x: float) -> void:
@@ -287,6 +313,15 @@ func restore(s: Dictionary) -> void:
 
 func _physics_process(delta: float) -> void:
 	t += delta
+	# gizli platformlar: ışık değdiğinde belirir ve katı olur
+	for g: Dictionary in ghosts:
+		var r: Rect2 = g["rect"]
+		var nearest := Vector2(clampf(light_pos.x, r.position.x, r.end.x), clampf(light_pos.y, r.position.y, r.end.y))
+		var lit := nearest.distance_to(light_pos) < 215.0
+		if lit != g["lit"]:
+			g["lit"] = lit
+			(g["shape"] as CollisionShape2D).set_deferred("disabled", not lit)
+		(g["vis"] as Polygon2D).modulate.a = move_toward((g["vis"] as Polygon2D).modulate.a, 1.0 if lit else 0.0, delta * 6.0)
 	# düğmeler
 	for p: Dictionary in plates:
 		p["was"] = p["pressed"]

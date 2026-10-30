@@ -9,6 +9,7 @@ name = sys.argv[1]
 SCALE = float(os.environ.get('SCALE', '0.13'))
 # Parça başına ek ölçek: ChatGPT gövdeyi iri, bacağı kısa çizdi; oyunda oranlar Limbo çocuğuna yaklaştırılır
 PART_SCALE = {'kabuk': {'torso': 0.85, 'uleg': 1.2, 'lleg': 1.2, 'uarm': 1.15, 'larm': 1.15}, 'kul': {}}[name]
+K_ABS = {'kul': {'head': 0.034, 'torso': 0.049, 'uleg': 0.05, 'lleg': 0.05, 'uarm': 0.047, 'larm': 0.047, 'ember': 0.05}}.get(name, {})   # oyun pikseli / kaynak pikseli
 # Parça sırası (bileşenlerin y/x konumuna göre elle eşlendi)
 ROLES = {
   'kabuk': {1: 'head', 3: 'torso', 4: 'uleg', 5: 'uarm', 6: 'lleg', 7: 'larm', 2: 'mask'},
@@ -53,7 +54,7 @@ for idx, role in ROLES.items():
     s = SCALE * PART_SCALE.get(role, 1)
     out = img.resize((max(1, round(w * s)), max(1, round(h * s))), Image.LANCZOS)
     out.save(f'{HERE}/prototip-sis/sprites/{name}_{role}.png', optimize=True)
-    full[role] = {'w': w, 'h': h, 'k': round(s / 2, 5), **an}   # Godot için: tam çözünürlük pikseli, k = oyun pikseli/kaynak pikseli
+    full[role] = {'w': w, 'h': h, 'k': K_ABS.get(role, round(s / 2, 5)), **an}   # Godot için: tam çözünürlük pikseli, k = oyun pikseli/kaynak pikseli
     anchors[role] = {'w': out.width, 'h': out.height, **{k: [round(v[0] * s, 1), round(v[1] * s, 1)] for k, v in an.items()}}
     print(role, (w, h), '->', (out.width, out.height), an)
 json.dump(anchors, open(f'{HERE}/prototip-sis/sprites/{name}_anchors.json', 'w'), indent=1)
