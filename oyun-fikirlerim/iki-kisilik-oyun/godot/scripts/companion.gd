@@ -21,7 +21,7 @@ func go_to(x: float) -> void:
 	target_x = x
 	mode = "go"
 
-func _set(l: bool, r: bool, j: bool) -> void:
+func _inputs(l: bool, r: bool, j: bool) -> void:
 	me.override["left"] = l
 	me.override["right"] = r
 	me.override["jump"] = j
@@ -35,11 +35,11 @@ func _physics_process(delta: float) -> void:
 	while _rec.size() > 0 and _rec[0]["t"] < _t - 4.0:
 		_rec.pop_front()
 	if me.dead or leader.dead:
-		_set(false, false, false)
+		_inputs(false, false, false)
 		return
 	match mode:
 		"wait":
-			_set(false, false, false)
+			_inputs(false, false, false)
 		"go":
 			_go()
 		_:
@@ -51,13 +51,13 @@ func _follow() -> void:
 		me.global_position = leader.global_position + Vector2(-50.0 * leader.face, -4.0)
 		me.velocity = Vector2.ZERO
 		return
-	var rec := _rec[0] if _rec.size() > 0 else {}
+	var rec: Dictionary = _rec[0] if _rec.size() > 0 else {}
 	for r: Dictionary in _rec:
 		if r["t"] >= _t - DELAY:
 			rec = r
 			break
 	if rec.is_empty():
-		_set(false, false, false)
+		_inputs(false, false, false)
 		return
 	var tx: float = rec["x"]
 	var dx := tx - me.global_position.x
@@ -74,16 +74,16 @@ func _follow() -> void:
 	if (l or r) and me.is_on_wall() and me.is_on_floor() and _jump_cd <= 0.0:
 		j = true
 		_jump_cd = 0.6
-	_set(l, r, j)
+	_inputs(l, r, j)
 
 func _go() -> void:
 	var dx := target_x - me.global_position.x
 	if absf(dx) < 8.0:
 		mode = "wait"
-		_set(false, false, false)
+		_inputs(false, false, false)
 		return
 	var j := false
 	if me.is_on_wall() and me.is_on_floor() and _jump_cd <= 0.0:
 		j = true
 		_jump_cd = 0.6
-	_set(dx < 0.0, dx > 0.0, j)
+	_inputs(dx < 0.0, dx > 0.0, j)
