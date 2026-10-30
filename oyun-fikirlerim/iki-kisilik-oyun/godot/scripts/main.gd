@@ -1151,11 +1151,13 @@ func _t_cayir2() -> void:
 	await _until(func() -> bool: return idx != 12 or player.dead, 25.0)
 	print("CAYIR2 bitti? idx=", idx, " state=", state, " ölü=", player.dead)
 
-func _walk_auto(x: float) -> void:
+func _walk_auto(tx: float) -> void:
 	player.override["right"] = true
-	await _until(func() -> bool:
+	var t0 := 0.0
+	while player.global_position.x < tx and not player.dead and t0 < 20.0:
+		await _wait(0.05)
+		t0 += 0.05
 		player.override["jump"] = player.is_on_wall() and player.is_on_floor()
-		return player.global_position.x >= x or player.dead, 20.0)
 	player.override["jump"] = false
 	player.override["right"] = false
 	await _wait(0.2)
