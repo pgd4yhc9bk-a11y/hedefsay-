@@ -17,6 +17,20 @@ Limbo / Inside tadında, atmosferik bir bulmaca-platform oyunu. **Tek başına**
 - İhtiyaçlar: HTTPS, mikrofon izni (yalnızca co-op'a girerken istenir), zor ağlar için TURN yedeği.
 - Gizlilik: ses kaydedilmez, sunucudan geçmez (TURN gerekmedikçe).
 
+## 3b. Karakterler ve imza mekanikler
+**Kabuk (solo ana karakter):** Kendi bedeninden büyük, kırık porselen bir maskeyi taşıyan küçük canlı. Siyah silüet, tek açık renkli parça maske.
+- Maske **takılıyken:** kalkan (öne gelen oklar/tehlikeler engellenir); yavaş, düşük zıplama.
+- Maske **çıkarılınca (fırlat):** ağır nesne. Düğmeye basar, basamak olur, siper olur, **suda yüzer** (platform).
+- Maskesizken hızlı ve çevik, ama korumasız. Maskeyi nereye bıraktığın bulmacanın kendisi.
+- Prototip: Bölüm 4 (düğme), 5 (kalkan, siper, basamak), 6 (su).
+
+**Kül (co-op ikinci karakter):** İçinde köz taşıyan çocuk, siyah silüet, tek turuncu parça: göğsündeki köz.
+- Işık yarıçapı: karanlık bölümlerde gizli platform ve yolları gösterir, buzu eritir, makineyi çalıştırır.
+- Kullandıkça köz zayıflar, yenilenmek için sıcak kaynağa yaklaşır.
+- Co-op: Kül yolu aydınlatır, Kabuk korur ve taşır. Biri olmadan öteki ilerleyemez.
+
+Sonraki güncellemeler için: Makara (iplik), Yankı (ses), Pas (çıkarılabilir kol).
+
 ## 4. Görsel stil (Limbo)
 - Siyah silüetler, tek tonlu gri-sisli arka plan, derinlik için katmanlı sis ve ışık huzmeleri.
 - Karakterler: küçük, sade silüet, yalnızca gözler beyaz-parlak. Dünya: siyah yüzeyler, gri gökyüzü.

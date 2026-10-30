@@ -37,11 +37,11 @@
 <div id="root"><div id="stage">
   <canvas id="cv"></canvas>
   <div class="pad l"><button data-k="left">◀</button><button data-k="right">▶</button></div>
-  <div class="pad r"><button data-k="grab">✋</button><button data-k="jump">⤒</button></div>
+  <div class="pad r"><button data-k="mask">🎭</button><button data-k="grab">✋</button><button data-k="jump">⤒</button></div>
   <div id="menu">
     <div class="sub">Çalışma adı</div><h1>SİS</h1>
     <div class="lv" id="lv"></div>
-    <div id="help">← → / A D yürü · ↑ / W / Boşluk zıpla · Shift / E tut ve çek · R yeniden</div>
+    <div id="help">← → / A D yürü · ↑ / W / Boşluk zıpla · Shift / E tut ve çek · Q / F maske (tak, fırlat) · R yeniden</div>
   </div>
   <div id="end" hidden><div style="font-size:22px">Bölümler bitti</div><div style="color:#8e9094">Sıradaki: ikinci oyuncu ve sesli co-op</div><button id="toMenu">Menü</button></div>
 </div></div>
@@ -76,28 +76,50 @@ const LEVELS = [
     spikes: [{ x: 1000, y: GY - 24, w: 90, h: 24 }, { x: 2190, y: GY - 24, w: 80, h: 24 }],
     saws: [{ x1: 1250, x2: 1550, y: GY - 30, r: 30, period: 3.6 }], checkpoints: [850, 1850],
     exit: { x: 2650, y: GY - 100, w: 70, h: 100 } },
+  { name: "Kabuk", w: 2000, start: { x: 60, y: GY - 54 }, hint: "Q / 🎭: maskeyi al · tekrar bas: fırlat · maske ağırdır, düğmeye basar",
+    statics: [{ x: 0, y: GY, w: 1300, h: 160 }, { x: 1410, y: GY, w: 590, h: 160 }],
+    mask: { x: 190, y: GY - 70 }, crates: [],
+    plates: [{ x: 560, y: GY - 8, w: 90, h: 8, door: 0, heavy: true }], doors: [{ x: 820, y: 300, w: 30, h: 260 }],
+    spikes: [], saws: [], checkpoints: [900, 1450], exit: { x: 1850, y: GY - 100, w: 70, h: 100 } },
+  { name: "Kalkan", w: 2300, start: { x: 60, y: GY - 54 }, hint: "Maske takılıyken oklara dön: kalkan olur. Çıkarırsan siper veya basamak olur",
+    statics: [{ x: 0, y: GY, w: 2300, h: 160 }, { x: 1750, y: 390, w: 550, h: 330 }],
+    mask: { worn: true }, crates: [], plates: [], doors: [],
+    darts: [{ x: 1746, y: GY - 30, dir: -1, every: 1.7, phase: 0.4 }, { x: 1746, y: GY - 46, dir: -1, every: 1.7, phase: 1.25 }],
+    spikes: [], saws: [], checkpoints: [900, 1450], exit: { x: 2100, y: 290, w: 70, h: 100 } },
+  { name: "Sular", w: 2100, start: { x: 60, y: GY - 54 }, hint: "Maske suda yüzer: fırlat, üstüne çık, karşıya geç",
+    statics: [{ x: 0, y: GY, w: 700, h: 160 }, { x: 940, y: GY, w: 1160, h: 160 }, { x: 1560, y: 390, w: 540, h: 330 }],
+    water: [{ x: 700, y: GY + 8, w: 240 }], mask: { x: 300, y: GY - 70 }, crates: [{ x: 1150, y: GY - 56 }],
+    plates: [], doors: [], spikes: [], saws: [], checkpoints: [980], exit: { x: 1950, y: 290, w: 70, h: 100 } },
 ];
 
 /* ============ Durum ============ */
 const P = { x: 0, y: 0, w: 26, h: 54, vx: 0, vy: 0, face: 1, onGround: false, standing: null, coyote: 0, jumpReq: 0, grab: false, anim: 0, squash: 0, dx: 0 };
-let lvlIdx = 0, L = null, crates = [], plates = [], doors = [], saws = [], cp = null, cpSnap = null;
+let lvlIdx = 0, L = null, crates = [], plates = [], doors = [], saws = [], darts = [], arrows = [], cp = null, cpSnap = null;
+const M = { kind: "mask", state: "none", w: 46, h: 70, x: 0, y: 0, vx: 0, vy: 0, dx: 0, x0: 0, y0: 0, onGround: false };   // Kabuk'un maskesi: none | worn | ground
+const bodies = () => (M.state === "ground" ? crates.concat([M]) : crates);
 let mode = "menu", fade = 1, fadeTarget = 0, deadT = 0, T = 0, cam = 0, titleT = 0, unlocked = 1;
 const keys = {}, touch = {};
 
 function loadLevel(i) {
   lvlIdx = i; L = LEVELS[i];
-  crates = L.crates.map((c) => ({ x: c.x, y: c.y, w: 56, h: 56, vy: 0, dx: 0, x0: c.x, y0: c.y }));
+  crates = L.crates.map((c) => ({ kind: "crate", x: c.x, y: c.y, w: 56, h: 56, vx: 0, vy: 0, dx: 0, x0: c.x, y0: c.y, onGround: false }));
+  if (!L.mask) M.state = "none";
+  else if (L.mask.worn) { M.state = "worn"; M.x0 = L.start.x; M.y0 = L.start.y; }
+  else { M.state = "ground"; M.x = M.x0 = L.mask.x; M.y = M.y0 = L.mask.y; }
+  darts = (L.darts || []).map((d) => ({ ...d, t: d.phase || 0 })); arrows = [];
   plates = L.plates.map((p) => ({ ...p, pressed: false }));
   doors = L.doors.map((d) => ({ ...d, open: 0 }));
   saws = L.saws.map((s) => ({ ...s, x: s.x1 }));
   cp = { x: L.start.x, y: L.start.y, idx: -1 }; snapshot();
-  respawn(); titleT = 3; cam = 0; mode = "play"; fade = 1; fadeTarget = 0;
+  respawn(); titleT = L.hint ? 6 : 3; cam = 0; mode = "play"; fade = 1; fadeTarget = 0;
   document.getElementById("menu").hidden = true;
 }
-function snapshot() { cpSnap = crates.map((c) => ({ x: c.x, y: c.y })); }
+function snapshot() { cpSnap = { c: crates.map((c) => ({ x: c.x, y: c.y })), m: { state: M.state, x: M.x, y: M.y } }; }
 function respawn() {
   Object.assign(P, { x: cp.x, y: cp.y, vx: 0, vy: 0, face: 1, onGround: false, standing: null, grab: false });
-  crates.forEach((c, i) => { c.x = cpSnap[i].x; c.y = cpSnap[i].y; c.vy = 0; });
+  crates.forEach((c, i) => { c.x = cpSnap.c[i].x; c.y = cpSnap.c[i].y; c.vx = c.vy = 0; });
+  if (L.mask) { M.state = cpSnap.m.state; M.x = cpSnap.m.x; M.y = cpSnap.m.y; M.vx = M.vy = 0; }
+  arrows = [];
 }
 function die() { if (mode !== "play") return; mode = "dead"; deadT = 0; fadeTarget = 1; burst(P.x + 13, P.y + 27); }
 
@@ -116,7 +138,7 @@ function moveX(dx) {
   if (!dx) return;
   P.x += dx;
   for (const s of worldSolids()) if (ov(P, s)) P.x = dx > 0 ? s.x - P.w : s.x + s.w;
-  for (const c of crates) if (ov(P, c)) {
+  for (const c of bodies()) if (ov(P, c)) {
     if (P.y + P.h <= c.y + 4) continue;
     crateMoveX(c, dx > 0 ? P.x + P.w - c.x : P.x - (c.x + c.w));
     if (ov(P, c)) P.x = dx > 0 ? c.x - P.w : c.x + c.w;
@@ -124,21 +146,27 @@ function moveX(dx) {
 }
 function moveY(dy) {
   const prevBottom = P.y + P.h; P.y += dy;
-  const solids = worldSolids().concat(crates);
+  const solids = worldSolids().concat(bodies());
   for (const s of solids) if (ov(P, s)) {
-    if (dy > 0) { P.y = s.y - P.h; if (P.vy > 420) P.squash = 0.14; P.vy = 0; P.onGround = true; P.standing = crates.includes(s) ? s : null; }
+    if (dy > 0) { P.y = s.y - P.h; if (P.vy > 420) P.squash = 0.14; P.vy = 0; P.onGround = true; P.standing = bodies().includes(s) ? s : null; }
     else if (dy < 0) { P.y = s.y + s.h; P.vy = 0; }
   }
 }
 function stepCrates(dt) {
-  for (const c of crates) {
-    c.dx = 0; c.vy += G * dt; c.y += c.vy * dt;
-    for (const r of worldSolids()) if (ov(c, r)) { if (c.vy > 0) c.y = r.y - c.h; else c.y = r.y + r.h; c.vy = 0; }
-    if (c.y > H + 200) { c.x = c.x0; c.y = c.y0; c.vy = 0; }
+  for (const c of bodies()) {
+    c.dx = 0;
+    if (c.vx) { crateMoveX(c, c.vx * dt); if (c.onGround) c.vx *= Math.max(0, 1 - 10 * dt); if (Math.abs(c.vx) < 5) c.vx = 0; }
+    c.vy += G * dt; c.y += c.vy * dt; c.onGround = false;
+    for (const r of worldSolids()) if (ov(c, r)) { if (c.vy > 0) { c.y = r.y - c.h; c.onGround = true; } else c.y = r.y + r.h; c.vy = 0; }
+    if (c.kind === "mask") for (const w of L.water || []) {   // maske suda yüzer, kasa batar
+      const cx = c.x + c.w / 2;
+      if (cx > w.x && cx < w.x + w.w && c.y + c.h > w.y + 12 && c.y < w.y + 160) { c.y = w.y + 12 - c.h; c.vy = 0; c.vx *= 0.98; c.onGround = true; }
+    }
+    if (c.y > H + 200) { c.x = c.x0; c.y = c.y0; c.vx = c.vy = 0; }
   }
 }
 function adjacentCrate() {
-  for (const c of crates) {
+  for (const c of bodies()) {
     const vert = P.y + P.h > c.y + 6 && P.y < c.y + c.h;
     if (!vert) continue;
     if (Math.abs(P.x + P.w - c.x) < 5) return { c, side: 1 };
@@ -147,6 +175,27 @@ function adjacentCrate() {
   return null;
 }
 
+function maskAction() {
+  if (M.state === "worn") {                                   // fırlat
+    const x = P.face > 0 ? P.x + P.w + 2 : P.x - M.w - 2, y = P.y + P.h - M.h, r = { x, y, w: M.w, h: M.h };
+    if (worldSolids().some((s) => ov(r, s)) || crates.some((c) => ov(r, c))) return;
+    Object.assign(M, { state: "ground", x, y, vx: 260 * P.face, vy: -380 });
+  } else if (M.state === "ground" && ov({ x: P.x - 30, y: P.y - 10, w: P.w + 60, h: P.h + 20 }, M)) {   // al
+    M.state = "worn"; M.vx = M.vy = 0;
+  }
+}
+function stepArrows(dt) {
+  for (const d of darts) { d.t += dt; if (d.t >= d.every) { d.t -= d.every; arrows.push({ x: d.dir < 0 ? d.x - 26 : d.x, y: d.y, w: 26, h: 6, vx: d.dir * 420 }); } }
+  for (let i = arrows.length - 1; i >= 0; i--) {
+    const a = arrows[i]; a.x += a.vx * dt;
+    if (a.x < -60 || a.x > L.w + 60) { arrows.splice(i, 1); continue; }
+    if (worldSolids().some((s) => ov(a, s)) || bodies().some((c) => ov(a, c))) { spark(a.x, a.y); arrows.splice(i, 1); continue; }
+    const body = { x: P.x + 2, y: P.y + 4, w: P.w - 4, h: P.h - 4 };
+    if (mode === "play" && ov(a, body)) {
+      if (M.state === "worn" && Math.sign(a.vx) === -P.face) { spark(a.x, a.y); arrows.splice(i, 1); } else die();
+    }
+  }
+}
 function step(dt) {
   T += dt;
   if (mode === "dead") { deadT += dt; if (deadT > 0.7) { respawn(); mode = "play"; fadeTarget = 0; } }
@@ -155,15 +204,16 @@ function step(dt) {
   fade += (fadeTarget - fade) * Math.min(1, dt * 5);
   titleT = Math.max(0, titleT - dt);
   // plateler, kapılar
-  for (const p of plates) p.pressed = ov(P, p) || crates.some((c) => ov(c, { x: p.x, y: p.y - 2, w: p.w, h: p.h + 4 }));
+  for (const p of plates) p.pressed = (!p.heavy && ov(P, p)) || bodies().some((c) => ov(c, { x: p.x, y: p.y - 2, w: p.w, h: p.h + 4 }));
   doors.forEach((d, i) => {
     const hold = plates.some((p) => p.door === i && p.pressed) ||
-      (d.open > 0.3 && (ov(P, { x: d.x - 4, y: d.y, w: d.w + 8, h: d.h }) || crates.some((c) => ov(c, { x: d.x - 4, y: d.y, w: d.w + 8, h: d.h }))));
+      (d.open > 0.3 && (ov(P, { x: d.x - 4, y: d.y, w: d.w + 8, h: d.h }) || bodies().some((c) => ov(c, { x: d.x - 4, y: d.y, w: d.w + 8, h: d.h }))));
     d.open += ((hold ? 1 : 0) - d.open) * Math.min(1, dt * 5); if (hold && d.open > 0.98) d.open = 1;
   });
   for (const s of saws) { const k = (Math.sin(T * 2 * Math.PI / s.period) + 1) / 2; s.x = s.x1 + (s.x2 - s.x1) * k; s.rot = (s.rot || 0) + dt * 9; }
-  stepCrates(dt);
+  stepCrates(dt); stepArrows(dt);
   if (mode !== "play") { P.vx = 0; return; }
+  if (P.maskReq) { P.maskReq = false; if (M.state !== "none") maskAction(); }
 
   const grounded = P.onGround;
   P.dx = 0; P.onGround = false; P.standing = null;
@@ -171,14 +221,15 @@ function step(dt) {
   const adj = adjacentCrate();
   P.grab = k.grab && grounded && !!adj;
   const dir = (k.right ? 1 : 0) - (k.left ? 1 : 0);
-  let speed = P.grab ? 110 : 210;
+  const worn = M.state === "worn";
+  let speed = P.grab ? 110 : worn ? 160 : 210;
   if (dir && !P.grab) P.face = dir;
   if (P.grab) P.face = adj.side;
   const acc = (grounded ? 3200 : 1700) * dt, target = dir * speed;
   P.vx += Math.max(-acc, Math.min(acc, target - P.vx));
   P.coyote = grounded ? 0.1 : P.coyote - dt;
   if (P.jumpReq > 0) P.jumpReq -= dt;
-  if (P.jumpReq > 0 && P.coyote > 0) { P.vy = -700; P.coyote = 0; P.jumpReq = 0; }
+  if (P.jumpReq > 0 && P.coyote > 0) { P.vy = worn ? -620 : -700; P.coyote = 0; P.jumpReq = 0; }
   if (!k.jump && P.vy < -260) P.vy *= 0.6;
   P.vy += G * dt;
   const before = P.x;
@@ -209,8 +260,8 @@ function nextLevel() {
 }
 
 /* ============ Girdi ============ */
-const keyMap = { ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right", ArrowUp: "jump", KeyW: "jump", Space: "jump", ShiftLeft: "grab", ShiftRight: "grab", KeyE: "grab" };
-function setKey(t, k, v) { if (k === "jump" && v && !t.jump) P.jumpReq = 0.12; t[k] = v; }
+const keyMap = { ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right", ArrowUp: "jump", KeyW: "jump", Space: "jump", ShiftLeft: "grab", ShiftRight: "grab", KeyE: "grab", KeyQ: "mask", KeyF: "mask" };
+function setKey(t, k, v) { if (k === "jump" && v && !t[k]) P.jumpReq = 0.12; if (k === "mask" && v && !t[k]) P.maskReq = true; t[k] = v; }
 addEventListener("keydown", (e) => { if (e.code === "KeyR" && mode === "play") die(); const k = keyMap[e.code]; if (k) { setKey(keys, k, true); e.preventDefault(); } });
 addEventListener("keyup", (e) => { const k = keyMap[e.code]; if (k) setKey(keys, k, false); });
 for (const b of document.querySelectorAll(".pad button")) {
@@ -224,6 +275,7 @@ const inputState = () => ({ left: keys.left || touch.left, right: keys.right || 
 /* ============ Parçacıklar ============ */
 const parts = [];
 function dust(x, y) { parts.push({ x, y, vx: (Math.random() - .5) * 30, vy: -10 - Math.random() * 20, life: .5, max: .5, r: 2 + Math.random() * 2, c: 0 }); }
+function spark(x, y) { for (let i = 0; i < 8; i++) { const a = Math.random() * 7; parts.push({ x, y, vx: Math.cos(a) * 160, vy: Math.sin(a) * 160 - 40, life: .25, max: .25, r: 1.5 + Math.random() * 1.5, c: 0 }); } }
 function burst(x, y) { for (let i = 0; i < 24; i++) { const a = Math.random() * 7; parts.push({ x, y, vx: Math.cos(a) * 140, vy: Math.sin(a) * 140 - 60, life: .7, max: .7, r: 2 + Math.random() * 3, c: 1 }); } }
 
 /* ============ Çizim ============ */
@@ -273,6 +325,13 @@ function drawWorld() {
     if (s.y <= 560) { const r = rnd(s.x + 3); ctx.beginPath(); ctx.moveTo(s.x, s.y);
       for (let x = s.x; x < s.x + s.w; x += 9) ctx.lineTo(x + 4, s.y - 4 - r() * 10), ctx.lineTo(x + 9, s.y); ctx.fill(); }
   }
+  // su
+  for (const w of L.water || []) { const g = ctx.createLinearGradient(0, w.y, 0, H); g.addColorStop(0, "rgba(40,46,52,.92)"); g.addColorStop(1, "rgba(8,9,10,.98)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(w.x, H);
+    for (let x = w.x; x <= w.x + w.w; x += 10) ctx.lineTo(x, w.y + Math.sin(T * 2 + x * 0.05) * 2.5); ctx.lineTo(w.x + w.w, H); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 2; ctx.beginPath(); for (let x = w.x; x <= w.x + w.w; x += 10) ctx.lineTo(x, w.y + Math.sin(T * 2 + x * 0.05) * 2.5); ctx.stroke(); }
+  // ok atıcılar
+  for (const d of darts) { ctx.fillStyle = "#0b0b0c"; ctx.fillRect(d.dir < 0 ? d.x - 4 : d.x - 10, d.y - 5, 14, 16); }
   // çıkış ışığı
   const e = L.exit, eg = ctx.createRadialGradient(e.x + 35, e.y + 50, 5, e.x + 35, e.y + 50, 150); eg.addColorStop(0, "rgba(255,255,255,.9)"); eg.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = eg; ctx.fillRect(e.x - 120, e.y - 100, 310, 320);
@@ -291,9 +350,17 @@ function drawWorld() {
   // kutular
   for (const c of crates) { ctx.fillStyle = "#121315"; ctx.fillRect(c.x, c.y, c.w, c.h); ctx.strokeStyle = "#3b3d41"; ctx.lineWidth = 3; ctx.strokeRect(c.x + 4, c.y + 4, c.w - 8, c.h - 8);
     ctx.beginPath(); ctx.moveTo(c.x + 6, c.y + 6); ctx.lineTo(c.x + c.w - 6, c.y + c.h - 6); ctx.moveTo(c.x + c.w - 6, c.y + 6); ctx.lineTo(c.x + 6, c.y + c.h - 6); ctx.stroke(); }
+  for (const a of arrows) { ctx.fillStyle = "#0b0b0c"; ctx.fillRect(a.x, a.y, a.w, a.h); ctx.fillStyle = "#e9e6dc"; ctx.fillRect(a.vx < 0 ? a.x : a.x + a.w - 4, a.y, 4, a.h); }
+  if (M.state === "ground") drawMaskItem(M.x, M.y, M.w, M.h);
   if (mode !== "dead") drawPlayer();
   for (const p of parts) { ctx.globalAlpha = Math.max(0, p.life / p.max); ctx.fillStyle = p.c ? "#0b0b0c" : "#d8d9dc"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
   ctx.globalAlpha = 1; ctx.restore();
+}
+function drawMaskItem(x, y, w, h) {   // kırık porselen maske: oyunun tek açık renkli nesnesi
+  ctx.fillStyle = "#e7e3d8"; ctx.strokeStyle = "#0b0b0c"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(x + w / 2, y + h / 2, w / 2 - 1, h / 2 - 1, 0, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = "#3a3a3c"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + w * 0.62, y + h * 0.42, 6, 0.2, Math.PI - 0.2); ctx.stroke();   // kapalı göz
+  ctx.beginPath(); ctx.moveTo(x + w * 0.2, y + 6); ctx.lineTo(x + w * 0.38, y + h * 0.3); ctx.lineTo(x + w * 0.28, y + h * 0.5); ctx.lineTo(x + w * 0.45, y + h * 0.75); ctx.stroke();   // çatlak
 }
 /* Geçici silüet karakter (tasarım gelince sprite ile değişecek) */
 function drawPlayer() {
@@ -315,6 +382,7 @@ function drawPlayer() {
   // baş
   ctx.beginPath(); ctx.arc(2, -47 - bob, 8.5, 0, 7); ctx.fill();
   ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(6, -48 - bob, 1.9, 0, 7); ctx.fill();
+  if (M.state === "worn") { ctx.save(); ctx.translate(9, -34); ctx.scale(1, 1); drawMaskItem(-M.w / 2 + 3, -M.h / 2, M.w - 6, M.h - 4); ctx.restore(); }   // maske önde, kalkan
   ctx.restore();
 }
 function drawFront() {
@@ -323,7 +391,9 @@ function drawFront() {
   const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,.62)");
   ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
   ctx.globalAlpha = 0.07; ctx.save(); ctx.translate(Math.random() * 200, Math.random() * 200); ctx.fillStyle = grainPat; ctx.fillRect(-200, -200, W + 400, H + 400); ctx.restore(); ctx.globalAlpha = 1;
-  if (titleT > 0 && L) { ctx.globalAlpha = Math.min(1, titleT) * 0.9; ctx.fillStyle = "#fff"; ctx.font = "200 34px system-ui"; ctx.textAlign = "center"; ctx.fillText(`${lvlIdx + 1}  ·  ${L.name.toUpperCase()}`, W / 2, 110); ctx.textAlign = "left"; ctx.globalAlpha = 1; }
+  if (titleT > 0 && L) { ctx.globalAlpha = Math.min(1, titleT) * 0.9; ctx.fillStyle = "#fff"; ctx.font = "200 34px system-ui"; ctx.textAlign = "center"; ctx.fillText(`${lvlIdx + 1}  ·  ${L.name.toUpperCase()}`, W / 2, 110);
+    if (L.hint) { ctx.font = "300 18px system-ui"; ctx.fillText(L.hint, W / 2, 150); }
+    ctx.textAlign = "left"; ctx.globalAlpha = 1; }
   ctx.fillStyle = `rgba(0,0,0,${Math.max(0, Math.min(1, fade))})`; ctx.fillRect(0, 0, W, H);
 }
 function draw() {
@@ -350,7 +420,7 @@ function checkRot() { document.getElementById("rot").hidden = !(matchMedia("(poi
 addEventListener("resize", checkRot); checkRot();
 buildMenu(); loadLevel(0); mode = "menu"; document.getElementById("menu").hidden = false; fade = 0;
 requestAnimationFrame(frame);
-window.__g = { P, get saws() { return saws; }, get crates() { return crates; }, get doors() { return doors; }, step, loadLevel, get mode() { return mode; }, get lvl() { return lvlIdx; }, keys, setKey, get cp() { return cp; } };
+window.__g = { P, M, get arrows() { return arrows; },  get saws() { return saws; }, get crates() { return crates; }, get doors() { return doors; }, step, loadLevel, get mode() { return mode; }, get lvl() { return lvlIdx; }, keys, setKey, get cp() { return cp; } };
 </script>
 </body>
 </html>
