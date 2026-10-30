@@ -454,6 +454,17 @@ func _run_test() -> void:
 			await _t_cayir()
 		"cayir2":
 			await _t_cayir2()
+		"dbgc":
+			load_level(12)
+			await _wait(0.4)
+			var c0 := level.crates[0]
+			await _walk_auto(c0.global_position.x - 45.0)
+			await _push_to(c0, 700.0)
+			player.override["right"] = true
+			for i in 10:
+				await _wait(0.2)
+				player.override["jump"] = player.is_on_wall() and player.is_on_floor()
+				print("DBG x=%.1f y=%.1f vx=%.1f wall=%s floor=%s jump=%s crate=%.1f" % [player.global_position.x, player.global_position.y, player.velocity.x, player.is_on_wall(), player.is_on_floor(), player.override["jump"], c0.global_position.x])
 		"touch3":
 			await _t_touch3()
 		"touch4":
