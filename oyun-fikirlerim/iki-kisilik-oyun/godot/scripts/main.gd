@@ -22,6 +22,9 @@ var fade: ColorRect
 var hint: Label
 var menu: Control
 var end_panel: Control
+var touch: TouchControls
+var touch_hint: Label
+var rot_warn: Label
 
 func _ready() -> void:
 	backdrop = Backdrop.new()
@@ -133,23 +136,24 @@ func _build_ui() -> void:
 		state = "menu")
 	end_panel.add_child(eb)
 	if Game.touch_ui:
-		_build_touch(ui)
-
-func _build_touch(ui: CanvasLayer) -> void:
-	var defs := [["◀", "left", Vector2(30, 600)], ["▶", "right", Vector2(150, 600)],
-		["🎭", "mask", Vector2(910, 600)], ["✋", "grab", Vector2(1010, 600)], ["⤒", "jump", Vector2(1130, 600)]]
-	for d: Array in defs:
-		var b := Button.new()
-		b.text = d[0]
-		b.position = d[2]
-		b.size = Vector2(100, 100)
-		b.focus_mode = Control.FOCUS_NONE
-		b.modulate.a = 0.6
-		b.add_theme_font_size_override("font_size", 36)
-		var action: String = d[1]
-		b.button_down.connect(func() -> void: Input.action_press(action))
-		b.button_up.connect(func() -> void: Input.action_release(action))
-		ui.add_child(b)
+		touch = TouchControls.new()
+		add_child(touch)
+		touch_hint = Label.new()
+		touch_hint.text = "Sağa / sola kaydır: yürü   ·   yukarı kaydır: zıpla\nİkinci parmakla dokun: eşya   ·   ikinci parmağı basılı tut: tut ve çek"
+		touch_hint.position = Vector2(0, 600)
+		touch_hint.size = Vector2(1280, 90)
+		touch_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		touch_hint.add_theme_font_size_override("font_size", 22)
+		touch_hint.modulate.a = 0.0
+		ui.add_child(touch_hint)
+		rot_warn = Label.new()
+		rot_warn.text = "Telefonu yatay çevirin"
+		rot_warn.size = Vector2(1280, 720)
+		rot_warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		rot_warn.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		rot_warn.add_theme_font_size_override("font_size", 40)
+		rot_warn.visible = false
+		ui.add_child(rot_warn)
 
 # ---------- bölüm akışı ----------
 func start_level(i: int) -> void:
@@ -202,6 +206,12 @@ func load_level(i: int) -> void:
 	hint.text = label + "\n" + h
 	hint.modulate.a = 1.0
 	create_tween().tween_property(hint, "modulate:a", 0.0, 1.0).set_delay(4.5)
+	if touch != null:
+		touch.release_all()
+		touch.prefix = "p1_" if coop else ""
+		if i == 0 and touch_hint != null:
+			touch_hint.modulate.a = 1.0
+			create_tween().tween_property(touch_hint, "modulate:a", 0.0, 1.5).set_delay(7.0)
 
 func _on_died() -> void:
 	if state != "play":
@@ -231,6 +241,14 @@ func _respawn() -> void:
 
 func _process(delta: float) -> void:
 	state_t += delta
+	if touch != null:
+		var play := state == "play" and not menu.visible
+		if touch.enabled and not play:
+			touch.release_all()
+		touch.enabled = play
+		if rot_warn != null:
+			var ws := DisplayServer.window_get_size()
+			rot_warn.visible = ws.y > ws.x
 	match state:
 		"dead":
 			fade.color.a = move_toward(fade.color.a, 1.0, delta * 3.0)
@@ -351,6 +369,8 @@ func _run_test() -> void:
 			print("L1 çukur sonrası x=", player.global_position.x, " dead=", player.dead)
 			_hold("right", false)
 			await _shot("res://../test_l1.png")
+		"touch":
+			await _t_touch()
 		"coop":
 			await _t_c1()
 			await _t_c2()
@@ -621,3 +641,63 @@ func _t_c3() -> void:
 	await _pwalk(kl, 2440.0)
 	await _wait(0.6)
 	print("C3 bitti? state=", state, " idx=", idx, " Kapıcı=", kb.global_position, " Kül=", kl.global_position, " çıkışta=", level.exit_in.size())
+
+func _ev_touch(idx: int, pressed: bool, pos: Vector2) -> void:
+	var e := InputEventScreenTouch.new()
+	e.index = idx
+	e.pressed = pressed
+	e.position = pos
+	Input.parse_input_event(e)
+
+func _ev_drag(idx: int, pos: Vector2) -> void:
+	var e := InputEventScreenDrag.new()
+	e.index = idx
+	e.position = pos
+	Input.parse_input_event(e)
+
+func _t_touch() -> void:
+	Game.touch_ui = true
+	load_level(0)
+	await _wait(0.4)
+	touch = TouchControls.new()
+	add_child(touch)
+	touch.enabled = true
+	state = "play"
+	var x0 := player.global_position.x
+	# sağa kaydır -> yürür
+	_ev_touch(0, true, Vector2(400, 400))
+	await get_tree().physics_frame
+	_ev_drag(0, Vector2(470, 400))
+	await _wait(1.0)
+	print("TOUCH sağa kaydırma: right=", Input.is_action_pressed("right"), " dx=", player.global_position.x - x0)
+	# yukarı kaydır -> zıplar
+	_ev_drag(0, Vector2(470, 330))
+	await _wait(0.25)
+	print("TOUCH yukarı kaydırma: jump=", Input.is_action_pressed("jump"), " havada=", not player.is_on_floor(), " y=", player.global_position.y)
+	# başlangıç noktası parmağı izliyor: uzağa sürükle, sonra sola dön
+	_ev_drag(0, Vector2(470, 400))
+	await _wait(0.6)
+	_ev_drag(0, Vector2(700, 400))
+	await _wait(0.3)
+	_ev_drag(0, Vector2(640, 400))
+	await _wait(0.3)
+	print("TOUCH sola dönüş (izleyen başlangıç): left=", Input.is_action_pressed("left"), " right=", Input.is_action_pressed("right"))
+	_ev_touch(0, false, Vector2(640, 400))
+	await _wait(0.3)
+	print("TOUCH bırakınca: right=", Input.is_action_pressed("right"), " left=", Input.is_action_pressed("left"), " jump=", Input.is_action_pressed("jump"))
+	# ikinci parmak: dokun -> eşya, basılı -> tut
+	_ev_touch(0, true, Vector2(300, 400))
+	await _wait(0.1)
+	_ev_touch(1, true, Vector2(900, 400))
+	await _wait(0.1)
+	_ev_touch(1, false, Vector2(900, 400))
+	await _wait(0.05)
+	print("TOUCH ikinci parmak dokunuş -> mask basıldı mı: ", Input.is_action_pressed("mask"))
+	await _wait(0.2)
+	_ev_touch(1, true, Vector2(900, 400))
+	await _wait(0.5)
+	print("TOUCH ikinci parmak basılı -> grab: ", Input.is_action_pressed("grab"))
+	_ev_touch(1, false, Vector2(900, 400))
+	_ev_touch(0, false, Vector2(300, 400))
+	await _wait(0.2)
+	print("TOUCH hepsi bırakıldı: grab=", Input.is_action_pressed("grab"), " mask=", Input.is_action_pressed("mask"))

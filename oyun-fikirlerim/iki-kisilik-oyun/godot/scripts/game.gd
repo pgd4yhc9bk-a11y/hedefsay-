@@ -4,6 +4,7 @@ extends Node
 var test_mode := false
 var shake_amt := 0.0
 var touch_ui := false
+var mouse_touch := false      # masaüstünde fareyi parmak gibi kullan (--touch)
 
 func _ready() -> void:
 	_setup_inputs()
@@ -12,6 +13,7 @@ func _ready() -> void:
 			test_mode = true
 		if a == "--touch":
 			touch_ui = true
+			mouse_touch = true
 	touch_ui = touch_ui or DisplayServer.is_touchscreen_available()
 
 func _setup_inputs() -> void:
