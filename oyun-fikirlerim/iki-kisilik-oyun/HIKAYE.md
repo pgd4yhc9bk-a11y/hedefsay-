@@ -1,86 +1,95 @@
-# Sis: Hikâye ve Karakterler (taslak v0.1)
+# Sis: Hikâye (taslak v0.2): "Kurdeleleri Takip Et"
 
-> Sessiz anlatım: oyunda konuşma ve yazı yok. Hikâye ortam, nesneler, ışık ve sahneler üzerinden anlatılır
-> (Limbo/Inside gibi). Bu belge yalnızca ekibin ortak referansıdır.
+> Sessiz anlatım: oyunda konuşma ve yazı yok. Hikâye ortam, nesneler, ışık, ses ve karakter hareketleriyle anlatılır
+> (Limbo/Inside gibi). Bu belge ekibin ortak referansıdır. Karakterler ve olay akışı değişebilir.
 
-## Kısa özet
-Fenerli Vadi'nin tepesindeki büyük fener her gece vadiyi aydınlatır, **Sis**'i uzak tutardı. Bir gece fener söner.
-Sis köyü yutar. Sisin içinde iki çocuk karşılaşır: elindeki küçük lambada fenerin son kıvılcımını taşıyan **Kandil**
-ve sırtında evinin kapısını taşıyan iri **Kapıcı**. Fenerin kulesine tırmanıp ateşi yeniden yakmaya çalışırlar.
+## Tek cümlede
+Küçük kardeşi sisli ormanda yolunu kaybeden bir abla, babasının yıllar önce ağaçlara bağladığı kırmızı kurdeleleri
+izleyerek onu bulur ve ikisi birlikte köylerine geri dönmeye çalışır.
 
 ## Karakterler
-### Kandil (küçük, çevik)
-- Elinde bir **el lambası** taşır: son kıvılcım orada. Lamba yalnızca bir eşya değil, onun kalbi.
-- Hafif ve hızlı, yüksek zıplar. Güçsüzdür: kasayı itemez, ağır şeyi taşıyamaz.
-- **Işık:** karanlıkta yolu açar, gizli platformları gösterir, Sisliler'i (gölge yaratıklar) uzaklaştırır.
-- **Lamba yerine konabilir** (kancaya asılır, kaideye konur) ve yanmaya devam eder; Kandil ise o sırada karanlıkta kalır.
-  Lamba ortağa atılabilir.
-- Zayıflık: lambayı ortağa verirse ya da bırakırsa karanlıkta tek başına kalır. Alev, sönmeye yakın kısıldığında kısa süre zayıflar.
+### Nehir (abla, ~11 yaşında)
+- Sorumluluk sahibi, temkinli, cesaretini içine saklar. Boynunda annesinden kalma yün bir atkı, saçı örgülü.
+- Elinde **fener** (el lambası) taşır: babasının eski fenerinin yedeği. Işık onun silahı değil, **güvence**.
+- Çevik: yüksek zıplar, hafif, hızlı. Kutu itebilir ama ağır yük taşıyamaz.
+- Zayıflık: fener elindeyken tırmanamaz, iki eli gerekir (lambayı bir yere asar ya da kardeşine uzatır).
 
-### Kapıcı (iri, sakin)
-- Sırtında kendi **evinin kapısı** var: köyden kalan tek şey. Onu bırakmaz, çünkü bırakırsa "ev" kalmaz.
-- Güçlüdür, yavaştır. Kasa iter, çeker. Yüksek zıplayamaz.
-- **Kapı:** kalkan (ok ve düşen şeylerden korur), ağırlık (düğmeye basar), basamak/rampa (yüksek yere çıkarır),
-  köprü (suda yüzer), siper. Kapıyı yere koyup içinden geçilebilir bir "ev" gibi kullanır.
-- Zayıflık: kapıyı bırakınca korumasızdır. Karanlıkta göremez, Kandil'e muhtaçtır.
+### Çınar (küçük kardeş, ~6 yaşında)
+- Meraklı, korkusunu sarılarak yenen, elinde **bez tavşanı** (Pofuk) olan çocuk. Kırmızı bir atkısı var.
+- Küçük ve hafif: dar geçitlere sığar, ince buza basabilir. Fazla yükseğe zıplayamaz, hızlı yoruluyor.
+- Bez tavşanı bırakamaz: tavşanı kaybederse sakinleştirmek gerekir. Pofuk hem oyun nesnesi, hem duygu göstergesi.
+- Zayıflık: karanlıktan ve yüksekten korkar. Abladan uzaklaştıkça adımları yavaşlar.
 
-### Birbirlerine ihtiyaçları
-Kandil yolu görür, Kapıcı yolu açar. Biri olmadan öteki ilerleyemez. Tek başına bölümlerde tek karakter (tema: yalnızlıkta
-küçük bir çözüm), ikili bölümlerde ikisi birlikte.
+### Anne ve Baba (ekranda neredeyse hiç yok)
+- **Baba:** Köyün fenercisiydi. İki kış önce, sisle kaybolan koyunları ararken ormanda kayboldu. Bir daha dönmedi.
+  Dönmeden önce, kaybolanların yolunu bulabilmesi için ağaçlara **kırmızı kurdeleler** bağlamıştı.
+- **Anne:** Evin penceresinde her akşam bir lamba yakar. "Eve dönenler ışığı görsün."
 
-## Dünya ve bölümler (bölüm = bir "perde")
-1. **Orman (Sis):** İlk karşılaşma. Yürümeyi, zıplamayı, kasayı öğrenme. Uzakta sönmüş fener kulesi görünür.
-2. **Köy:** Terk edilmiş evler, her pencerede mum. Düğme-kapı bulmacaları. Evlerin kapıları yok: hepsi sökülüp gitmiş.
-   (Kapıcı'nın taşıdığı kapının nereden geldiğini görürüz.)
-3. **Değirmen:** Testereler, makineler. Kapıcı'nın gücü, Kandil'in dikkati.
-4. **Göl:** Sisin içindeki sular. Kapı köprü olur. Suya düşen ışık altında bir şey gösterir (eski bir fener ışığının kalıntısı).
-5. **Mağara (karanlık):** Yalnızca lamba ışığı. Gizli platformlar, ok koridoru: Kapıcı kalkanla önde, Kandil arkasından ışık tutar.
-6. **Kule:** Tırmanış. Sisliler ışıktan kaçar, ışıkla çevrilidir. Fener odası.
+## Olay örgüsü (sessiz sahnelerle)
+**Prolog (sahne):** Kış akşamı. Köy evi, pencerede lamba. Çınar bez tavşanını kapının önünde düşürür; rüzgâr tavşanı sürükler;
+Çınar peşinden gider ve sisin içinde kaybolur. Nehir kapıda durur, annesi şalını omzuna koyar, Nehir feneri alır ve çıkar.
 
-## Final (iki seçenek, birini seçeceğiz)
-**A (önerim, buruk ama umutlu):** Fener yeniden yanmak için yakıt ister. Lambanın son kıvılcımı yetmez. Kapıcı, sırtındaki kapıyı
-(evinin son parçasını) feneri yakmak için bırakır. Kapı yanar, fener tüm vadiyi aydınlatır. Şafak söker, köyün ışıkları birer birer
-yanar. Son sahne: Kandil ve Kapıcı, yanmış kapının eşiğinde (çerçeve kalmıştır) gün doğarken yan yana durur.
-**B (daha sıcak):** Kandil'in lambası fenerin içine yerleşir, fener yanar. Kapıcı kapıyı köyün kapısına takar, köy yeniden "ev" olur.
+**1. Perde, Çayır:** Nehir çit kenarında küçük ayak izleri ve bir kurdele parçası bulur. Kurdele babasının işareti: ilk kez fark eder.
+**2. Perde, Orman:** Sis yoğun. Devrik gövdeler, kaygan çamur, kırmızı kurdeleler. Nehir kardeşinin bez tavşanının parçasını bulur.
+**3. Perde, Dere:** Buzlu dere. Kaygan buz, kırılan kalas. Nehir düşer (kısa bir düşme anı), yara almadan kalkar.
+   Karşı kıyıdan Çınar'ın ağlayan sesi gelir; Nehir ışığı yükseltir, Çınar ışığı görür. **Buluşma.** (Sarılma sahnesi, sessiz.)
+**4. Perde, Değirmen:** Birlikte oyun başlar (co-op). Ağır makineler, testereler. Nehir kasayı iter, Çınar dar boşluklardan geçip kolu çeker.
+**5. Perde, Mağara:** Karanlık. Işık yalnızca fenerden. Çınar korkar, Nehir feneri onun elinden tutup yürütür; fener el değiştirir.
+**6. Perde, Yamaç:** Kayalık, kayan çakıl. Düşme tehlikesi. Çınar'ın bez tavşanı uçuruma düşer: Çınar tavşana uzanır,
+   Nehir onu yakalar. Tavşan gider. Çınar ağlar, Nehir ona kendi atkısını bağlar.
+**7. Perde, Köy yolu:** Sabaha doğru. Ağaçlardaki kurdeleler köye doğru sıklaşır. Yolun sonunda eski, paslı bir **baba feneri**
+   bir direğe asılı: yanmaz ama orada. Nehir kendi fenerinin son alevini onun içine aktarır; fener yanar, vadiye ışık yayılır.
+**Final:** Köyde lambalar tek tek yanar. Annenin penceresi. Çınar uyumuş, Nehir'in sırtında. Kapı açılır, anne ikisine sarılır.
+   Kamera yavaşça yükselir; ormanda kırmızı kurdeleler şafağın ışığında görünür. Son kare: kapının yanındaki çiviye
+   asılı baba feneri, şimdi yanıyor. (Baba'nın akıbeti söylenmez, ışık "bir gün dönebilir" duygusunu bırakır.)
 
-## Ton ve görsel kurallar
-- Siyah silüet. Yalnızca imza öğeleri renkli: **Kandil'in lamba alevi** (sıcak turuncu), **Kapı** (soluk krem/ahşap tonu).
-- Ses: rüzgâr, uğultu, ayak sesleri, ahşap gıcırtısı, alevin çıtırtısı. Müzik az ve yalnızca kilit anlarda.
-- Ölüm yumuşak değildir ama aşırı da değildir: hemen yeniden başlama, sahne ve ışık değişimiyle.
+## Duygu hedefi
+Korku değil, **kaygı ve şefkat**. Oyuncu Nehir'in sorumluluğunu ve Çınar'ın kırılganlığını fiziksel olarak hissetmeli:
+kardeşine bakarken yavaşlamak, onu beklemek, elini tutmak, ışığı ona vermek.
 
-## Yeni eşyalar ("materyaller")
-| Eşya | Ne yapar | İlk göründüğü perde |
+## Perde perde yeni materyaller ve mekanikler
+| Perde | Materyal | Mekanik |
 |---|---|---|
-| El lambası | Kandil'in taşıdığı ışık kaynağı; kancaya asılır, ortağa atılır | 2 (Köy) |
-| Lamba kancası/kaidesi | Lambayı bırakıp yanmasını sağlar | 2 |
-| Ateşlik (mangal) | Kısılan lambayı yeniden doldurur; Sisliler'i uzak tutar | 5 |
-| Kapı (Kapıcı'nın) | Kalkan, ağırlık, rampa, köprü | 1 |
-| Çan/zincir | Sesle mekanizma çalıştırır (sonraki aşama) | 3 |
-| Sisliler | Işıktan kaçan, karanlıkta kovalayan gölgeler | 5, 6 |
+| Çayır | Kırmızı kurdele (kontrol noktası), çit | Kurdeleye dokunmak yeni kontrol noktası; bez tavşan parçası (toplanabilir hatıra) |
+| Orman | **Çamur**, devrik gövde, odun yığını | Çamurda yavaş yürüme ve düşük zıplama; gövde köprü; kutu itme |
+| Dere | **İnce buz**, kayan kalas, yüzen kütük | Kayma (düşük sürtünme, momentum); buz çatlar; kalas su üstünde |
+| Değirmen | Dişli, kayış, testere, çıkrık, kaldıraç | Mekanizma bulmacaları; Çınar dar geçitlerden kolu çeker |
+| Mağara | **Fener**, ateşlik, yarasa | Işık yarıçapı, fenerin devri; gizli platformlar; karanlıkta Çınar korkar |
+| Yamaç | **Çakıl (kayan zemin)**, halat, taş | Kayan zemin, tırmanma, düşme; el uzatıp yakalama |
+| Köy yolu | Direk, asılı baba feneri | Fenerin yeniden yanması |
 
-## Teknik eşleme (Godot'taki mevcut parçalar)
-- Mevcut **Kabuk** = Kapıcı'nın mekanikleri: maske = kapı (kalkan, ağırlık, basamak, suda yüzer). Yalnızca görünüm değişir.
-- Mevcut **Kül** = Kandil'in mekanikleri: köz = lamba. Yeni: lamba eşya olarak elde taşınır, bırakılır, atılır.
-- Bölümler 1-6 (solo) ve 7-8 (co-op) yukarıdaki perdelere yeniden yerleştirilecek.
+## Karakter animasyonları (gerçekçilik hedefi)
+| Animasyon | Ne zaman | Not |
+|---|---|---|
+| Yürüme, koşma | Normal | Ağırlıklı adım, atkı ve örgü ikincil hareketle sallanır |
+| Zıplama, havada | Zıplayınca | Bacaklar toplanır, kollar dengelenir |
+| **Düşme** | Yüksekten düşerken | Kollar çırpınır, bacaklar pedal çevirir, beden savrulur |
+| **İniş ve yuvarlanma** | Uzun düşme sonrası | Çömelme, öne yuvarlanma, ayağa kalkma (kısa sersemleme) |
+| **Kayma** | Buz, çamur kaymasında, çakılda | Kollar açık, geriye yaslanma, ayaklar ayrık, sallanma |
+| Çamurda yürüme | Çamur | Ağır adım, diz bükülü, yavaş |
+| İtme, çekme | Kutuyla | Öne yaslanma, kollar uzanmış, çaba |
+| Fener taşıma | Nehir | Öne uzanmış kol, lamba hafif sallanır |
+| Sarılma | Buluşma, final | Sahne animasyonu (sessiz) |
+| Korkma (Çınar) | Karanlık, yükseklik | Kollar göğüste, çömelme |
+| Ağlama (Çınar) | Duygusal anlar | Omuzlar sallanır |
 
-## ChatGPT için yeni karakter promptları
-Stil kılavuzu (`assets/ASSET-PROMPTLARI.md`) ilk mesajda verilmiş olmalı.
-
-**Kandil (referans):**
+## ChatGPT için yeni karakter promptları (gerçekçi silüet)
+Stil kılavuzunu önce verin (`assets/ASSET-PROMPTLARI.md`). Karakterler daha gerçekçi oranlarda, giysi ayrıntılı ama düz siyah silüet.
+**Nehir:**
 ```
-Stil kılavuzuna uy. Karakter: Kandil. Küçük, ince uzuvlu, siyah silüet bir çocuk; yüzü görünmeyen, yalnızca gözlerinde beyaz parlak nokta.
-Sağ elinde küçük, eski bir el lambası tutuyor; lambanın alevi sıcak turuncu (#FF8A1F), tek renkli parça. Yandan görünüm, sağa bakıyor,
-ayakta, hafif öne eğik. Şeffaf arka plan, tek görsel, 1024x1024.
+Stil kılavuzuna uy. Karakter: Nehir, 11 yaşında bir kız çocuğu, gerçekçi çocuk oranlarında (büyük baş değil, doğal oranlar), düz siyah silüet.
+Uzun örgülü saç, boynunda uzun yün atkı, kısa palto, çizme. Sağ elinde eski bir el feneri; fenerin alevi sıcak turuncu (#FF8A1F), tek renkli parça.
+Yandan görünüm, sağa bakıyor, ayakta, hafif öne eğik. Gözler küçük beyaz nokta. Şeffaf arka plan, tek görsel, 1024x1024.
 ```
-**Kandil (parçalar, iskelet için):** baş, gövde, üst kol, alt kol ve el (lambasız), üst bacak, alt bacak ve ayak; ayrı bir görselde lamba (tutma yeri
-belli). Aynı parça-sayfası prompt kalıbı. Her parçanın eklem ucu yuvarlak, parçalar birbirine değmesin.
+**Çınar:**
+```
+Stil kılavuzuna uy. Karakter: Çınar, 6 yaşında bir erkek çocuğu, gerçekçi küçük çocuk oranlarında, düz siyah silüet.
+Kısa dağınık saç, boynunda kırmızı (#C0392B) uzun atkı (tek renkli parça), kalın palto, küçük botlar. Sol elinde krem renkli (#E7E3D8) bez tavşan oyuncak.
+Yandan görünüm, sağa bakıyor, ayakta, hafif kamburlaşmış, çekingen duruş. Gözler küçük beyaz nokta. Şeffaf arka plan, tek görsel, 1024x1024.
+```
+**Parçalar (iskelet için):** baş+saç, gövde+palto, üst kol, ön kol ve el, üst bacak, alt bacak ve bot, **atkı** (3 parçalı: baş, orta, uç, ikincil hareket için),
+**örgü** (Nehir, 3 parça), **fener** (Nehir), **bez tavşan** (Çınar). Parçalar birbirine değmesin, eklem uçları yuvarlak.
 
-**Kapıcı (referans):**
-```
-Stil kılavuzuna uy. Karakter: Kapıcı. İri, sakin, yassı omuzlu siyah silüet bir çocuk, sırtında kendi boyundan büyük, ahşap, eski
-bir EV KAPISI taşıyor (iki el sırtının arkasında kapıyı tutuyor). Kapı soluk krem-ahşap tonunda (#C9B79A), tek renkli parça;
-kapıda küçük bir kol ve çerçeve izi. Yandan görünüm, sağa bakıyor, hafif öne eğik, ayakta. Şeffaf arka plan, tek görsel, 1024x1024.
-```
-**Kapıcı (parçalar):** Kandil'in parça-sayfası kalıbı + ayrı bir görselde kapı (tek parça, dik, 1:2 oranlı).
-
-**İpucu:** İki karakterin ölçeği tutarlı olsun: Kapıcı, Kandil'den yaklaşık 1,5 kat uzun.
+## Not
+"2 kardeş, biri kız" cümlesini abla (Nehir) ve küçük erkek kardeş (Çınar) olarak yorumladım. İki kız kardeş ya da başka bir ikili olsun
+isterseniz isim ve çizim promptları kolayca değişir: mekanikler aynı kalır.

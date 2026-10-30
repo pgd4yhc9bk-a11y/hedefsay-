@@ -87,9 +87,26 @@ func update_pose(p: Player, t: float) -> void:
 		lean = -0.08
 	if crouch > 0.0:
 		lean += 0.25 * crouch
+	var falling: bool = not grounded and p.velocity.y > 260.0 and p.fall_t > 0.12
+	var slip: bool = grounded and p.on_ice and spd > 25.0
+	var muddy: bool = grounded and p.mud > 0 and spd > 20.0
+	if falling:   # düşme: kollar çırpınır, bacaklar pedal çevirir, beden savrulur
+		lean = -0.18 + sin(t * 7.0) * 0.12
+	if slip:
+		var fwd := 1.0 if p.velocity.x * p.face > 0.0 else -1.0
+		lean = -0.28 * fwd + sin(t * 11.0) * 0.07 * minf(1.0, spd / 120.0)
+	if muddy:
+		lean = 0.22
 	var l1: Dictionary
 	var l2: Dictionary
-	if not grounded:
+	if falling:
+		var fl := sin(t * 14.0)
+		l1 = _leg(0.55 + fl * 0.5, 0.9 + fl * 0.3, U1, U2)
+		l2 = _leg(-0.45 - fl * 0.5, 0.9 - fl * 0.3, U1, U2)
+	elif slip:
+		l1 = _leg(0.55, 0.08, U1, U2)
+		l2 = _leg(-0.5, 0.08, U1, U2)
+	elif not grounded:
 		if p.velocity.y < 0.0:
 			l1 = _leg(0.95, 1.25, U1, U2)
 			l2 = _leg(-0.35, 0.6, U1, U2)
@@ -112,11 +129,21 @@ func update_pose(p: Player, t: float) -> void:
 	else:
 		hip_y = -(U1 + U2) * 0.95
 	var bob := absf(sin(ph)) * 1.4 if run else sin(t * 1.8) * 0.5
+	if muddy:
+		bob = absf(sin(ph)) * 2.6
 	var hp := Vector2(0.0, hip_y - bob)
 	var sh := hp + Vector2(sin(lean), -cos(lean)) * TORSO
 	var a1: Dictionary
 	var a2: Dictionary
-	if worn:
+	if falling:
+		var fa := sin(t * 16.0)
+		a1 = _arm(2.4 + fa * 0.5, 0.25, sh, A1)
+		a2 = _arm(-2.0 - fa * 0.5, 0.25, sh, A1)
+	elif slip:
+		var wob := sin(t * 11.0) * 0.25
+		a1 = _arm(1.7 + wob, 0.1, sh, A1)
+		a2 = _arm(-1.5 - wob, 0.1, sh, A1)
+	elif worn:
 		a1 = _arm(1.25, 0.25, sh, A1)
 		a2 = _arm(1.05, 0.3, sh, A1)
 	elif pushing:

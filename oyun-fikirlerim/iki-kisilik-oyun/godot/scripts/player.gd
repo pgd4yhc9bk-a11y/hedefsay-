@@ -9,6 +9,9 @@ const MASK_SIZE := Vector2(39, 67)
 var face := 1
 var worn := false
 var has_lamp := false
+var on_ice := false
+var mud := 0              # üstünde durduğumuz çamur alanı sayısı
+var fall_t := 0.0          # havada düşme süresi (animasyon için)
 var grab := false
 var anim := 0.0
 var squash := 0.0
@@ -84,9 +87,13 @@ func _physics_process(delta: float) -> void:
 		face = adj["side"]
 	elif d != 0:
 		face = d
+	if mud > 0 and grounded:
+		speed *= 0.55   # çamurda yavaş
 	var accel := 260.0
 	if grounded:
 		accel = 900.0 if d != 0 else 1500.0
+		if on_ice:
+			accel = 120.0 if d != 0 else 28.0   # buzda kayar: hızlanma ve durma çok yavaş
 	velocity.x = move_toward(velocity.x, d * speed, accel * delta)
 	# zıplama (kısa süre geç zıplama ve erken basma toleransı)
 	var j := _in("jump")
@@ -101,6 +108,8 @@ func _physics_process(delta: float) -> void:
 	jump_buf -= delta
 	if jump_buf > 0.0 and coyote > 0.0:
 		velocity.y = -690.0 if skin == "kul" else (-560.0 if worn else -660.0)
+		if mud > 0:
+			velocity.y *= 0.82   # çamurdan zor sıçrar
 		coyote = 0.0
 		jump_buf = 0.0
 		Sfx.play("jump")
@@ -114,6 +123,16 @@ func _physics_process(delta: float) -> void:
 			(adj["b"] as PushBody).push(velocity.x)
 	var pre := velocity
 	move_and_slide()
+	on_ice = false
+	for ci in get_slide_collision_count():
+		var cc := get_slide_collision(ci)
+		var co := cc.get_collider() as Node
+		if co != null and cc.get_normal().y < -0.7 and co.is_in_group("ice"):
+			on_ice = true
+	if not is_on_floor() and velocity.y > 220.0:
+		fall_t += delta
+	else:
+		fall_t = 0.0
 	if grab and not adj.is_empty():
 		var moving_away: bool = (adj["side"] > 0 and velocity.x < -1.0) or (adj["side"] < 0 and velocity.x > 1.0)
 		if moving_away:
@@ -127,7 +146,7 @@ func _physics_process(delta: float) -> void:
 		Sfx.play("land", linear_to_db(clampf(pre.y / 900.0, 0.2, 1.0)))
 		Game.shake(pre.y / 1400.0)
 		if pre.y > 720.0:
-			recover = 0.3
+			recover = 0.3 + minf(0.4, (pre.y - 720.0) / 600.0)   # uzun düşmede daha uzun sersemleme/yuvarlanma
 	if squash > 0.0:
 		squash -= delta
 	if absf(velocity.x) > 20.0 and is_on_floor():

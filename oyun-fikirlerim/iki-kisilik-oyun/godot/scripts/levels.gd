@@ -78,4 +78,11 @@ static func all() -> Array:
 			"crates": [], "mask": {}, "plates": [], "doors": [Rect2(900, 300, 30, 260)], "spikes": [], "saws": [], "darts": [], "water": [],
 			"checkpoints": [980.0, 1750.0], "exit": Rect2(2450, gy - 100, 70, 100),
 		},
+		{
+			"name": "Dere", "w": 2600.0, "start": Vector2(60, gy - 54), "hint": "Çamur yavaşlatır. Buz kaydırır: momentumla zıpla",
+			"statics": [Rect2(0, gy, 1000, 160), Rect2(1570, gy, 1030, 160)],
+			"mud": [Rect2(500, gy, 360, 12)], "ice": [Rect2(1000, gy, 500, 40)],
+			"crates": [], "mask": {}, "plates": [], "doors": [], "spikes": [Rect2(1700, gy - 24, 48, 24)], "saws": [], "darts": [], "water": [Rect2(1500, gy + 8, 70, 160)],
+			"checkpoints": [950.0, 1620.0], "exit": Rect2(2450, gy - 100, 70, 100),
+		},
 	]

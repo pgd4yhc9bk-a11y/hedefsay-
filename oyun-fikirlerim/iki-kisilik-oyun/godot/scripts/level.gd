@@ -35,6 +35,10 @@ func build(d: Dictionary, ps: Array) -> void:
 		_make_water(r)
 	for r: Rect2 in d.get("ghosts", []):
 		_make_ghost(r)
+	for r: Rect2 in d.get("ice", []):
+		_make_ice(r)
+	for r: Rect2 in d.get("mud", []):
+		_make_mud(r)
 	for pos: Vector2 in d["crates"]:
 		var c := PushBody.new()
 		add_child(c)
@@ -140,6 +144,66 @@ func hook_point(i: int) -> Vector2:
 
 func hook_active(i: int) -> bool:
 	return lamp != null and lamp.state == "hung" and lamp.global_position.distance_to(hook_point(i)) < 4.0
+
+func _make_ice(r: Rect2) -> void:   # buz: kaygan zemin (üstü parlak)
+	var sb := StaticBody2D.new()
+	sb.collision_layer = 1
+	sb.collision_mask = 0
+	sb.add_to_group("ice")
+	var pm := PhysicsMaterial.new()
+	pm.friction = 0.0
+	sb.physics_material_override = pm
+	var cs := CollisionShape2D.new()
+	var rs := RectangleShape2D.new()
+	rs.size = r.size
+	cs.shape = rs
+	cs.position = r.position + r.size / 2.0
+	sb.add_child(cs)
+	add_child(sb)
+	_poly(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]), Color("#1d2026"))
+	var sheen := Line2D.new()
+	sheen.points = PackedVector2Array([r.position + Vector2(0, 1.5), Vector2(r.end.x, r.position.y + 1.5)])
+	sheen.width = 3.0
+	sheen.default_color = Color(0.85, 0.92, 1.0, 0.55)
+	add_child(sheen)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(r.position.x)
+	for i in int(r.size.x / 60.0):   # buz çatlakları
+		var x := r.position.x + 20.0 + i * 60.0 + rng.randf() * 20.0
+		var cr := Line2D.new()
+		cr.points = PackedVector2Array([Vector2(x, r.position.y + 4), Vector2(x + 8, r.position.y + 14), Vector2(x + 2, r.position.y + 24)])
+		cr.width = 1.5
+		cr.default_color = Color(0.8, 0.9, 1.0, 0.3)
+		add_child(cr)
+
+func _make_mud(r: Rect2) -> void:   # çamur: yavaşlatır, zor sıçratır
+	var a := Area2D.new()
+	a.collision_layer = 0
+	a.collision_mask = 2
+	var cs := CollisionShape2D.new()
+	var rs := RectangleShape2D.new()
+	rs.size = Vector2(r.size.x, 14.0)
+	cs.shape = rs
+	cs.position = Vector2(r.position.x + r.size.x / 2.0, r.position.y - 3.0)
+	a.add_child(cs)
+	a.body_entered.connect(func(b: Node) -> void:
+		if b is Player:
+			(b as Player).mud += 1)
+	a.body_exited.connect(func(b: Node) -> void:
+		if b is Player:
+			(b as Player).mud = maxi(0, (b as Player).mud - 1))
+	add_child(a)
+	var pts := PackedVector2Array([Vector2(r.position.x, r.position.y + 6.0)])
+	var x := r.position.x
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(r.position.x) + 7
+	while x < r.end.x:   # yumuşak, kabarcıklı yüzey
+		pts.append(Vector2(x + 7.0, r.position.y - 3.0 - rng.randf() * 3.0))
+		pts.append(Vector2(x + 14.0, r.position.y + 1.0))
+		x += 14.0
+	pts.append(Vector2(r.end.x, r.position.y + 6.0))
+	var m := _poly(pts, Color("#1a1815"))
+	m.z_index = 1
 
 func _make_ghost(r: Rect2) -> void:   # yalnızca Kül'ün ışığı değdiğinde var olan platform
 	var sb := StaticBody2D.new()

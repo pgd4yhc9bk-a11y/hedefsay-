@@ -371,6 +371,8 @@ func _run_test() -> void:
 			await _shot("res://../test_l1.png")
 		"push":
 			await _t_push()
+		"ice":
+			await _t_ice()
 		"touch":
 			await _t_touch()
 		"touch2":
@@ -801,3 +803,34 @@ func _t_push() -> void:
 	print("PUSH tutlu: kutu x=", c.global_position.x, " oyuncu x=", player.global_position.x)
 	_hold("right", false)
 	_hold("grab", false)
+
+func _t_ice() -> void:
+	load_level(9)
+	await _wait(0.4)
+	# çamurda hız
+	player.global_position = Vector2(540, 560)
+	await _wait(0.3)
+	_hold("right", true)
+	await _wait(0.8)
+	print("ICE çamurda hız: vx=", player.velocity.x, " (normal 165, çamurda ~91) mud=", player.mud)
+	_hold("right", false)
+	# buzda kayma: yürüyüp bırak, ne kadar kayıyor
+	player.global_position = Vector2(1020, 560)
+	player.velocity = Vector2.ZERO
+	await _wait(0.4)
+	_hold("right", true)
+	await _wait(1.0)
+	var x1 := player.global_position.x
+	print("ICE buzda hız: vx=", player.velocity.x, " on_ice=", player.on_ice)
+	await _shot("res://../test_ice1.png")
+	_hold("right", false)
+	await _wait(1.2)
+	print("ICE bırakınca kayma mesafesi: ", player.global_position.x - x1, " px (normal zeminde ~8)")
+	await _shot("res://../test_ice2.png")
+	# düşme animasyonu: yüksekten bırak
+	player.global_position = Vector2(300, 100)
+	player.velocity = Vector2.ZERO
+	await _wait(0.5)
+	print("ICE düşme: fall_t=", player.fall_t, " vy=", player.velocity.y)
+	await _shot("res://../test_fall.png")
+	await _wait(1.0)
