@@ -94,4 +94,20 @@ static func all() -> Array:
 			"crates": [], "mask": {}, "spikes": [], "saws": [], "darts": [], "water": [],
 			"checkpoints": [950.0, 1650.0], "exit": Rect2(2200, gy - 100, 70, 100),
 		},
+		{
+			"name": "Çayır: Eşik", "hero": "nehir", "ribbons": true, "w": 3300.0, "start": Vector2(80, gy - 54),
+			"hint": "Kırmızı kurdele babanın işareti: dokunursan kontrol noktası olur. Kutuyu itmek için Tut'a basılı tut",
+			"statics": [Rect2(0, gy, 900, 160), Rect2(980, gy, 880, 160), Rect2(1860, gy - 130, 40, 130), Rect2(1860, gy, 1440, 160), Rect2(1300, gy - 52, 70, 52)],
+			"crates": [Vector2(1450, gy - 56)], "mask": {}, "plates": [], "doors": [], "spikes": [], "saws": [], "darts": [], "water": [],
+			"checkpoints": [300.0, 950.0, 1950.0, 2600.0], "exit": Rect2(3150, gy - 100, 70, 100),
+		},
+		{
+			"name": "Çayır: Çit", "hero": "nehir", "ribbons": true, "w": 3600.0, "start": Vector2(80, gy - 54),
+			"hint": "Kutuyu düğmenin üstüne it: kapı açık kalır. Sonra ikinci kutuyla yüksek yere çık",
+			"statics": [Rect2(0, gy, 1150, 160), Rect2(1230, gy, 570, 160), Rect2(1800, gy - 130, 1800, 290)],
+			"crates": [Vector2(250, gy - 56), Vector2(1450, gy - 56)],
+			"plates": [{"rect": Rect2(650, gy - 8, 90, 8), "door": 0, "heavy": false}], "doors": [Rect2(950, 300, 30, 260)],
+			"spikes": [], "saws": [], "darts": [], "water": [],
+			"checkpoints": [300.0, 1050.0, 1850.0, 2500.0], "exit": Rect2(3400, gy - 130 - 100, 70, 100),
+		},
 	]

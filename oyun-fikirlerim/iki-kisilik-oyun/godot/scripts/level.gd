@@ -89,6 +89,8 @@ func build(d: Dictionary, ps: Array) -> void:
 	_make_exit(d["exit"])
 	for i in d["checkpoints"].size():
 		_make_checkpoint(i, d["checkpoints"][i])
+		if d.get("ribbons", false):
+			_make_ribbon(d["checkpoints"][i])
 
 func _poly(points: PackedVector2Array, col: Color) -> Polygon2D:
 	var p := Polygon2D.new()
@@ -377,6 +379,18 @@ func _make_exit(r: Rect2) -> void:
 	a.body_exited.connect(func(b: Node) -> void: exit_in.erase(b))
 	add_child(a)
 
+var ribbons: Array = []
+
+func _make_ribbon(x: float) -> void:   # babanın bağladığı kırmızı kurdele: kontrol noktası işareti
+	var post := _poly(PackedVector2Array([Vector2(x - 3, 480), Vector2(x + 3, 480), Vector2(x + 3, 566), Vector2(x - 3, 566)]), BLACK)
+	var rib := Polygon2D.new()
+	rib.polygon = PackedVector2Array([Vector2(0, 0), Vector2(26, -4), Vector2(44, 6), Vector2(30, 12), Vector2(46, 26), Vector2(20, 22), Vector2(0, 14)])
+	rib.color = Color("#C0392B")
+	rib.position = Vector2(x + 3, 488)
+	rib.z_index = 5
+	add_child(rib)
+	ribbons.append({"n": rib, "x": x, "on": false})
+
 func _make_checkpoint(i: int, x: float) -> void:
 	var a := Area2D.new()
 	a.collision_layer = 0
@@ -430,6 +444,14 @@ func restore(s: Dictionary) -> void:
 
 func _physics_process(delta: float) -> void:
 	t += delta
+	for rb: Dictionary in ribbons:
+		var n: Polygon2D = rb["n"]
+		n.rotation = sin(t * 2.2 + float(rb["x"]) * 0.01) * 0.12
+		n.scale = Vector2(1.0 + sin(t * 3.1 + float(rb["x"])) * 0.06, 1.0)
+		var near: bool = player != null and absf(player.global_position.x - float(rb["x"])) < 40.0
+		if near and not rb["on"]:
+			rb["on"] = true
+			Sfx.play("clink", -8.0)
 	# gizli platformlar: ışık değdiğinde belirir ve katı olur
 	for g: Dictionary in ghosts:
 		var r: Rect2 = g["rect"]

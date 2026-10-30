@@ -100,10 +100,10 @@ Stil kılavuzuna uy. Üç ayrı YATAY DÖŞENEBİLİR arka plan şeridi, 3072x10
 
 ## 5) DOSYA ADLARI (kaydederken)
 `assets/cevre/` altına: `cim_1.png`, `cim_2.png`, `toprak.png`, `kenar_sag.png`, `kenar_sol.png`, `camur.png`, `buz.png`,
-`cam_ince.png`, `cam_kalin.png`, `cam_kuru.png`, `agac_olu.png`, `govde_devrik.png`, `kutuk.png`, `cali.png`, `eğrelti.png`, `ot.png`,
+`cam_ince.png`, `cam_kalin.png`, `cam_kuru.png`, `agac_olu.png`, `govde_devrik.png`, `kutuk.png`, `cali.png`, `egrelti.png`, `ot.png`,
 `mantar.png`, `kaya_kucuk.png`, `kaya_orta.png`, `kaya_buyuk.png`, `sarmasik.png`, `kurdele_1..3.png`, `cit.png`, `cit_kirik.png`, `kapi.png`,
 `fener_direk_sonuk.png`, `fener_direk_yanik.png`, `iz_cocuk.png`, `iz_buyuk.png`, `iz_koyun.png`, `ev_isikli.png`, `ev_sonuk.png`,
-`cuval.png`, `dudu k.png` (düdük), `can.png`, `koyun_ayakta.png`, `koyun_otlayan.png`.
+`cuval.png`, `dudak.png` (düdük), `can.png`, `koyun_ayakta.png`, `koyun_otlayan.png`.
 **Ben dosya adlarını gelenlere göre kendim ayarlarım**; siz görselleri hangi adla gelirse gelsin klasöre atın ve bana "yeni görseller eklendi" deyin.
 
 ## Öncelik sırası (hepsini yaptırmanız gerekmez)

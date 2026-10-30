@@ -450,6 +450,8 @@ func _run_test() -> void:
 			await _t_touch()
 		"touch2":
 			await _t_touch2()
+		"cayir":
+			await _t_cayir()
 		"touch3":
 			await _t_touch3()
 		"touch4":
@@ -1002,3 +1004,53 @@ func _t_touch4() -> void:
 	await _wait(0.5)
 	print("TOUCH4 sağ basılı: grab=", Input.is_action_pressed("grab"), " right=", Input.is_action_pressed("right"))
 	_ev_touch(1, false, Vector2(900, 500))
+
+func _push_to(c: PushBody, x: float) -> void:
+	player.override["grab"] = true
+	player.override["right"] = true
+	await _until(func() -> bool: return c.global_position.x >= x, 12.0)
+	player.override["right"] = false
+	player.override["grab"] = false
+	await _wait(0.2)
+
+func _hop_over() -> void:
+	player.override["right"] = true
+	player.override["jump"] = true
+	await _wait(0.4)
+	player.override["jump"] = false
+	await _until(func() -> bool: return player.is_on_floor(), 2.0)
+
+func _t_cayir() -> void:
+	load_level(11)
+	await _wait(0.4)
+	player.override["right"] = true
+	await _until(func() -> bool: return player.global_position.x >= 850.0)
+	await _hop_over()
+	player.override["right"] = true
+	await _until(func() -> bool: return player.global_position.x >= 1250.0)
+	await _hop_over()
+	player.override["right"] = false
+	var cr := level.crates[0]
+	player.override["right"] = true
+	await _until(func() -> bool: return player.global_position.x >= cr.global_position.x - 45.0)
+	player.override["right"] = false
+	await _push_to(cr, 1832.0)
+	print("CAYIR1 kutu x=", cr.global_position.x, " Nehir x=", player.global_position.x)
+	# kutunun üstüne, oradan duvara
+	player.override["right"] = false
+	player.global_position.x = cr.global_position.x - 50.0
+	await _wait(0.3)
+	player.override["right"] = true
+	player.override["jump"] = true
+	await _wait(0.35)
+	player.override["jump"] = false
+	await _until(func() -> bool: return player.is_on_floor(), 2.0)
+	print("CAYIR1 kutu üstü y=", player.global_position.y, " (kutu üstü beklenen 504)")
+	player.override["jump"] = true
+	await _wait(0.5)
+	player.override["jump"] = false
+	await _until(func() -> bool: return player.is_on_floor(), 2.0)
+	print("CAYIR1 duvar üstü: y=", player.global_position.y, " x=", player.global_position.x, " (üst 430)")
+	await _until(func() -> bool: return player.global_position.x >= 3140.0 or player.dead, 20.0)
+	await _wait(1.5)
+	print("CAYIR1 bitti? idx=", idx, " state=", state, " ölü=", player.dead)
