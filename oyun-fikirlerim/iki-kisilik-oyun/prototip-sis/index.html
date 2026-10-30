@@ -96,7 +96,7 @@ const LEVELS = [
 /* ============ Durum ============ */
 const P = { x: 0, y: 0, w: 26, h: 54, vx: 0, vy: 0, face: 1, onGround: false, standing: null, coyote: 0, jumpReq: 0, grab: false, anim: 0, squash: 0, dx: 0 };
 let lvlIdx = 0, L = null, crates = [], plates = [], doors = [], saws = [], darts = [], arrows = [], cp = null, cpSnap = null;
-const M = { kind: "mask", state: "none", w: 46, h: 70, x: 0, y: 0, vx: 0, vy: 0, dx: 0, x0: 0, y0: 0, onGround: false };   // Kabuk'un maskesi: none | worn | ground
+const M = { kind: "mask", state: "none", w: 40, h: 68, x: 0, y: 0, vx: 0, vy: 0, dx: 0, x0: 0, y0: 0, onGround: false };   // Kabuk'un maskesi: none | worn | ground
 const bodies = () => (M.state === "ground" ? crates.concat([M]) : crates);
 let lastDrag = 0, shakeT = 0, look = 0;
 const shake = (a) => { shakeT = Math.max(shakeT, Math.min(1, a)); };
@@ -418,13 +418,60 @@ function drawWorld() {
   ctx.globalAlpha = 1; ctx.restore();
 }
 function drawMaskItem(x, y, w, h) {   // kırık porselen maske: oyunun tek açık renkli nesnesi
+  if (ri.mask.complete && ri.mask.naturalWidth) { ctx.drawImage(ri.mask, x, y, w, h); return; }
   ctx.fillStyle = "#e7e3d8"; ctx.strokeStyle = "#0b0b0c"; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.ellipse(x + w / 2, y + h / 2, w / 2 - 1, h / 2 - 1, 0, 0, 7); ctx.fill(); ctx.stroke();
   ctx.strokeStyle = "#3a3a3c"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + w * 0.62, y + h * 0.42, 6, 0.2, Math.PI - 0.2); ctx.stroke();   // kapalı göz
   ctx.beginPath(); ctx.moveTo(x + w * 0.2, y + 6); ctx.lineTo(x + w * 0.38, y + h * 0.3); ctx.lineTo(x + w * 0.28, y + h * 0.5); ctx.lineTo(x + w * 0.45, y + h * 0.75); ctx.stroke();   // çatlak
 }
+/* ---- Kabuk: gerçek parça görselleriyle iskelet (ChatGPT parçaları, tools_rig.py ile kesildi) ---- */
+const RA = {"head": {"w": 27, "h": 27, "neck": [13.5, 24.2]}, "torso": {"w": 17, "h": 38, "neck": [8.7, 1.4], "shoulder": [8.7, 7.6], "hip": [8.7, 33.7]}, "uleg": {"w": 19, "h": 30, "top": [4.7, 4.8], "bot": [11.1, 19.7]}, "uarm": {"w": 16, "h": 28, "top": [4.3, 4.3], "bot": [12.3, 24.8]}, "lleg": {"w": 18, "h": 32, "top": [9.0, 3.9], "bot": [8.9, 32.1]}, "larm": {"w": 17, "h": 29, "top": [3.9, 3.9], "bot": [8.4, 28.9]}, "mask": {"w": 77, "h": 134}};
+const RS = { head: 'sprites/kabuk_head.png', torso: 'sprites/kabuk_torso.png', uleg: 'sprites/kabuk_uleg.png', uarm: 'sprites/kabuk_uarm.png', lleg: 'sprites/kabuk_lleg.png', larm: 'sprites/kabuk_larm.png', mask: 'sprites/kabuk_mask.png' };
+const ri = {}; for (const k in RS) { const i = new Image(); i.src = RS[k]; ri[k] = i; }
+const rigReady = () => Object.keys(RS).every((k) => ri[k].complete && ri[k].naturalWidth);
+const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+const RG = { U1: dist(RA.uleg.top, RA.uleg.bot) / 2, U2: (RA.lleg.bot[1] - RA.lleg.top[1]) / 2, TORSO: (RA.torso.hip[1] - RA.torso.shoulder[1]) / 2,
+  NECK: (RA.torso.hip[1] - RA.torso.neck[1]) / 2, A1: dist(RA.uarm.top, RA.uarm.bot) / 2, A2: (RA.larm.bot[1] - RA.larm.top[1]) / 2 };
+const rest = (an) => Math.atan2(an.bot[0] - an.top[0], an.bot[1] - an.top[1]);
+function part(k, x, y, dir) {   // parçayı üst eklemi (x,y)'de, ekseni "dir" açısında (aşağıdan, ileri +) olacak şekilde çiz
+  const an = RA[k]; ctx.save(); ctx.translate(x, y); ctx.rotate(rest(an) - dir); ctx.scale(0.5, 0.5); ctx.drawImage(ri[k], -an.top[0], -an.top[1]); ctx.restore();
+}
+function drawRig() {
+  const worn = M.state === "worn", spd = Math.abs(P.vx), run = P.onGround && spd > 20, ph = P.anim * Math.PI;
+  const crouch = P.squash > 0 ? Math.min(1, P.squash * 5) : (P.recover > 0 ? 0.6 : 0);
+  const { U1, U2, TORSO, NECK, A1, A2 } = RG;
+  const pushing = P.grab, pulling = P.grab && ((P.vx > 0) !== (P.face > 0)) && spd > 5;
+  let lean = run ? 0.06 + Math.min(1, spd / 165) * 0.1 : 0; if (pushing) lean = pulling ? -0.18 : 0.28; if (worn) lean = -0.08; if (crouch) lean += 0.25 * crouch;
+  const leg = (a, bend) => { const kx = Math.sin(a) * U1, ky = Math.cos(a) * U1, sa = a - bend; return { a, sa, kx, ky, fx: kx + Math.sin(sa) * U2, fy: ky + Math.cos(sa) * U2 }; };
+  let l1, l2;
+  if (!P.onGround) { l1 = P.vy < 0 ? leg(0.95, 1.25) : leg(0.55, 0.5); l2 = P.vy < 0 ? leg(-0.35, 0.6) : leg(-0.3, 0.3); }
+  else if (crouch) { l1 = leg(0.8, 1.5 * crouch + 0.1); l2 = leg(-0.2, 1.2 * crouch); }
+  else if (run) { const sw = (pushing || worn) ? 0.35 : 0.62; l1 = leg(Math.sin(ph) * sw, Math.max(0, Math.cos(ph)) * 0.95); l2 = leg(-Math.sin(ph) * sw, Math.max(0, -Math.cos(ph)) * 0.95); }
+  else { l1 = leg(0.12, 0.05); l2 = leg(-0.1, 0.05); }
+  const hipY = P.onGround ? -Math.max(l1.fy, l2.fy) : -(U1 + U2) * 0.95;
+  const bob = run ? Math.abs(Math.sin(ph)) * 1.4 : Math.sin(T * 1.8) * 0.5;
+  const hx = 0, hy = hipY - bob, sx = hx + Math.sin(lean) * TORSO, sy = hy - Math.cos(lean) * TORSO;
+  const arm = (a, bend) => { const ex = sx + Math.sin(a) * A1, ey = sy + Math.cos(a) * A1, ba = a + bend; return { a, ba, ex, ey }; };
+  let a1, a2;
+  if (worn) { a1 = arm(1.25, 0.25); a2 = arm(1.05, 0.3); }
+  else if (pushing) { a1 = arm(1.5, 0.05); a2 = arm(1.35, 0.1); }
+  else if (!P.onGround) { a1 = P.vy < 0 ? arm(2.5, 0.2) : arm(1.9, 0.3); a2 = P.vy < 0 ? arm(2.0, 0.3) : arm(-1.2, 0.2); }
+  else if (run) { a1 = arm(-Math.sin(ph) * 0.7, 0.5 + Math.max(0, Math.sin(ph)) * 0.5); a2 = arm(Math.sin(ph) * 0.7, 0.5 + Math.max(0, -Math.sin(ph)) * 0.5); }
+  else { const br = Math.sin(T * 1.8) * 0.04; a1 = arm(0.1 + br, 0.15); a2 = arm(-0.12 - br, 0.15); }
+  const sqk = P.squash > 0 ? 1 - P.squash * 0.9 : 1;
+  ctx.save(); ctx.translate(P.x + P.w / 2, P.y + P.h + 2); ctx.scale(P.face * (2 - sqk), sqk);
+  const limbs = (l, a) => { part("uleg", hx, hy, l.a); part("lleg", hx + l.kx, hy + l.ky, l.sa); };
+  limbs(l2); part("uarm", sx, sy, a2.a); part("larm", a2.ex, a2.ey, a2.ba);            // arka bacak ve kol
+  ctx.save(); ctx.translate(hx, hy); ctx.rotate(lean); ctx.scale(0.5, 0.5); ctx.drawImage(ri.torso, -RA.torso.hip[0], -RA.torso.hip[1]); ctx.restore();   // gövde
+  const nx = hx + Math.sin(lean) * NECK, ny = hy - Math.cos(lean) * NECK;
+  ctx.save(); ctx.translate(nx, ny); ctx.rotate(lean * 0.6 + (P.onGround ? 0 : P.vy * 0.0002)); ctx.scale(0.5, 0.5); ctx.drawImage(ri.head, -RA.head.neck[0], -RA.head.neck[1]); ctx.restore();   // baş
+  limbs(l1); part("uarm", sx, sy, a1.a); part("larm", a1.ex, a1.ey, a1.ba);            // ön bacak ve kol
+  if (worn) { ctx.save(); ctx.translate(15, -M.h / 2 - 2 + Math.sin(T * 1.8) * 0.6); ctx.drawImage(ri.mask, -M.w / 2, -M.h / 2, M.w, M.h); ctx.restore(); }   // maske önde, kalkan
+  ctx.restore();
+}
 /* Geçici silüet karakter: iskeletli (iki kemikli bacak/kol), tasarım gelince sprite parçalarıyla değişecek */
 function drawPlayer() {
+  if (rigReady()) return drawRig();
   const worn = M.state === "worn", spd = Math.abs(P.vx), run = P.onGround && spd > 20, ph = P.anim * Math.PI;
   const crouch = P.squash > 0 ? Math.min(1, P.squash * 5) : (P.recover > 0 ? 0.6 : 0);
   const L1 = 13, L2 = 12, TORSO = 15, HEAD = 7.5;
@@ -498,7 +545,7 @@ function checkRot() { document.getElementById("rot").hidden = !(matchMedia("(poi
 addEventListener("resize", checkRot); checkRot();
 buildMenu(); loadLevel(0); mode = "menu"; document.getElementById("menu").hidden = false; fade = 0;
 requestAnimationFrame(frame);
-window.__g = { P, M, get arrows() { return arrows; },  get saws() { return saws; }, get crates() { return crates; }, get doors() { return doors; }, step, loadLevel, get mode() { return mode; }, get lvl() { return lvlIdx; }, keys, setKey, get cp() { return cp; } };
+window.__g = { P, M, get cam() { return cam; }, get arrows() { return arrows; },  get saws() { return saws; }, get crates() { return crates; }, get doors() { return doors; }, step, loadLevel, get mode() { return mode; }, set mode(v) { mode = v; }, get lvl() { return lvlIdx; }, keys, setKey, get cp() { return cp; } };
 </script>
 </body>
 </html>
