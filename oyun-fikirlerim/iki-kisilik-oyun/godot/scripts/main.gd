@@ -371,6 +371,8 @@ func _run_test() -> void:
 			await _shot("res://../test_l1.png")
 		"touch":
 			await _t_touch()
+		"touch2":
+			await _t_touch2()
 		"coop":
 			await _t_c1()
 			await _t_c2()
@@ -701,3 +703,37 @@ func _t_touch() -> void:
 	_ev_touch(0, false, Vector2(300, 400))
 	await _wait(0.2)
 	print("TOUCH hepsi bırakıldı: grab=", Input.is_action_pressed("grab"), " mask=", Input.is_action_pressed("mask"))
+
+func _t_touch2() -> void:
+	Game.touch_ui = true
+	load_level(3)
+	await _wait(0.4)
+	touch = TouchControls.new()
+	add_child(touch)
+	touch.enabled = true
+	state = "play"
+	player.global_position = Vector2(160, 560)
+	await _wait(0.5)
+	print("TOUCH2 başta maske takılı mı: ", player.worn)
+	_ev_touch(0, true, Vector2(300, 400))
+	await _wait(0.1)
+	_ev_touch(1, true, Vector2(900, 400))
+	await _wait(0.1)
+	_ev_touch(1, false, Vector2(900, 400))
+	await _wait(0.4)
+	print("TOUCH2 ikinci parmak dokunuşuyla maske alındı mı: ", player.worn)
+	_ev_touch(1, true, Vector2(900, 400))
+	await _wait(0.1)
+	_ev_touch(1, false, Vector2(900, 400))
+	await _wait(0.4)
+	print("TOUCH2 tekrar dokunuşla fırlatıldı mı (takılı=false beklenir): ", player.worn, " maske aktif=", level.mask.active)
+	_ev_touch(0, false, Vector2(300, 400))
+	await _wait(0.2)
+	# tek parmakla kısa dokunuş da eşya eylemi
+	player.global_position = level.mask.global_position + Vector2(-34, 34)
+	await _wait(0.5)
+	_ev_touch(0, true, Vector2(300, 400))
+	await _wait(0.08)
+	_ev_touch(0, false, Vector2(300, 400))
+	await _wait(0.4)
+	print("TOUCH2 tek parmak kısa dokunuşla alındı mı: ", player.worn)
