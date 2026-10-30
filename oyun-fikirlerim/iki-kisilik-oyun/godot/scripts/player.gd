@@ -157,7 +157,7 @@ func mask_action() -> void:
 	var lamp := level.lamp
 	if has_lamp:   # lamba elde: kancaya as ya da at
 		var hp := lamp_hand()
-		var hook := level.hook_near(hp, 55.0)
+		var hook := level.hook_near(global_position + Vector2(face * 10.0, -32.0), 75.0)   # gövde hizasından kancaya mesafe
 		if hook >= 0:
 			lamp.hang(level.hook_point(hook))
 			Sfx.play("clink")

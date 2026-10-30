@@ -131,7 +131,7 @@ func _make_hook(h: Dictionary) -> void:   # lamba kancası: direk + kol; ışık
 
 func hook_near(p: Vector2, r: float) -> int:
 	for i in hooks.size():
-		if (hooks[i]["pos"] as Vector2).distance_to(p) < r:
+		if hook_point(i).distance_to(p) < r:
 			return i
 	return -1
 
