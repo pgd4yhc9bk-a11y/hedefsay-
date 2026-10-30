@@ -94,11 +94,12 @@ func _build_ui() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 96)
 	menu.add_child(title)
-	var row := HBoxContainer.new()
-	row.position = Vector2(40, 340)
-	row.size = Vector2(1200, 60)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 14)
+	var row := GridContainer.new()
+	row.columns = 7
+	row.position = Vector2(120, 300)
+	row.size = Vector2(1040, 120)
+	row.add_theme_constant_override("h_separation", 12)
+	row.add_theme_constant_override("v_separation", 12)
 	menu.add_child(row)
 	for i in levels.size():
 		var b := Button.new()
@@ -108,7 +109,7 @@ func _build_ui() -> void:
 		row.add_child(b)
 	var snd := Button.new()
 	snd.text = "Ses: açık"
-	snd.position = Vector2(560, 430)
+	snd.position = Vector2(560, 560)
 	snd.size = Vector2(160, 46)
 	snd.pressed.connect(func() -> void:
 		Sfx.set_muted(not Sfx.muted)
