@@ -49,7 +49,7 @@ func _in(n: String) -> bool:
 	var a := prefix + n
 	return InputMap.has_action(a) and Input.is_action_pressed(a)
 
-func _adjacent() -> Dictionary:
+func _adjacent(tol: float = 5.0) -> Dictionary:
 	var pr := Rect2(global_position.x - SIZE.x / 2.0, global_position.y - SIZE.y, SIZE.x, SIZE.y)
 	for n in get_tree().get_nodes_in_group("push"):
 		var b := n as PushBody
@@ -58,9 +58,9 @@ func _adjacent() -> Dictionary:
 		var r := b.rect()
 		if not (pr.end.y > r.position.y + 6.0 and pr.position.y < r.end.y):
 			continue
-		if absf(pr.end.x - r.position.x) < 5.0:
+		if absf(pr.end.x - r.position.x) < tol:
 			return {"b": b, "side": 1}
-		if absf(r.end.x - pr.position.x) < 5.0:
+		if absf(r.end.x - pr.position.x) < tol:
 			return {"b": b, "side": -1}
 	return {}
 
@@ -70,7 +70,7 @@ func _physics_process(delta: float) -> void:
 	t += delta
 	var grounded := is_on_floor()
 	var d := int(_in("right")) - int(_in("left"))
-	var adj := _adjacent()
+	var adj := _adjacent(14.0 if grab else 5.0)   # tutarken biraz toleranslı (kutu birlikte kayar)
 	grab = skin == "kabuk" and _in("grab") and grounded and not adj.is_empty()
 	recover = maxf(0.0, recover - delta)
 	var speed := 175.0 if skin == "kul" else 165.0
@@ -107,6 +107,10 @@ func _physics_process(delta: float) -> void:
 	if not j and velocity.y < -200.0:
 		velocity.y *= 0.55
 	velocity.y = minf(950.0, velocity.y + _gravity * delta)
+	if grab and not adj.is_empty():   # çekme: kutu, oyuncuyla aynı adımda aynı hızla uzaklaşır
+		var away: bool = (adj["side"] > 0 and velocity.x < -1.0) or (adj["side"] < 0 and velocity.x > 1.0)
+		if away:
+			(adj["b"] as PushBody).push(velocity.x)
 	var pre := velocity
 	move_and_slide()
 	# kasa itme / çekme
@@ -118,7 +122,6 @@ func _physics_process(delta: float) -> void:
 	if grab and not adj.is_empty():
 		var moving_away: bool = (adj["side"] > 0 and velocity.x < -1.0) or (adj["side"] < 0 and velocity.x > 1.0)
 		if moving_away:
-			(adj["b"] as PushBody).push(velocity.x)
 			_drag_t -= delta
 			if _drag_t <= 0.0:
 				_drag_t = 0.16

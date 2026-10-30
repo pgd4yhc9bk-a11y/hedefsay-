@@ -51,6 +51,7 @@ func _draw() -> void:
 func push(vx: float) -> void:
 	linear_velocity.x = vx
 	_pushed = 0.12
+	physics_material_override.friction = 0.0   # sürülürken zemin sürtünmesi hızı yemesin, oyuncuyla senkron kalsın
 
 func launch(center: Vector2, vel: Vector2) -> void:
 	active = true
@@ -84,6 +85,8 @@ func _physics_process(delta: float) -> void:
 	if not active:
 		return
 	_pushed -= delta
+	if _pushed <= 0.0 and physics_material_override.friction < 1.0:
+		physics_material_override.friction = 1.0
 	if _pushed <= 0.0 and absf(linear_velocity.x) > 0.0 and absf(linear_velocity.y) < 25.0:   # yalnızca yerde kayarken sürtünme
 		linear_velocity.x = move_toward(linear_velocity.x, 0.0, 1400.0 * delta)
 	var floating := false
