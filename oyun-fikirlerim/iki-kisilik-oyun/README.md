@@ -1,7 +1,8 @@
 # Limbo Tarzı Bulmaca-Platform (çalışma adı)
 
 Atmosferik 2D bulmaca-platform (Limbo / Inside tarzı). Tek başına ve online 2 kişilik co-op; canlı sesli sohbet.
-Teknoloji: **web (HTML5 Canvas + WebRTC)**. Önceki renkli/iple bağlı yön `arsiv-v0-renkli-ip/` içinde.
+Oyun **Godot 4.3** ile yapılıyor (`godot/`), web sürümü GitHub Pages'te. Hikâye ve karakterler (Nehir ve Çınar): `HIKAYE.md`.
+`prototip-sis/` ilk JavaScript prototipi, `arsiv-v0-renkli-ip/` en ilk renkli/iple bağlı yön (ikisi de yalnızca referans).
 
 ## İş bölümü
 | Kim | Ne yapar |
@@ -11,7 +12,7 @@ Teknoloji: **web (HTML5 Canvas + WebRTC)**. Önceki renkli/iple bağlı yön `ar
 | Siz | Karar verici; görselleri ChatGPT'den alıp `assets/` klasörüne koyar |
 
 ## Görsel akışı (token tasarrufu)
-1. `assets/ASSET-PROMPTLARI.md` içindeki **Stil Kılavuzu**'nu ChatGPT'ye bir kez yapıştırın.
+1. Karakterler için `KARAKTER-PROMPTLARI.md`, çevre için `CEVRE-PROMPTLARI.md` (toplu ızgara promptları sonda).
 2. Listedeki her varlığın promptunu sırayla verin (hepsi stil kılavuzunu içerir, tutarlılık için).
 3. Çıkan PNG'yi dosya adı tablosundaki isimle `assets/` altına kaydedin.
 4. Bana "yeni görseller eklendi" deyin; koda ben bağlarım.

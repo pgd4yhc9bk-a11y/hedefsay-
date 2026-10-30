@@ -2,7 +2,12 @@ extends Node2D
 ## Oyun akışı: menü, bölüm yükleme, kontrol noktası, ölüm/yeniden başlama, kamera, dokunmatik düğmeler.
 
 var levels: Array = Levels.all()
+# Oynanış sırası: önce hikâye bölümleri (Nehir ve Çınar), sonra eski deneme bölümleri. Sayılar levels dizisindeki yerler.
+const STORY := [11, 12, 10, 9]
+var order: Array = []
 var idx := 0
+var touch_hint_shown := false
+var cur_zoom := 2.0
 var level: LevelRoot
 var player: Player
 var players: Array = []
@@ -38,8 +43,14 @@ func _ready() -> void:
 	cam.zoom = Vector2(Game.zoom, Game.zoom)
 	add_child(cam)
 	cam.make_current()
+	order = STORY.duplicate()
+	for i in levels.size():
+		if not order.has(i):
+			order.append(i)
+	cur_zoom = Game.zoom
 	_build_ui()
-	load_level(0)
+	load_level(order[0])
+	hint.modulate.a = 0.0   # menü açıkken bölüm ipucu görünmesin (bölüm seçilince yeniden gösterilir)
 	state = "menu"
 	menu.visible = true
 	if Game.test_mode:
@@ -69,9 +80,10 @@ func _build_ui() -> void:
 	ui.layer = 20
 	add_child(ui)
 	hint = Label.new()
-	hint.position = Vector2(0, 90)
-	hint.size = Vector2(1280, 80)
+	hint.position = Vector2(140, 70)
+	hint.size = Vector2(1000, 120)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # uzun ipuçları ekrandan taşmasın
 	hint.add_theme_font_size_override("font_size", 22)
 	hint.modulate.a = 0.0
 	ui.add_child(hint)
@@ -94,22 +106,31 @@ func _build_ui() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 96)
 	menu.add_child(title)
-	var row := GridContainer.new()
-	row.columns = 7
-	row.position = Vector2(120, 300)
-	row.size = Vector2(1040, 120)
-	row.add_theme_constant_override("h_separation", 12)
-	row.add_theme_constant_override("v_separation", 12)
-	menu.add_child(row)
-	for i in levels.size():
-		var b := Button.new()
-		b.text = "%d  %s" % [i + 1, levels[i]["name"]] + ("\nco-op" if levels[i].get("coop", false) else "")
-		b.custom_minimum_size = Vector2(120, 54)
-		b.pressed.connect(func() -> void: start_level(i))
-		row.add_child(b)
+	var y := 290.0
+	for group: Array in [["Hikâye", STORY], ["Deneme bölümleri", order.slice(STORY.size())]]:
+		var glb := Label.new()
+		glb.text = group[0]
+		glb.position = Vector2(120, y)
+		glb.add_theme_font_size_override("font_size", 20)
+		menu.add_child(glb)
+		var row := GridContainer.new()
+		row.columns = 7
+		row.position = Vector2(120, y + 32.0)
+		row.add_theme_constant_override("h_separation", 12)
+		row.add_theme_constant_override("v_separation", 12)
+		menu.add_child(row)
+		var n := 0
+		for i: int in group[1]:
+			n += 1
+			var b := Button.new()
+			b.text = "%d  %s" % [n, levels[i]["name"]] + ("\nco-op" if levels[i].get("coop", false) else "")
+			b.custom_minimum_size = Vector2(130, 54)
+			b.pressed.connect(func() -> void: start_level(i))
+			row.add_child(b)
+		y += 32.0 + 70.0 * ceil(float(n) / 7.0) + 20.0
 	var snd := Button.new()
 	snd.text = "Ses: açık"
-	snd.position = Vector2(560, 560)
+	snd.position = Vector2(560, 640)
 	snd.size = Vector2(160, 46)
 	snd.pressed.connect(func() -> void:
 		Sfx.set_muted(not Sfx.muted)
@@ -164,7 +185,7 @@ func _build_ui() -> void:
 func command_at(screen_pos: Vector2) -> void:
 	if companion == null or state != "play":
 		return
-	var wx := cam_x + screen_pos.x / Game.zoom
+	var wx := cam_x + screen_pos.x / cur_zoom
 	if absf(wx - companion.me.global_position.x) < 50.0:
 		companion.toggle_wait()
 	else:
@@ -243,7 +264,7 @@ func load_level(i: int) -> void:
 	state_t = 0.0
 	fade.color.a = 1.0
 	var h: String = d["hint"]
-	var label := "%d · %s" % [i + 1, String(d["name"]).to_upper()]
+	var label := String(d["name"]).to_upper()
 	if coop:
 		label += "  (co-op)"
 	hint.text = label + "\n" + h
@@ -252,7 +273,8 @@ func load_level(i: int) -> void:
 	if touch != null:
 		touch.release_all()
 		touch.prefix = "p1_" if coop else ""
-		if i == 0 and touch_hint != null:
+		if not touch_hint_shown and touch_hint != null and not menu.visible:
+			touch_hint_shown = true
 			touch_hint.modulate.a = 1.0
 			create_tween().tween_property(touch_hint, "modulate:a", 0.0, 1.5).set_delay(7.0)
 
@@ -280,6 +302,8 @@ func _respawn() -> void:
 	level.restore(cp["snap"])
 	for k in players.size():
 		players[k].revive(cp["pos"] + Vector2(-30.0 * k, 0.0))
+	if companion != null:
+		companion.mode = "follow"
 	state = "play"
 
 func _process(delta: float) -> void:
@@ -300,8 +324,9 @@ func _process(delta: float) -> void:
 		"win":
 			fade.color.a = move_toward(fade.color.a, 1.0, delta * 1.8)
 			if state_t > 1.2:
-				if idx + 1 < levels.size():
-					load_level(idx + 1)
+				var pos := order.find(idx)
+				if pos >= 0 and pos + 1 < order.size() and pos + 1 != STORY.size():
+					load_level(order[pos + 1])
 				else:
 					state = "menu"
 					end_panel.visible = true
@@ -314,13 +339,21 @@ func _process(delta: float) -> void:
 	# kamera: oyuncuya (co-op'ta iki oyuncunun ortasına) göre, baktığı yöne ileri bakış, ağır olaylarda sarsıntı
 	if player != null and level != null:
 		var w: float = levels[idx]["w"]
-		var mid := 0.0
-		for p: Player in players:
-			mid += p.global_position.x
-		mid /= players.size()
+		var coop: bool = levels[idx].get("coop", false)
+		var mid := player.global_position.x   # tek oyunculu (Çınar yapay zekâ ise de) kamera Nehir'i izler
+		var target_zoom := Game.zoom
+		if coop:   # co-op: iki oyuncunun ortası; aralarındaki mesafe büyürse kamera uzaklaşır
+			var lo := INF
+			var hi := -INF
+			for p: Player in players:
+				lo = minf(lo, p.global_position.x)
+				hi = maxf(hi, p.global_position.x)
+			mid = (lo + hi) / 2.0
+			target_zoom = clampf(1280.0 / (hi - lo + 420.0), 1.0, Game.zoom)
+		cur_zoom = lerpf(cur_zoom, target_zoom, 0.05)
 		var moving := absf(player.velocity.x) > 10.0
 		look = lerpf(look, player.face * (90.0 if moving else 30.0), 0.02)
-		var z := Game.zoom
+		var z := cur_zoom
 		var vw := 1280.0 / z
 		var tx := clampf(mid - vw * 0.4 + look, 0.0, maxf(0.0, w - vw))
 		cam_x = lerpf(cam_x, tx, 0.07)
@@ -331,12 +364,14 @@ func _process(delta: float) -> void:
 		cam.zoom = Vector2(z, z)
 		cam.position = Vector2(cam_x + vw / 2.0, cam_y + 360.0 / z) + sh
 		backdrop.update(cam_x, cam_y, z)
-		if players.size() > 1:   # iki oyuncu aynı ekranda kalır: kenarlara çarpar
+		if coop:   # co-op: iki oyuncu aynı ekranda kalır, kenarlara çarpar
 			for p: Player in players:
 				var nx := clampf(p.global_position.x, cam_x + 24.0, cam_x + vw - 24.0)
 				if nx != p.global_position.x:
 					p.global_position.x = nx
 					p.velocity.x = 0.0
+		if companion != null and level.exit_in.has(player) and companion.mode != "follow":
+			companion.mode = "follow"   # abla çıkışa vardı: Çınar beklemeyi bırakıp gelir
 		if dark_on and players.size() > 1:
 			var kul: Player = players[1]
 			var ep := kul.global_position
@@ -403,13 +438,6 @@ func _run_test() -> void:
 			players[0].global_position = Vector2(200, 560)
 			await _wait(1.0)
 			await _shot("res://../test_kul.png")
-		"dbg":
-			load_level(0)
-			await _wait(0.3)
-			_hold("right", true)
-			for i in 8:
-				await _wait(0.5)
-				print("x=%.1f y=%.1f vx=%.1f vy=%.1f floor=%s" % [player.global_position.x, player.global_position.y, player.velocity.x, player.velocity.y, player.is_on_floor()])
 		"l1":
 			load_level(0)
 			await _wait(0.3)
@@ -426,6 +454,24 @@ func _run_test() -> void:
 			await _t_push()
 		"sibling":
 			await _t_sibling()
+		"menushot":
+			menu.visible = true
+			state = "menu"
+			await _wait(0.5)
+			await _shot("res://../test_menu.png")
+		"smoke":
+			for lv in levels.size():
+				load_level(lv)
+				await _wait(0.3)
+				var ok := level != null and player != null
+				for p: Player in players:
+					p.override["right"] = true
+				await _wait(1.2)
+				for p: Player in players:
+					p.override["right"] = false
+					if p.global_position.y > 700.0 or p.dead:
+						ok = false
+				print("SMOKE %2d %-14s oyuncu=%d x=%.0f y=%.0f ölü=%s durum=%s %s" % [lv + 1, levels[lv]["name"], players.size(), player.global_position.x, player.global_position.y, player.dead, state, "OK" if ok else "SORUN"])
 		"cayirshot":
 			for lv in [11, 12]:
 				load_level(lv)
@@ -471,29 +517,12 @@ func _run_test() -> void:
 			await _shot("res://../test_nehir3.png")
 		"ice":
 			await _t_ice()
-		"touch":
-			await _t_touch()
 		"touch2":
 			await _t_touch2()
 		"cayir":
 			await _t_cayir()
 		"cayir2":
 			await _t_cayir2()
-		"dbgc":
-			load_level(12)
-			await _wait(0.4)
-			var c0 := level.crates[0]
-			await _walk_auto(c0.global_position.x - 45.0)
-			await _push_to(c0, 700.0)
-			player.override["right"] = true
-			for i in 10:
-				await _wait(0.2)
-				player.override["jump"] = player.is_on_wall() and player.is_on_floor()
-				print("DBG x=%.1f y=%.1f vx=%.1f wall=%s floor=%s jump=%s crate=%.1f" % [player.global_position.x, player.global_position.y, player.velocity.x, player.is_on_wall(), player.is_on_floor(), player.override["jump"], c0.global_position.x])
-		"touch3":
-			await _t_touch3()
-		"touch4":
-			await _t_touch4()
 		"touch5":
 			await _t_touch5()
 		"coop":
@@ -782,53 +811,6 @@ func _ev_drag(idx: int, pos: Vector2) -> void:
 	e.position = pos
 	Input.parse_input_event(e)
 
-func _t_touch() -> void:
-	Game.touch_ui = true
-	load_level(0)
-	await _wait(0.4)
-	touch = TouchControls.new()
-	add_child(touch)
-	touch.enabled = true
-	state = "play"
-	var x0 := player.global_position.x
-	# sağa kaydır -> yürür
-	_ev_touch(0, true, Vector2(400, 400))
-	await get_tree().physics_frame
-	_ev_drag(0, Vector2(470, 400))
-	await _wait(1.0)
-	print("TOUCH sağa kaydırma: right=", Input.is_action_pressed("right"), " dx=", player.global_position.x - x0)
-	# yukarı kaydır -> zıplar
-	_ev_drag(0, Vector2(470, 330))
-	await _wait(0.25)
-	print("TOUCH yukarı kaydırma: jump=", Input.is_action_pressed("jump"), " havada=", not player.is_on_floor(), " y=", player.global_position.y)
-	# başlangıç noktası parmağı izliyor: uzağa sürükle, sonra sola dön
-	_ev_drag(0, Vector2(470, 400))
-	await _wait(0.6)
-	_ev_drag(0, Vector2(700, 400))
-	await _wait(0.3)
-	_ev_drag(0, Vector2(630, 400))
-	await _wait(0.3)
-	print("TOUCH sola dönüş (izleyen başlangıç): left=", Input.is_action_pressed("left"), " right=", Input.is_action_pressed("right"))
-	_ev_touch(0, false, Vector2(640, 400))
-	await _wait(0.3)
-	print("TOUCH bırakınca: right=", Input.is_action_pressed("right"), " left=", Input.is_action_pressed("left"), " jump=", Input.is_action_pressed("jump"))
-	# ikinci parmak: dokun -> eşya, basılı -> tut
-	_ev_touch(0, true, Vector2(300, 400))
-	await _wait(0.1)
-	_ev_touch(1, true, Vector2(900, 400))
-	await _wait(0.1)
-	_ev_touch(1, false, Vector2(900, 400))
-	await get_tree().physics_frame
-	print("TOUCH ikinci parmak dokunuş -> mask basıldı mı: ", Input.is_action_pressed("mask"))
-	await _wait(0.2)
-	_ev_touch(1, true, Vector2(900, 400))
-	await _wait(0.5)
-	print("TOUCH ikinci parmak basılı -> grab: ", Input.is_action_pressed("grab"))
-	_ev_touch(1, false, Vector2(900, 400))
-	_ev_touch(0, false, Vector2(300, 400))
-	await _wait(0.2)
-	print("TOUCH hepsi bırakıldı: grab=", Input.is_action_pressed("grab"), " mask=", Input.is_action_pressed("mask"))
-
 func _t_touch2() -> void:
 	Game.touch_ui = true
 	load_level(3)
@@ -860,50 +842,8 @@ func _t_touch2() -> void:
 	_ev_touch(0, true, Vector2(300, 400))
 	await _wait(0.08)
 	_ev_touch(0, false, Vector2(300, 400))
-	await _wait(0.4)
+	await _wait(0.6)
 	print("TOUCH2 tek parmak kısa dokunuşla alındı mı: ", player.worn)
-
-func _t_touch3() -> void:
-	Game.touch_ui = true
-	load_level(1)
-	await _wait(0.4)
-	touch = TouchControls.new()
-	add_child(touch)
-	touch.enabled = true
-	state = "play"
-	# sol parmak sağa kaydırır (yürür), sağ parmak yukarı kaydırır (zıplar): aynı anda
-	var x0 := player.global_position.x
-	_ev_touch(0, true, Vector2(200, 400))
-	await get_tree().physics_frame
-	_ev_drag(0, Vector2(270, 400))
-	await _wait(0.4)
-	_ev_touch(1, true, Vector2(900, 500))
-	await get_tree().physics_frame
-	_ev_drag(1, Vector2(900, 420))
-	await _wait(0.2)
-	print("TOUCH3 yürürken zıplama: right=", Input.is_action_pressed("right"), " jump=", Input.is_action_pressed("jump"), " havada=", not player.is_on_floor(), " dx=", player.global_position.x - x0)
-	_ev_touch(1, false, Vector2(900, 420))
-	_ev_touch(0, false, Vector2(270, 400))
-	await _wait(1.0)
-	# kutuyu çek: sağ parmak basılı (tut), sol parmak sola sürüklenir
-	var crate := level.crates[0]
-	player.global_position = Vector2(crate.global_position.x - 28.0 - 13.0 - 1.0, 560.0)
-	player.velocity = Vector2.ZERO
-	await _wait(0.5)
-	var cx0 := crate.global_position.x
-	_ev_touch(0, true, Vector2(400, 400))
-	await get_tree().physics_frame
-	_ev_touch(1, true, Vector2(900, 500))
-	await _wait(0.5)
-	print("TOUCH3 ikinci parmak basılı -> grab: ", Input.is_action_pressed("grab"), " tutuyor=", player.grab)
-	_ev_drag(0, Vector2(330, 400))
-	await _wait(1.0)
-	print("TOUCH3 kutu çekildi mi: kutu x ", cx0, " -> ", crate.global_position.x, " oyuncu x=", player.global_position.x)
-	_ev_drag(0, Vector2(470, 400))
-	await _wait(0.8)
-	print("TOUCH3 kutu itildi mi: kutu x=", crate.global_position.x, " oyuncu x=", player.global_position.x)
-	_ev_touch(1, false, Vector2(900, 500))
-	_ev_touch(0, false, Vector2(470, 400))
 
 func _t_push() -> void:
 	load_level(1)
@@ -999,51 +939,10 @@ func _t_sibling() -> void:
 	await _wait(0.5)
 	# ikisi çıkışa
 	nh.override["right"] = true
-	await _until(func() -> bool: return nh.global_position.x > 2000.0, 12.0)
+	await _until(func() -> bool: return nh.global_position.x > 2235.0, 12.0)
 	nh.override["right"] = false
-	await _until(func() -> bool: return ci.global_position.x > 2000.0, 12.0)
 	await _until(func() -> bool: return state == "win" or idx != 10, 12.0)
 	print("SIB bitti? state=", state, " Nehir=", nh.global_position.x, " Çınar=", ci.global_position.x)
-
-func _t_touch4() -> void:
-	Game.touch_ui = true
-	load_level(0)
-	await _wait(0.4)
-	touch = TouchControls.new()
-	add_child(touch)
-	touch.enabled = true
-	state = "play"
-	var x0 := player.global_position.x
-	# SAĞ başparmak sağa kaydırır: yürür
-	_ev_touch(1, true, Vector2(900, 500))
-	await get_tree().physics_frame
-	_ev_drag(1, Vector2(960, 500))
-	await _wait(0.8)
-	print("TOUCH4 sağ parmak sağa: right=", Input.is_action_pressed("right"), " dx=", player.global_position.x - x0)
-	# aynı parmak sola: geri yürür
-	_ev_drag(1, Vector2(880, 500))
-	await _wait(0.2)
-	print("TOUCH4 sağ parmak sola: left=", Input.is_action_pressed("left"), " right=", Input.is_action_pressed("right"))
-	_ev_touch(1, false, Vector2(880, 500))
-	await _wait(0.3)
-	print("TOUCH4 bırakınca: left=", Input.is_action_pressed("left"), " right=", Input.is_action_pressed("right"))
-	# SOL parmak yürür, sağ parmak yukarı kaydırır (zıplar), sonra sağ parmak sola kaydırıp yönü değiştirir
-	_ev_touch(0, true, Vector2(200, 400))
-	await get_tree().physics_frame
-	_ev_drag(0, Vector2(270, 400))
-	await _wait(0.3)
-	_ev_touch(1, true, Vector2(900, 500))
-	await get_tree().physics_frame
-	_ev_drag(1, Vector2(900, 420))
-	await _wait(0.15)
-	print("TOUCH4 iki parmak: right=", Input.is_action_pressed("right"), " jump=", Input.is_action_pressed("jump"))
-	_ev_touch(1, false, Vector2(900, 420))
-	_ev_touch(0, false, Vector2(270, 400))
-	# tutmak hâlâ çalışıyor mu (sağ parmak basılı, hareket yok)
-	_ev_touch(1, true, Vector2(900, 500))
-	await _wait(0.5)
-	print("TOUCH4 sağ basılı: grab=", Input.is_action_pressed("grab"), " right=", Input.is_action_pressed("right"))
-	_ev_touch(1, false, Vector2(900, 500))
 
 func _push_to(c: PushBody, x: float) -> void:
 	player.override["grab"] = true

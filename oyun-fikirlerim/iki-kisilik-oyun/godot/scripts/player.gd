@@ -1,5 +1,6 @@
 class_name Player extends CharacterBody2D
-## Kabuk: ağır, ivmeli hareket; kasa itme/çekme; maske tak/fırlat.
+## Oynanan karakter (hikâye: Nehir, Çınar · deneme: Kabuk, Kül): ağır, ivmeli hareket; kutu itme/çekme (Nehir, Kabuk);
+## maske (Kabuk); lamba taşıma (herkes).
 
 signal died
 
@@ -25,7 +26,7 @@ var dead := false
 var override := {}               # test için: {"left": true, ...}
 var level: LevelRoot
 var rig: Node2D
-var skin := "kabuk"        # "kabuk" | "kul"
+var skin := "kabuk"        # "nehir" | "cinar" (hikâye) · "kabuk" | "kul" (deneme)
 var prefix := ""           # yerel co-op: "p1_" / "p2_"
 var _last_step := 0
 var _edge := {"jump": false, "mask": false}

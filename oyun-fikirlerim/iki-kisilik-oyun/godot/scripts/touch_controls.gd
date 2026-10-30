@@ -3,7 +3,7 @@ class_name TouchControls extends Node
 ##  BİRİNCİ parmak (ilk dokunan): sağa/sola kaydır = yürü (başlangıç noktası parmağı izler) · yukarı kaydır = zıpla (basılı tutarsan yüksek)
 ##  İKİNCİ parmak (başka bir parmak, ekranın herhangi yeri): kısa dokun = eşya (maske/lamba al, at, as) · basılı tut = tut ve çek
 ##  Birinci parmak kalkarsa ikinci parmak yürütmeye devam eder.
-##  Tek parmakla çift dokunuş: Çınar'a komut.
+##  Tek parmakla kısa dokunuş: eşya · tek parmakla çift dokunuş: Çınar'a komut.
 
 const DEAD := 24.0
 const JUMP_AT := 46.0
@@ -23,6 +23,7 @@ var _tap_release := 0
 var _last_tap_t := -10.0
 var _last_tap_pos := Vector2.ZERO
 var _now := 0.0
+var _pending_item := -1.0
 
 func _act(n: String) -> String:
 	return prefix + n
@@ -44,6 +45,7 @@ func release_all() -> void:
 	act_id = -1
 	jumping = false
 	grab_down = false
+	_pending_item = -1.0
 
 func _unhandled_input(e: InputEvent) -> void:
 	if not enabled:
@@ -92,11 +94,13 @@ func _touch(i: int, pressed: bool, pos: Vector2) -> void:
 		move_id = -1
 		if quick and act_id < 0:
 			if _now - _last_tap_t < 0.35 and f["pos"].distance_to(_last_tap_pos) < 70.0:
-				double_tap.emit(f["pos"])
+				double_tap.emit(f["pos"])   # çift dokunuş: Çınar'a komut (bekleyen tek dokunuş iptal)
 				_last_tap_t = -10.0
+				_pending_item = -1.0
 			else:
 				_last_tap_t = _now
 				_last_tap_pos = f["pos"]
+				_pending_item = _now + 0.36   # ikinci dokunuş gelmezse tek dokunuş = eşya (tek elle oynayan için)
 		if act_id >= 0:   # ikinci parmak birinci olur
 			_stop_grab()
 			move_id = act_id
@@ -145,6 +149,9 @@ func _item_tap() -> void:
 
 func _process(delta: float) -> void:
 	_now += delta
+	if _pending_item > 0.0 and _now >= _pending_item:
+		_pending_item = -1.0
+		_item_tap()
 	if act_id >= 0 and not grab_down and fingers.has(act_id):
 		var f: Dictionary = fingers[act_id]
 		if (_now - float(f["t0"])) > TAP_TIME and not f["moved"]:

@@ -1,5 +1,7 @@
 # Tasarım Belgesi v0.2
 
+> **Güncel not:** Karakterler ve hikâye değişti: oyuncu **Nehir**'i yönetir, küçük kardeşi **Çınar** yapay zekâyla peşinden gelir ve yönlendirilir (çevrimiçi co-op'ta Çınar'ı ikinci oyuncu oynar). Ayrıntı `HIKAYE.md` ve `BOLUM-PLANI.md`. Aşağıdaki Kabuk/Kül bölümleri eski tasarımdır; mekanikleri (maske, lamba, ışık) yeni hikâyeye taşınıyor. Oyun motoru artık Godot 4.3 (web değil).
+
 ## 1. Vizyon
 Limbo / Inside tadında, atmosferik bir bulmaca-platform oyunu. **Tek başına** da, **arkadaşla online** da oynanır.
 İnsanlar keyifle düşünüp bulmaca çözer; arkadaşıyla oynarken **mikrofonla canlı konuşarak** koordine olur.

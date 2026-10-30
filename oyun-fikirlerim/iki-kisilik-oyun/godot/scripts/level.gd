@@ -533,7 +533,7 @@ func _make_checkpoint(i: int, x: float) -> void:
 	cs.position = Vector2(x, 360)
 	a.add_child(cs)
 	a.body_entered.connect(func(b: Node) -> void:
-		if b is Player:
+		if b == player:   # yalnızca lider: Çınar ileride bir kapının ardına geçince Nehir oraya ışınlanmasın
 			checkpoint_reached.emit(i, x))
 	add_child(a)
 
