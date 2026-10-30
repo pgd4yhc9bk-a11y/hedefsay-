@@ -7,7 +7,7 @@ class_name TouchControls extends Node
 
 const DEAD := 24.0
 const JUMP_AT := 46.0
-const FOLLOW := 90.0
+const FOLLOW := 40.0
 const TAP_TIME := 0.25
 
 var prefix := ""
@@ -119,7 +119,7 @@ func _drag(i: int, pos: Vector2) -> void:
 
 func _item_tap() -> void:
 	_press("mask", true)
-	_tap_release = 3
+	_tap_release = 5
 
 func _process(delta: float) -> void:
 	_now += delta

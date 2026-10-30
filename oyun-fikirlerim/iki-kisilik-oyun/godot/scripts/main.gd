@@ -679,7 +679,7 @@ func _t_touch() -> void:
 	await _wait(0.6)
 	_ev_drag(0, Vector2(700, 400))
 	await _wait(0.3)
-	_ev_drag(0, Vector2(640, 400))
+	_ev_drag(0, Vector2(630, 400))
 	await _wait(0.3)
 	print("TOUCH sola dönüş (izleyen başlangıç): left=", Input.is_action_pressed("left"), " right=", Input.is_action_pressed("right"))
 	_ev_touch(0, false, Vector2(640, 400))
@@ -691,7 +691,7 @@ func _t_touch() -> void:
 	_ev_touch(1, true, Vector2(900, 400))
 	await _wait(0.1)
 	_ev_touch(1, false, Vector2(900, 400))
-	await _wait(0.05)
+	await get_tree().physics_frame
 	print("TOUCH ikinci parmak dokunuş -> mask basıldı mı: ", Input.is_action_pressed("mask"))
 	await _wait(0.2)
 	_ev_touch(1, true, Vector2(900, 400))
