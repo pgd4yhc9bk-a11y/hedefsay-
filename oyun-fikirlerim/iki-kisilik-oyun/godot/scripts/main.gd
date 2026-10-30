@@ -616,7 +616,7 @@ func _t_c3() -> void:
 	await _pjump(kl, 0.3)
 	await _pland(kl)
 	await _shot("res://../test_c3b.png")
-	await _pwalk(kb, 2440.0)
+	await _pwalk(kb, 2452.0)
 	await _pwalk(kl, 2440.0)
 	await _wait(0.6)
 	print("C3 bitti? state=", state, " idx=", idx, " Kapıcı=", kb.global_position, " Kül=", kl.global_position, " çıkışta=", level.exit_in.size())
