@@ -1026,10 +1026,10 @@ func _t_cayir() -> void:
 	load_level(11)
 	await _wait(0.4)
 	player.override["right"] = true
-	await _until(func() -> bool: return player.global_position.x >= 850.0)
+	await _until(func() -> bool: return player.global_position.x >= 884.0)
 	await _hop_over()
 	player.override["right"] = true
-	await _until(func() -> bool: return player.global_position.x >= 1250.0)
+	await _until(func() -> bool: return player.global_position.x >= 1275.0)
 	await _hop_over()
 	player.override["right"] = false
 	var cr := level.crates[0]

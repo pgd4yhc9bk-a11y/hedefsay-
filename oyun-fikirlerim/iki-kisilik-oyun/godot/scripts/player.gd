@@ -83,7 +83,7 @@ func _physics_process(delta: float) -> void:
 	var grounded := is_on_floor()
 	var d := int(_in("right")) - int(_in("left"))
 	var adj := _adjacent(14.0 if grab else 5.0)   # tutarken biraz toleranslı (kutu birlikte kayar)
-	grab = skin == "kabuk" and _in("grab") and grounded and not adj.is_empty()
+	grab = (skin == "kabuk" or skin == "nehir") and _in("grab") and grounded and not adj.is_empty()
 	recover = maxf(0.0, recover - delta)
 	var speed := 175.0 if skin == "kul" else 165.0
 	if speed_base > 0.0:
