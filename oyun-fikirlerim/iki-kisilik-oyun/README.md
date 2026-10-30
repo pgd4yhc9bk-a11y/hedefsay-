@@ -1,7 +1,7 @@
-# İki Kişilik Online Oyun (çalışma adı)
+# Limbo Tarzı Bulmaca-Platform (çalışma adı)
 
-İki mobil cihazdan online oynanan, iş birliği odaklı 2D bulmaca-platform oyunu
-(It Takes Two / Unravel Two ilhamıyla). Teknoloji: **web (HTML5 Canvas + WebSocket)**.
+Atmosferik 2D bulmaca-platform (Limbo / Inside tarzı). Tek başına ve online 2 kişilik co-op; canlı sesli sohbet.
+Teknoloji: **web (HTML5 Canvas + WebRTC)**. Önceki renkli/iple bağlı yön `arsiv-v0-renkli-ip/` içinde.
 
 ## İş bölümü
 | Kim | Ne yapar |
