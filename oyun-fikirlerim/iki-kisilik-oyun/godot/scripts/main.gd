@@ -616,6 +616,7 @@ func _t_c3() -> void:
 	await _pjump(kl, 0.3)
 	await _pland(kl)
 	await _shot("res://../test_c3b.png")
+	kl.override["right"] = false
 	await _pwalk(kb, 2452.0)
 	await _pwalk(kl, 2440.0)
 	await _wait(0.6)
