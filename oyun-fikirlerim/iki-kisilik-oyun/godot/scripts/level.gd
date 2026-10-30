@@ -99,6 +99,19 @@ func _poly(points: PackedVector2Array, col: Color) -> Polygon2D:
 	add_child(p)
 	return p
 
+var cev := {}
+var cev_tex := {}
+
+func _load_cevre() -> void:
+	if not cev.is_empty():
+		return
+	var f := FileAccess.open("res://assets/cevre/cevre.json", FileAccess.READ)
+	if f == null:
+		return
+	cev = JSON.parse_string(f.get_as_text())
+	for n: String in ["cim", "toprak", "kenar_sag", "kenar_sol"]:
+		cev_tex[n] = load("res://assets/cevre/%s.png" % n)
+
 func _make_static(r: Rect2) -> void:
 	var sb := StaticBody2D.new()
 	sb.collision_layer = 1
@@ -110,17 +123,66 @@ func _make_static(r: Rect2) -> void:
 	cs.position = r.position + r.size / 2.0
 	sb.add_child(cs)
 	add_child(sb)
-	var pts := PackedVector2Array([r.position + Vector2(0, r.size.y), r.position])
-	if r.position.y <= 560.0:   # zemin üstü pürüzlü çimen
-		var rng := RandomNumberGenerator.new()
-		rng.seed = int(r.position.x) + 3
-		var x := r.position.x
-		while x < r.end.x:
-			pts.append(Vector2(minf(x + 4.0, r.end.x), r.position.y - 4.0 - rng.randf() * 10.0))
-			pts.append(Vector2(minf(x + 9.0, r.end.x), r.position.y))
-			x += 9.0
-	pts.append(r.end)
-	_poly(pts, BLACK)
+	_load_cevre()
+	if cev.is_empty():
+		_poly(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]), BLACK)
+		return
+	var big := r.size.x >= 300.0 and r.size.y >= 100.0
+	var cliff := 100.0
+	var lx := r.position.x
+	var rx := r.end.x
+	var left_end := big and r.position.x > 5.0
+	var right_end := big and r.end.x < float(data["w"]) - 5.0
+	if left_end:
+		lx += cliff
+	if right_end:
+		rx -= cliff
+	# toprak dolgusu (döşenir)
+	var pts := PackedVector2Array([Vector2(lx, r.position.y), Vector2(rx, r.position.y), Vector2(rx, r.end.y), Vector2(lx, r.end.y)])
+	var fill := Polygon2D.new()
+	fill.polygon = pts
+	fill.uv = pts
+	fill.texture = cev_tex["toprak"]
+	fill.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	fill.color = Color.WHITE
+	add_child(fill)
+	if rx <= lx:
+		return
+	# çim şeridi (yatay döşenir)
+	var cm: Dictionary = cev["cim"]
+	var res := float(cm["res"])
+	var tw := float(cm["w"]) / res
+	var gy := r.position.y - float(cm["band"]) / res + 3.0
+	var x := lx
+	while x < rx:
+		var sp := Sprite2D.new()
+		sp.texture = cev_tex["cim"]
+		sp.centered = false
+		sp.position = Vector2(x, gy)
+		sp.scale = Vector2(1.0 / res, 1.0 / res)
+		sp.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		var wpx := minf(tw, rx - x)
+		if wpx < tw:
+			sp.region_enabled = true
+			sp.region_rect = Rect2(0, 0, wpx * res, float(cm["h"]))
+		add_child(sp)
+		x += tw
+	# zemin uçları (uçurum köşesi)
+	if right_end:
+		_cliff("kenar_sag", rx - 5.0, r.position.y, false)
+	if left_end:
+		_cliff("kenar_sol", lx - cliff - 5.0 + 0.0, r.position.y, true)
+
+func _cliff(name: String, x: float, ground_y: float, left: bool) -> void:
+	var m: Dictionary = cev[name]
+	var res := float(m["res"])
+	var sp := Sprite2D.new()
+	sp.texture = cev_tex[name]
+	sp.centered = false
+	sp.scale = Vector2(1.0 / res, 1.0 / res)
+	sp.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	sp.position = Vector2(x, ground_y - float(m["top"]) / res + 2.0)
+	add_child(sp)
 
 func _make_hook(h: Dictionary) -> void:   # lamba kancası: direk + kol; ışık kapısına bağlı olabilir
 	var pos: Vector2 = h["pos"]
