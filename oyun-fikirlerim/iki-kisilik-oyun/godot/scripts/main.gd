@@ -23,6 +23,7 @@ var hint: Label
 var menu: Control
 var end_panel: Control
 var touch: TouchControls
+var companion: Companion
 var touch_hint: Label
 var rot_warn: Label
 
@@ -138,6 +139,7 @@ func _build_ui() -> void:
 	if Game.touch_ui:
 		touch = TouchControls.new()
 		add_child(touch)
+		touch.double_tap.connect(command_at)
 		touch_hint = Label.new()
 		touch_hint.text = "Sol parmak sağa / sola kaydır: yürü   ·   sağ parmak yukarı kaydır: zıpla\nSağ parmak dokun: eşya   ·   sağ parmağı basılı tut: tut, sol parmakla çek"
 		touch_hint.position = Vector2(0, 600)
@@ -154,6 +156,25 @@ func _build_ui() -> void:
 		rot_warn.add_theme_font_size_override("font_size", 40)
 		rot_warn.visible = false
 		ui.add_child(rot_warn)
+
+# ---------- Çınar'a komut ----------
+func command_at(screen_pos: Vector2) -> void:
+	if companion == null or state != "play":
+		return
+	var wx := cam_x + screen_pos.x
+	if absf(wx - companion.me.global_position.x) < 50.0:
+		companion.toggle_wait()
+	else:
+		companion.go_to(wx)
+	Sfx.play("clink", -10.0)
+
+func _unhandled_input(e: InputEvent) -> void:
+	if companion == null or state != "play" or menu.visible:
+		return
+	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_C:
+		companion.toggle_wait()
+	elif e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT and not Game.touch_ui:
+		command_at(e.position)
 
 # ---------- bölüm akışı ----------
 func start_level(i: int) -> void:
@@ -177,6 +198,15 @@ func load_level(i: int) -> void:
 		kul.skin = "kul"
 		kul.prefix = "p2_"
 		players.append(kul)
+	elif d.get("companion", false):   # tek oyunculu: Çınar yapay zekâyla ablasının peşinden gelir
+		var cin := Player.new()
+		cin.skin = "kul"
+		cin.prefix = "ai_"
+		cin.size = Vector2(22, 44)
+		cin.body_scale = 0.82
+		cin.speed_base = 150.0
+		cin.jump_v = -600.0
+		players.append(cin)
 	player = kabuk
 	level = LevelRoot.new()
 	world.add_child(level)
@@ -187,8 +217,16 @@ func load_level(i: int) -> void:
 	level.build(d, players)
 	var start: Vector2 = d["start"]
 	kabuk.global_position = start + Vector2(13, 54)
-	if coop:
+	if players.size() > 1:
 		players[1].global_position = (d["start2"] as Vector2) + Vector2(13, 54)
+	if companion != null:
+		companion.queue_free()
+		companion = null
+	if d.get("companion", false):
+		companion = Companion.new()
+		add_child(companion)
+		companion.me = players[1]
+		companion.leader = players[0]
 	level.exit_reached.connect(_on_exit)
 	level.checkpoint_reached.connect(_on_checkpoint)
 	cp = {"pos": kabuk.global_position, "idx": -1, "snap": level.snapshot()}
@@ -371,6 +409,8 @@ func _run_test() -> void:
 			await _shot("res://../test_l1.png")
 		"push":
 			await _t_push()
+		"sibling":
+			await _t_sibling()
 		"ice":
 			await _t_ice()
 		"touch":
@@ -834,3 +874,56 @@ func _t_ice() -> void:
 	print("ICE düşme: fall_t=", player.fall_t, " vy=", player.velocity.y)
 	await _shot("res://../test_fall.png")
 	await _wait(1.0)
+
+func _t_sibling() -> void:
+	load_level(10)
+	await _wait(0.5)
+	var nh: Player = players[0]
+	var ci: Player = players[1]
+	# 1) Çınar ablasının peşinden gelir
+	nh.override["right"] = true
+	await _until(func() -> bool: return nh.global_position.x >= 400.0)
+	nh.override["right"] = false
+	await _wait(1.8)
+	print("SIB takip: Nehir x=", nh.global_position.x, " Çınar x=", ci.global_position.x, " mod=", companion.mode, " (yakın olmalı)")
+	# 2) Çınar'ı düğmenin üstüne gönder, orada beklesin
+	companion.go_to(540.0)
+	await _until(func() -> bool: return companion.mode == "wait", 8.0)
+	await _wait(0.5)
+	print("SIB git: Çınar x=", ci.global_position.x, " mod=", companion.mode, " kapı1 açıklığı=", level.doors[0]["open"])
+	# 3) Nehir kapıdan geçer
+	await _pwalk(nh, 1000.0)
+	print("SIB Nehir kapıyı geçti: x=", nh.global_position.x, " ölü=", nh.dead)
+	# kapıda durup Çınar'ı çağır
+	nh.override["right"] = false
+	nh.global_position.x = 915.0
+	await _wait(0.5)
+	companion.toggle_wait()
+	await _until(func() -> bool: return ci.global_position.x > 950.0 or ci.dead, 12.0)
+	print("SIB Çınar kapıyı geçti: x=", ci.global_position.x, " ölü=", ci.dead, " mod=", companion.mode)
+	# 4) ikinci kapı: altı alçak (48 px): Nehir sığmaz, Çınar sürünerek geçer
+	await _pwalk(nh, 1480.0)
+	await _wait(0.5)
+	nh.override["right"] = true
+	await _wait(1.0)
+	nh.override["right"] = false
+	print("SIB ikinci kapı: Nehir x=", nh.global_position.x, " (1470 civarı takılmalı)")
+	companion.go_to(1610.0)
+	await _until(func() -> bool: return companion.mode == "wait", 10.0)
+	await _wait(0.8)
+	print("SIB Çınar ikinci düğmede: x=", ci.global_position.x, " kapı2=", level.doors[1]["open"])
+	await _pwalk(nh, 1700.0)
+	print("SIB Nehir ikinci kapıyı geçti: x=", nh.global_position.x)
+	nh.override["right"] = false
+	nh.global_position.x = 1515.0
+	await _wait(0.3)
+	companion.toggle_wait()
+	await _until(func() -> bool: return ci.global_position.x > 1560.0 and absf(ci.global_position.x - nh.global_position.x) < 120.0, 12.0)
+	await _wait(0.5)
+	# ikisi çıkışa
+	nh.override["right"] = true
+	await _until(func() -> bool: return nh.global_position.x > 2000.0, 12.0)
+	nh.override["right"] = false
+	await _until(func() -> bool: return ci.global_position.x > 2000.0, 12.0)
+	await _until(func() -> bool: return state == "win" or idx != 10, 12.0)
+	print("SIB bitti? state=", state, " Nehir=", nh.global_position.x, " Çınar=", ci.global_position.x)

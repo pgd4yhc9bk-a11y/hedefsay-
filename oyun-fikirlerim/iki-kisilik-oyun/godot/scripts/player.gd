@@ -3,7 +3,10 @@ class_name Player extends CharacterBody2D
 
 signal died
 
-const SIZE := Vector2(26, 54)
+var size := Vector2(26, 54)      # Çınar daha küçük (22x44): Nehir'in sığamadığı dar geçitlerden geçer
+var body_scale := 1.0
+var speed_base := 0.0          # 0 = dış görünüme göre varsayılan
+var jump_v := 0.0
 const MASK_SIZE := Vector2(39, 67)
 
 var face := 1
@@ -35,9 +38,9 @@ func _ready() -> void:
 	collision_mask = 1 | 4
 	var cs := CollisionShape2D.new()
 	var rs := RectangleShape2D.new()
-	rs.size = SIZE
+	rs.size = size
 	cs.shape = rs
-	cs.position = Vector2(0, -SIZE.y / 2.0)
+	cs.position = Vector2(0, -size.y / 2.0)
 	add_child(cs)
 	rig = Rig.new()
 	rig.skin = skin
@@ -53,7 +56,7 @@ func _in(n: String) -> bool:
 	return InputMap.has_action(a) and Input.is_action_pressed(a)
 
 func _adjacent(tol: float = 5.0) -> Dictionary:
-	var pr := Rect2(global_position.x - SIZE.x / 2.0, global_position.y - SIZE.y, SIZE.x, SIZE.y)
+	var pr := Rect2(global_position.x - size.x / 2.0, global_position.y - size.y, size.x, size.y)
 	for n in get_tree().get_nodes_in_group("push"):
 		var b := n as PushBody
 		if b == null or not b.active:
@@ -77,6 +80,8 @@ func _physics_process(delta: float) -> void:
 	grab = skin == "kabuk" and _in("grab") and grounded and not adj.is_empty()
 	recover = maxf(0.0, recover - delta)
 	var speed := 175.0 if skin == "kul" else 165.0
+	if speed_base > 0.0:
+		speed = speed_base
 	if grab:
 		speed = 85.0
 	elif worn:
@@ -108,6 +113,8 @@ func _physics_process(delta: float) -> void:
 	jump_buf -= delta
 	if jump_buf > 0.0 and coyote > 0.0:
 		velocity.y = -690.0 if skin == "kul" else (-560.0 if worn else -660.0)
+		if jump_v != 0.0:
+			velocity.y = jump_v
 		if mud > 0:
 			velocity.y *= 0.82   # çamurdan zor sıçrar
 		coyote = 0.0
@@ -166,7 +173,7 @@ func lamp_hand() -> Vector2:
 	return rig.hand_world(self) + Vector2(face * 3.0, 9.0)
 
 func _near_rect() -> Rect2:
-	return Rect2(global_position.x - SIZE.x / 2.0 - 30.0, global_position.y - SIZE.y - 10.0, SIZE.x + 60.0, SIZE.y + 20.0)
+	return Rect2(global_position.x - size.x / 2.0 - 30.0, global_position.y - size.y - 10.0, size.x + 60.0, size.y + 20.0)
 
 func mask_action() -> void:
 	if level == null:
@@ -190,7 +197,7 @@ func mask_action() -> void:
 		return
 	var m := level.mask
 	if worn:
-		var c := Vector2(global_position.x + face * (SIZE.x / 2.0 + MASK_SIZE.x / 2.0 + 2.0), global_position.y - MASK_SIZE.y / 2.0)
+		var c := Vector2(global_position.x + face * (size.x / 2.0 + MASK_SIZE.x / 2.0 + 2.0), global_position.y - MASK_SIZE.y / 2.0)
 		if _free_at(c):
 			worn = false
 			add_collision_exception_with(m)   # fırlatılan maske kısa süre oyuncuyla çarpışmasın
@@ -200,7 +207,7 @@ func mask_action() -> void:
 				if is_instance_valid(m):
 					remove_collision_exception_with(m))
 	elif m.active:
-		var near := Rect2(global_position.x - SIZE.x / 2.0 - 30.0, global_position.y - SIZE.y - 10.0, SIZE.x + 60.0, SIZE.y + 20.0)
+		var near := Rect2(global_position.x - size.x / 2.0 - 30.0, global_position.y - size.y - 10.0, size.x + 60.0, size.y + 20.0)
 		if near.intersects(m.rect()):
 			worn = true
 			m.deactivate()

@@ -197,10 +197,10 @@ func update_pose(p: Player, t: float) -> void:
 		m.position = Vector2(15.0, -mh / 2.0 - 2.0 + sin(t * 1.8) * 0.6)
 		m.scale = Vector2(0.065, 0.065)
 	var sqk := 1.0 - p.squash * 0.9 if p.squash > 0.0 else 1.0
-	scale = Vector2(p.face * (2.0 - sqk), sqk)
+	scale = Vector2(p.face * (2.0 - sqk), sqk) * p.body_scale
 
 func hand_world(p: Player) -> Vector2:
-	return p.global_position + Vector2(hand_local.x * p.face, hand_local.y)
+	return p.global_position + Vector2(hand_local.x * p.face, hand_local.y) * p.body_scale
 
 func ember_world(p: Player) -> Vector2:
 	var s: Sprite2D = spr["ember"]

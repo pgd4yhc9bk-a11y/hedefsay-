@@ -11,6 +11,8 @@ const FOLLOW := 40.0
 const TAP_TIME := 0.25
 const SPLIT_X := 640.0            # ekranın ortası (1280 genişlikte)
 
+signal double_tap(pos: Vector2)   # sol yarıda çift dokunuş: Çınar'a komut (üstüne: bekle/gel, başka yere: oraya git)
+
 var prefix := ""
 var enabled := true
 var fingers := {}                 # parmak no -> {"role","origin","pos","t0","moved"}
@@ -19,6 +21,8 @@ var act_id := -1
 var jump_src := {"move": false, "act": false}
 var grab_down := false
 var _tap_release := 0
+var _last_tap_t := -10.0
+var _last_tap_pos := Vector2.ZERO
 var _now := 0.0
 
 func _act(n: String) -> String:
@@ -80,8 +84,13 @@ func _touch(i: int, pressed: bool, pos: Vector2) -> void:
 		_press("left", false)
 		_press("right", false)
 		_set_jump("move", false)
-		if quick and act_id < 0:
-			_item_tap()   # tek parmakla oynayan için kısa dokunuş da eşya eylemi
+		if quick:
+			if _now - _last_tap_t < 0.35 and f["pos"].distance_to(_last_tap_pos) < 70.0:
+				double_tap.emit(f["pos"])
+				_last_tap_t = -10.0
+			else:
+				_last_tap_t = _now
+				_last_tap_pos = f["pos"]
 		move_id = -1
 	else:
 		_set_jump("act", false)
