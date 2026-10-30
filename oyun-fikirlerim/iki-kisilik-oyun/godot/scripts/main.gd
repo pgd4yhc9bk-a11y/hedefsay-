@@ -190,6 +190,7 @@ func load_level(i: int) -> void:
 	var coop: bool = d.get("coop", false)
 	players.clear()
 	var kabuk := Player.new()
+	kabuk.skin = d.get("hero", "kabuk")
 	if coop:
 		kabuk.prefix = "p1_"
 	players.append(kabuk)
@@ -200,7 +201,7 @@ func load_level(i: int) -> void:
 		players.append(kul)
 	elif d.get("companion", false):   # tek oyunculu: Çınar yapay zekâyla ablasının peşinden gelir
 		var cin := Player.new()
-		cin.skin = "kul"
+		cin.skin = d.get("companion_skin", "kul")
 		cin.prefix = "ai_"
 		cin.size = Vector2(22, 44)
 		cin.body_scale = 0.82
@@ -328,7 +329,9 @@ func _process(delta: float) -> void:
 					p.velocity.x = 0.0
 		if dark_on and players.size() > 1:
 			var kul: Player = players[1]
-			var ep := kul.rig.ember_world(kul) if kul.rig != null and kul.rig.spr.has("ember") else kul.global_position
+			var ep := kul.global_position
+			if kul.rig is Rig and (kul.rig as Rig).spr.has("ember"):
+				ep = (kul.rig as Rig).ember_world(kul)
 			if level.lamp != null:
 				ep = level.lamp.light_pos()
 			level.light_pos = ep
@@ -411,6 +414,16 @@ func _run_test() -> void:
 			await _t_push()
 		"sibling":
 			await _t_sibling()
+		"nehirshot":
+			load_level(10)
+			await _wait(1.0)
+			await _shot("res://../test_nehir1.png")
+			players[0].override["right"] = true
+			await _wait(0.8)
+			await _shot("res://../test_nehir2.png")
+			players[0].override["jump"] = true
+			await _wait(0.25)
+			await _shot("res://../test_nehir3.png")
 		"ice":
 			await _t_ice()
 		"touch":

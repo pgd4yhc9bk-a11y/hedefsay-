@@ -24,7 +24,7 @@ var jump_buf := 0.0
 var dead := false
 var override := {}               # test için: {"left": true, ...}
 var level: LevelRoot
-var rig: Rig
+var rig: Node2D
 var skin := "kabuk"        # "kabuk" | "kul"
 var prefix := ""           # yerel co-op: "p1_" / "p2_"
 var _last_step := 0
@@ -42,8 +42,14 @@ func _ready() -> void:
 	cs.shape = rs
 	cs.position = Vector2(0, -size.y / 2.0)
 	add_child(cs)
-	rig = Rig.new()
-	rig.skin = skin
+	if skin == "nehir" or skin == "cinar":
+		var pr := PoseRig.new()   # gerçekçi kare kare pozlar
+		pr.who = skin
+		rig = pr
+	else:
+		var kr := Rig.new()       # parçalı iskelet (Kabuk, Kül)
+		kr.skin = skin
+		rig = kr
 	add_child(rig)
 	floor_snap_length = 4.0
 	floor_stop_on_slope = true

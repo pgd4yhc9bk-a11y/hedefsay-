@@ -86,7 +86,7 @@ static func all() -> Array:
 			"checkpoints": [950.0, 1620.0], "exit": Rect2(2450, gy - 100, 70, 100),
 		},
 		{
-			"name": "Kardeşim", "companion": true, "w": 2400.0, "start": Vector2(60, gy - 54), "start2": Vector2(20, gy - 44),
+			"name": "Kardeşim", "companion": true, "hero": "nehir", "companion_skin": "cinar", "w": 2400.0, "start": Vector2(60, gy - 54), "start2": Vector2(20, gy - 44),
 			"hint": "Çınar peşinden gelir. Ona çift dokun: bekle/gel. Başka yere çift dokun: oraya gitsin (C: bekle/gel, tık: git)",
 			"statics": [Rect2(0, gy, 2400, 160)],
 			"plates": [{"rect": Rect2(500, gy - 8, 90, 8), "door": 0, "heavy": false}, {"rect": Rect2(1560, gy - 8, 90, 8), "door": 1, "heavy": false}],
