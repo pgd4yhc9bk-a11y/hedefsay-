@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 HERE = os.path.dirname(os.path.abspath(__file__)); S = f'{HERE}/assets/cevre/sayfa'; O = f'{HERE}/assets/cevre/oge'
-PAGES = {'agac': (3, 2), 'bitki': (4, 2), 'kaya': (4, 2), 'esya': (4, 2), 'ev_fener': (2, 2), 'sarmasik': (3, 1)}
+PAGES = {'perde1': (4, 2), 'agac': (3, 2), 'bitki': (4, 2), 'kaya': (4, 2), 'esya': (4, 2), 'ev_fener': (2, 2), 'sarmasik': (3, 1)}
 MIN = 120
 os.makedirs(O, exist_ok=True)
 for name, (cols, rows) in PAGES.items():

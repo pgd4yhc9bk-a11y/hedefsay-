@@ -251,6 +251,7 @@ func load_level(i: int) -> void:
 		world.add_child(p)
 		p.level = level
 		p.died.connect(_on_died)
+	backdrop.set_scene(d.get("bg", ""))
 	level.build(d, players)
 	var start: Vector2 = d["start"]
 	kabuk.global_position = start + Vector2(13, 54)
@@ -515,6 +516,12 @@ func _run_test() -> void:
 			players[0].global_position = Vector2(1100, 540)
 			await _wait(1.2)
 			await _shot("res://../test_dere2.png")
+		"bgshot":
+			for lv in [11, 9, 6]:
+				load_level(lv)
+				players[0].global_position.x += 300.0
+				await _wait(1.2)
+				await _shot("res://../test_bg%d.png" % lv)
 		"cevreshot":
 			load_level(11)
 			players[0].override["right"] = true

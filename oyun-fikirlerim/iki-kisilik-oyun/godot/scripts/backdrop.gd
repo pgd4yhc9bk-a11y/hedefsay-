@@ -28,6 +28,9 @@ class PineLayer extends Node2D:
 			draw_rect(Rect2(x - 4.0, base - 30.0, 8.0, 40.0), col)
 
 var pines: Array[PineLayer] = []
+var bg_sprite: Sprite2D = null
+var bg_scale := 1.0
+var code_nodes: Array = []   # kodla çizilen eski orman: sahne görseli varken gizlenir
 var pine_par := [0.2, 0.42, 0.7]
 var fogs: Array[ColorRect] = []
 var fog_par := [0.1, 0.21, 0.35]
@@ -49,6 +52,13 @@ func _ready() -> void:
 	var sky := CanvasLayer.new()
 	sky.layer = -20
 	add_child(sky)
+	bg_sprite = Sprite2D.new()   # ChatGPT arka plan görseli (yatay döşenir)
+	bg_sprite.centered = false
+	bg_sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	bg_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	bg_sprite.region_enabled = true
+	bg_sprite.visible = false
+	sky.add_child(bg_sprite)
 	var gt := GradientTexture2D.new()
 	var g := Gradient.new()
 	g.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
@@ -63,6 +73,7 @@ func _ready() -> void:
 	sk.stretch_mode = TextureRect.STRETCH_SCALE
 	sk.size = Vector2(1280, 720)
 	sky.add_child(sk)
+	code_nodes.append(sk)
 	var sg := GradientTexture2D.new()
 	sg.fill = GradientTexture2D.FILL_RADIAL
 	sg.fill_from = Vector2(0.5, 0.5)
@@ -77,6 +88,7 @@ func _ready() -> void:
 	sun.position = Vector2(900, 200)
 	sun.scale = Vector2(2.0, 2.0)
 	sky.add_child(sun)
+	code_nodes.append(sun)
 	# çam katmanları ve sis
 	var back := CanvasLayer.new()
 	back.layer = -10
@@ -95,11 +107,13 @@ func _ready() -> void:
 			x += 90.0 + rng.randf() * 190.0 - l * 20.0
 		back.add_child(pl)
 		pines.append(pl)
+		code_nodes.append(pl)
 		var fog := _fog_rect(Rect2(0, 320 + l * 70, 1280, 256), 0.55 - l * 0.1)
 		back.add_child(fog)
 		fogs.append(fog)
 	rays = Node2D.new()
 	back.add_child(rays)
+	code_nodes.append(rays)
 	for i in 4:
 		var pg := Polygon2D.new()
 		pg.polygon = PackedVector2Array([Vector2(0, 0), Vector2(90, 0), Vector2(-140, 720), Vector2(-330, 720)])
@@ -141,6 +155,7 @@ func _fog_rect(r: Rect2, strength: float) -> ColorRect:
 	return c
 
 func update(cam_x: float, cam_y: float = 0.0, z: float = 1.0) -> void:
+	scroll_bg(cam_x)
 	# yakınlaşınca arka plan katmanları dünyaya göre kayar; zemin hattı çam diplerini takip eder
 	var gy_screen := (560.0 - cam_y) * z
 	for i in 3:
@@ -152,3 +167,24 @@ func update(cam_x: float, cam_y: float = 0.0, z: float = 1.0) -> void:
 		(fogs[i].material as ShaderMaterial).set_shader_parameter("scroll", cam_x * par / 1280.0)
 	sun.position.x = 900.0 - cam_x * 0.03
 	rays.position.x = -fmod(cam_x * 0.35, 330.0)
+
+func set_scene(name: String) -> void:
+	var path := "res://assets/arkaplan/%s.jpg" % name
+	var img := name != "" and ResourceLoader.exists(path)
+	bg_sprite.visible = img
+	for n in code_nodes:
+		if n != null:
+			(n as CanvasItem).visible = not img
+	for f in fogs:
+		f.modulate.a = 0.35 if img else 1.0   # görselin kendi sisi var: kodla çizilen sis hafifler
+	if img:
+		var tex := load(path) as Texture2D
+		bg_sprite.texture = tex
+		bg_scale = 720.0 / float(tex.get_height())
+
+func scroll_bg(cam_x: float) -> void:
+	if bg_sprite == null or not bg_sprite.visible:
+		return
+	bg_sprite.scale = Vector2(bg_scale, bg_scale)
+	var w := 1280.0 / bg_scale
+	bg_sprite.region_rect = Rect2(cam_x * 0.07 / bg_scale, 0.0, w, 720.0 / bg_scale)

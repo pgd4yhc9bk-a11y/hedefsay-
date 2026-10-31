@@ -54,7 +54,7 @@ static func all() -> Array:
 			"checkpoints": [920.0], "exit": Rect2(1950, 330, 70, 100),
 		},
 		{
-			"name": "Fener", "coop": true, "dark": true, "w": 2600.0, "start": Vector2(60, gy - 54), "start2": Vector2(100, gy - 54),
+			"name": "Fener", "bg": "magara", "coop": true, "dark": true, "w": 2600.0, "start": Vector2(60, gy - 54), "start2": Vector2(100, gy - 54),
 			"lamp": {"holder": 1}, "hint": "Kandil'in lambası yolu açar. Kül ortada durmalı: ışık değen platformlar katıdır",
 			"statics": [Rect2(0, gy, 1000, 160), Rect2(1560, gy, 1040, 160)],
 			"ghosts": [Rect2(1070, 530, 90, 16), Rect2(1230, 520, 90, 16), Rect2(1390, 530, 90, 16)],
@@ -62,7 +62,7 @@ static func all() -> Array:
 			"checkpoints": [900.0, 1600.0], "exit": Rect2(2450, gy - 100, 70, 100),
 		},
 		{
-			"name": "Siper", "coop": true, "dark": true, "w": 2300.0, "start": Vector2(60, gy - 54), "start2": Vector2(20, gy - 54),
+			"name": "Siper", "bg": "magara", "coop": true, "dark": true, "w": 2300.0, "start": Vector2(60, gy - 54), "start2": Vector2(20, gy - 54),
 			"lamp": {"holder": 1}, "hint": "Kapı kalkanla önde yürür, lamba arkasından ışık tutar. Sonra maske basamak olur",
 			"statics": [Rect2(0, gy, 2300, 160), Rect2(1750, 420, 550, 300)],
 			"crates": [], "mask": {"worn": true}, "plates": [], "doors": [], "spikes": [], "saws": [], "water": [],
@@ -70,7 +70,7 @@ static func all() -> Array:
 			"checkpoints": [900.0, 1450.0], "exit": Rect2(2100, 320, 70, 100),
 		},
 		{
-			"name": "Kanca", "coop": true, "dark": true, "w": 2600.0, "start": Vector2(60, gy - 54), "start2": Vector2(20, gy - 54),
+			"name": "Kanca", "bg": "magara", "coop": true, "dark": true, "w": 2600.0, "start": Vector2(60, gy - 54), "start2": Vector2(20, gy - 54),
 			"lamp": {"holder": 1}, "hooks": [{"pos": Vector2(700, 480), "door": 0}],
 			"hint": "Lambayı kancaya as: göz parlar, kapı açılır. Biri kapıda dururken lambayı geri al",
 			"statics": [Rect2(0, gy, 1100, 160), Rect2(1700, gy, 900, 160)],
@@ -79,14 +79,14 @@ static func all() -> Array:
 			"checkpoints": [980.0, 1750.0], "exit": Rect2(2450, gy - 100, 70, 100),
 		},
 		{
-			"name": "Dere", "hero": "nehir", "ribbons": true, "w": 2600.0, "start": Vector2(60, gy - 54), "hint": "Çamur yavaşlatır. Buz kaydırır: momentumla zıpla",
+			"name": "Dere", "bg": "dere", "hero": "nehir", "ribbons": true, "w": 2600.0, "start": Vector2(60, gy - 54), "hint": "Çamur yavaşlatır. Buz kaydırır: momentumla zıpla",
 			"statics": [Rect2(0, gy, 1000, 160), Rect2(1570, gy, 1030, 160)],
 			"mud": [Rect2(500, gy, 360, 12)], "ice": [Rect2(1000, gy, 500, 40)],
 			"crates": [], "mask": {}, "plates": [], "doors": [], "spikes": [Rect2(1700, gy - 24, 48, 24)], "saws": [], "darts": [], "water": [Rect2(1500, gy + 8, 70, 160)],
 			"checkpoints": [950.0, 1620.0], "exit": Rect2(2450, gy - 100, 70, 100),
 		},
 		{
-			"name": "Kardeşim", "companion": true, "hero": "nehir", "companion_skin": "cinar", "w": 2400.0, "start": Vector2(60, gy - 54), "start2": Vector2(20, gy - 44),
+			"name": "Kardeşim", "bg": "orman", "companion": true, "hero": "nehir", "companion_skin": "cinar", "w": 2400.0, "start": Vector2(60, gy - 54), "start2": Vector2(20, gy - 44),
 			"hint": "Çınar peşinden gelir. Üstüne çift dokun: bekle/gel. Başka yere çift dokun: oraya gitsin (klavye: C bekle/gel, fareyle tıkla: git)",
 			"statics": [Rect2(0, gy, 2400, 160)],
 			"plates": [{"rect": Rect2(500, gy - 8, 90, 8), "door": 0, "heavy": false}, {"rect": Rect2(1560, gy - 8, 90, 8), "door": 1, "heavy": false}],
@@ -95,7 +95,7 @@ static func all() -> Array:
 			"checkpoints": [950.0, 1650.0], "exit": Rect2(2200, gy - 100, 70, 100),
 		},
 		{
-			"name": "Çayır: Eşik", "hero": "nehir", "ribbons": true, "w": 3300.0, "start": Vector2(80, gy - 54),
+			"name": "Çayır: Eşik", "bg": "cayir", "hero": "nehir", "ribbons": true, "w": 3300.0, "start": Vector2(80, gy - 54),
 			"hint": "Kırmızı kurdele babanın işareti: dokunursan kontrol noktası olur. Kutuyu itmek/çekmek için Tut'u basılı tut (dokunmatik: ikinci parmak basılı)",
 			"decor": [{"n": "agac_kalin", "x": 90, "z": -6, "shade": 0.55}, {"n": "agac_ince", "x": 590, "z": -6, "shade": 0.55}, {"n": "agac_cift", "x": 760, "z": -6, "shade": 0.5}, {"n": "ev_isikli", "x": 330, "z": -3, "shade": 0.9}, {"n": "cimen_oku", "x": 120, "z": 1}, {"n": "ot", "x": 560, "z": 1}, {"n": "cit", "x": 640, "z": -2}, {"n": "cit", "x": 860, "z": -2}, {"n": "cali", "x": 780, "z": 1}, {"n": "cicek", "x": 1010, "z": 1}, {"n": "cit_kirik", "x": 1130, "z": -2}, {"n": "agac_genc", "x": 1420, "z": -6, "shade": 0.5}, {"n": "tas", "x": 1560, "z": 1}, {"n": "agac_kuru_cam", "x": 1700, "z": -6, "shade": 0.5}, {"n": "agac_olu", "x": 2020, "z": -6, "shade": 0.55}, {"n": "kaya_orta", "x": 2150, "z": 1}, {"n": "agac_kalin", "x": 2380, "z": -6, "shade": 0.5}, {"n": "ot", "x": 2500, "z": 1}, {"n": "kapi_acik", "x": 2750, "z": -2}, {"n": "agac_ince", "x": 2900, "z": -6, "shade": 0.55}, {"n": "fener_direk_sonuk", "x": 3050, "z": -2}],
 			"statics": [Rect2(0, gy, 900, 160), Rect2(980, gy, 880, 160), Rect2(1860, gy - 130, 40, 130), Rect2(1860, gy, 1440, 160), Rect2(1300, gy - 52, 70, 52)],
@@ -103,7 +103,7 @@ static func all() -> Array:
 			"checkpoints": [300.0, 950.0, 1950.0, 2600.0], "exit": Rect2(3150, gy - 100, 70, 100),
 		},
 		{
-			"name": "Çayır: Çit", "hero": "nehir", "ribbons": true, "w": 3600.0, "start": Vector2(80, gy - 54),
+			"name": "Çayır: Çit", "bg": "cayir", "hero": "nehir", "ribbons": true, "w": 3600.0, "start": Vector2(80, gy - 54),
 			"hint": "Kutuyu düğmenin üstüne it (Tut basılı): kapı açık kalır. Sonra ikinci kutuyla yüksek yere çık",
 			"decor": [{"n": "cit", "x": 200, "z": -2}, {"n": "egrelti", "x": 430, "z": 1}, {"n": "cit", "x": 1050, "z": -2, "flip": true}, {"n": "kutuk_kesik", "x": 1300, "z": 1}, {"n": "cit_kirik", "x": 1450, "z": -2}, {"n": "cali", "x": 1980, "y": 430, "z": 1}, {"n": "mantar", "x": 2050, "y": 430, "z": 1}, {"n": "kaya_buyuk", "x": 2700, "y": 430, "z": -1}, {"n": "kapi_acik", "x": 3300, "y": 430, "z": -2}],
 			"statics": [Rect2(0, gy, 1150, 160), Rect2(1230, gy, 570, 160), Rect2(1800, gy - 130, 1800, 290)],
@@ -113,7 +113,7 @@ static func all() -> Array:
 			"checkpoints": [300.0, 1050.0, 1850.0, 2500.0], "exit": Rect2(3400, gy - 130 - 100, 70, 100),
 		},
 		{
-			"name": "3D Deneme", "hero": "nehir3d", "w": 3300.0, "start": Vector2(80, gy - 54),
+			"name": "3D Deneme", "bg": "orman", "hero": "nehir3d", "w": 3300.0, "start": Vector2(80, gy - 54),
 			"hint": "3D karakter denemesi: yürü, koş, zıpla, çukura düş, buzda kay, çamurda yürü, kutuyu it/çek. F3: model raporu",
 			"statics": [Rect2(0, gy, 1250, 160), Rect2(520, gy - 70, 120, 70), Rect2(1250, gy - 120, 110, 120), Rect2(1360, gy, 1940, 160)],
 			"crates": [Vector2(2150, gy - 56)], "mask": {}, "plates": [], "doors": [], "spikes": [], "saws": [], "darts": [], "water": [],
