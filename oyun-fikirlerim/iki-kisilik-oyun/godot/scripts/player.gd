@@ -43,7 +43,12 @@ func _ready() -> void:
 	cs.shape = rs
 	cs.position = Vector2(0, -size.y / 2.0)
 	add_child(cs)
-	if skin == "nehir" or skin == "cinar":
+	if skin == "nehir3d" or skin == "cinar3d":
+		var mr := ModelRig.new()   # 3D model (glb), yandan ortografik kamera
+		mr.who = skin.trim_suffix("3d")
+		mr.height_game = size.y
+		rig = mr
+	elif skin == "nehir" or skin == "cinar":
 		var pr := PoseRig.new()   # gerçekçi kare kare pozlar
 		pr.who = skin
 		rig = pr
@@ -84,7 +89,7 @@ func _physics_process(delta: float) -> void:
 	var grounded := is_on_floor()
 	var d := int(_in("right")) - int(_in("left"))
 	var adj := _adjacent(14.0 if grab else 5.0)   # tutarken biraz toleranslı (kutu birlikte kayar)
-	grab = (skin == "kabuk" or skin == "nehir") and _in("grab") and grounded and not adj.is_empty()
+	grab = (skin == "kabuk" or skin == "nehir" or skin == "nehir3d") and _in("grab") and grounded and not adj.is_empty()
 	recover = maxf(0.0, recover - delta)
 	var speed := 175.0 if skin == "kul" else 165.0
 	if speed_base > 0.0:

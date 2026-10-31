@@ -32,6 +32,7 @@ var touch: TouchControls
 var companion: Companion
 var touch_hint: Label
 var rot_warn: Label
+var dbg_label: Label
 
 func _ready() -> void:
 	backdrop = Backdrop.new()
@@ -160,6 +161,15 @@ func _build_ui() -> void:
 		menu.visible = true
 		state = "menu")
 	end_panel.add_child(eb)
+	dbg_label = Label.new()
+	dbg_label.position = Vector2(16, 10)
+	dbg_label.size = Vector2(900, 160)
+	dbg_label.add_theme_font_size_override("font_size", 16)
+	dbg_label.add_theme_color_override("font_color", Color(1, 0.9, 0.5))
+	dbg_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	dbg_label.add_theme_constant_override("outline_size", 4)
+	dbg_label.visible = false
+	ui.add_child(dbg_label)
 	if Game.touch_ui:
 		touch = TouchControls.new()
 		add_child(touch)
@@ -193,6 +203,8 @@ func command_at(screen_pos: Vector2) -> void:
 	Sfx.play("clink", -10.0)
 
 func _unhandled_input(e: InputEvent) -> void:
+	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_F3:
+		dbg_label.visible = not dbg_label.visible
 	if companion == null or state != "play" or menu.visible:
 		return
 	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_C:
@@ -308,6 +320,8 @@ func _respawn() -> void:
 
 func _process(delta: float) -> void:
 	state_t += delta
+	if dbg_label != null and (dbg_label.visible or Game.test_mode) and player != null and player.rig != null and player.rig.has_method("report_text"):
+		dbg_label.text = player.rig.call("report_text")
 	if touch != null:
 		var play := state == "play" and not menu.visible
 		if touch.enabled and not play:
@@ -454,6 +468,21 @@ func _run_test() -> void:
 			await _t_push()
 		"sibling":
 			await _t_sibling()
+		"model":
+			load_level(levels.size() - 1)
+			dbg_label.visible = true
+			await _wait(1.0)
+			print(player.rig.call("report_text"))
+			await _shot("res://../test_m1.png")
+			player.override["right"] = true
+			await _wait(1.2)
+			await _shot("res://../test_m2.png")
+			player.override["jump"] = true
+			await _wait(0.3)
+			await _shot("res://../test_m3.png")
+			player.override["jump"] = false
+			await _wait(0.25)
+			await _shot("res://../test_m4.png")
 		"menushot":
 			menu.visible = true
 			state = "menu"

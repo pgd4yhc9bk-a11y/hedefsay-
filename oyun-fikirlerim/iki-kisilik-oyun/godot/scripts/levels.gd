@@ -112,4 +112,12 @@ static func all() -> Array:
 			"spikes": [], "saws": [], "darts": [], "water": [],
 			"checkpoints": [300.0, 1050.0, 1850.0, 2500.0], "exit": Rect2(3400, gy - 130 - 100, 70, 100),
 		},
+		{
+			"name": "3D Deneme", "hero": "nehir3d", "w": 3300.0, "start": Vector2(80, gy - 54),
+			"hint": "3D karakter denemesi: yürü, koş, zıpla, çukura düş, buzda kay, çamurda yürü, kutuyu it/çek. F3: model raporu",
+			"statics": [Rect2(0, gy, 1250, 160), Rect2(520, gy - 70, 120, 70), Rect2(1250, gy - 120, 110, 120), Rect2(1360, gy, 1940, 160)],
+			"crates": [Vector2(2150, gy - 56)], "mask": {}, "plates": [], "doors": [], "spikes": [], "saws": [], "darts": [], "water": [],
+			"mud": [Rect2(1520, gy, 360, 12)], "ice": [Rect2(1900, gy, 260, 40)],
+			"checkpoints": [900.0, 1700.0, 2500.0], "exit": Rect2(3150, gy - 100, 70, 100),
+		},
 	]
