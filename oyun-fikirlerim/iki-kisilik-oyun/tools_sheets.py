@@ -6,8 +6,9 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 HERE = os.path.dirname(os.path.abspath(__file__)); S = f'{HERE}/assets/cevre/sayfa'; O = f'{HERE}/assets/cevre/oge'
-PAGES = {'perde1': (4, 2), 'agac': (3, 2), 'bitki': (4, 2), 'kaya': (4, 2), 'esya': (4, 2), 'ev_fener': (2, 2), 'sarmasik': (3, 1)}
+PAGES = {'perde1': (4, 2), 'agac': (3, 2), 'bitki': (4, 2), 'kaya': (4, 2), 'esya': (4, 2), 'ev_fener': (2, 2), 'sarmasik': (3, 1), 'magara': (3, 2), 'bulmaca': (3, 2), 'yamac': (3, 2), 'koy': (3, 2), 'koyun': (4, 2), 'fener': (2, 2)}
 MIN = 120
+REL = {'magara', 'bulmaca', 'yamac', 'koy', 'koyun', 'fener'}   # yeni sayfalar: en büyük parçanın %8'inden küçük kalıntıları sil
 os.makedirs(O, exist_ok=True)
 for name, (cols, rows) in PAGES.items():
     im = Image.open(f'{S}/{name}_temiz.png').convert('RGBA'); cw, ch = im.width / cols, im.height / rows
@@ -26,6 +27,8 @@ for name, (cols, rows) in PAGES.items():
                 top_labels = set(np.unique(lab[0])) - {0}
                 keep = [i for i in keep if i not in top_labels or ndi.sum(m, lab, i) > 4000]
                 if not keep: continue
+            if name in REL:
+                big = max(ndi.sum(m, lab, i) for i in keep); keep = [i for i in keep if ndi.sum(m, lab, i) >= 0.08 * big]
             km = np.isin(lab, keep); a[~km, 3] = 0
             ys, xs = np.where(a[..., 3] > 10); crop = Image.fromarray(a).crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
             crop.save(f'{O}/{name}_{k:02d}.png', optimize=True); print(name, k, crop.size); k += 1

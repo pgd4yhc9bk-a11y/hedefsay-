@@ -43,6 +43,12 @@ OGE = [('perde1_00','disli',70,'w'),('perde1_01','su_carki',120,'w'),('perde1_02
        ('esya_00','can',32,'w'),('esya_01','dudak',42,'w'),('esya_02','cuval',52,'w'),('esya_03','fener_kirik',38,'w'),('esya_04','bohca',52,'w'),
        ('esya_05','baston',26,'w'),('esya_06','zincir_can',58,'w'),('esya_07','oyuncak_at',46,'w'),
        ('ev_fener_00','ev_isikli',340,'w'),('ev_fener_01','ev_sonuk',340,'w'),('ev_fener_02','fener_direk_yanik',120,'h'),('ev_fener_03','fener_direk_sonuk',120,'h'),
+       ('magara_00','dikit',120,'w'),('magara_01','kaya_basamak',110,'w'),('magara_02','yarasa',100,'w'),('magara_03','magara_agzi',260,'w'),('magara_04','kemik',70,'w'),('magara_05','mangal',70,'w'),
+       ('bulmaca_00','kasa',64,'w'),('bulmaca_01','kasa_yigin',90,'w'),('bulmaca_02','plaka',64,'w'),('bulmaca_03','plaka_basili',64,'w'),('bulmaca_04','kapi_zincir',50,'w'),('bulmaca_05','diken',70,'w'),
+       ('yamac_00','halat_sarkik',90,'w'),('yamac_01','kopru_kirik',150,'w'),('yamac_02','kaya_basamak2',120,'w'),('yamac_03','kalas',110,'w'),('yamac_04','kutuk_yuzen',110,'w'),('yamac_05','kamis',70,'w'),
+       ('koy_00','kuyu',130,'w'),('koy_01','cesme',100,'w'),('koy_02','tabela',90,'w'),('koy_03','el_arabasi',110,'w'),('koy_04','kulube_kapi',150,'w'),('koy_05','tas_duvar',130,'w'),
+       ('koyun_00','koyun_dur',90,'w'),('koyun_01','koyun_otla',90,'w'),('koyun_02','koyun_yuru1',90,'w'),('koyun_03','koyun_yuru2',90,'w'),('koyun_04','kuzu',55,'w'),('koyun_05','kuzu_ziplar',70,'w'),('koyun_06','koyun_yat',90,'w'),('koyun_07','koyun_bak',90,'w'),
+       ('fener_00','fener_yanik',60,'w'),('fener_01','fener_sonuk',60,'w'),('fener_02','kanca_bos',90,'h'),('fener_03','kanca_fenerli',90,'h'),
        ('sarmasik_00','sarmasik',300,'w'),('sarmasik_01','kok_sarkit',300,'w'),('sarmasik_02','dal_sarkit',300,'w')]
 for f, n, target, mode in OGE:
     p = f'{A}/oge/{f}.png'

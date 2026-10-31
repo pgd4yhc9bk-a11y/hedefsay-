@@ -532,6 +532,21 @@ func _run_test() -> void:
 			players[0].global_position = Vector2(880, 540)
 			await _wait(0.8)
 			await _shot("res://../test_cevre2.png")
+		"objshot":   # yeni çizim nesneler: kasa, diken, plaka
+			load_level(0)
+			players[0].global_position = Vector2(1150, 540)
+			await _wait(1.0)
+			await _shot("res://../test_obj1.png")
+			players[0].global_position = Vector2(1930, 540)
+			await _wait(0.8)
+			await _shot("res://../test_obj2.png")
+			load_level(1)
+			players[0].global_position = Vector2(640, 540)
+			await _wait(1.0)
+			await _shot("res://../test_obj3.png")
+			players[0].global_position = Vector2(745, 540)
+			await _wait(0.8)
+			await _shot("res://../test_obj4.png")
 		"zoomshot":
 			load_level(10)
 			players[0].override["right"] = true

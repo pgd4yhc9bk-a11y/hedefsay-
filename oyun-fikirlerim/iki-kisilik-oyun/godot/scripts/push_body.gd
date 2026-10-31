@@ -37,10 +37,24 @@ func setup(k: String, sz: Vector2, center: Vector2, waters: Array) -> void:
 		sp.scale = Vector2(sz.x / 595.0, sz.y / 1028.0)
 		add_child(sp)
 	else:
-		queue_redraw()
+		var tex_path := "res://assets/cevre/kasa.png"
+		if ResourceLoader.exists(tex_path):   # ChatGPT çizimi kasa (grafiksiz yedek: aşağıdaki _draw)
+			var sp := Sprite2D.new()
+			sp.texture = load(tex_path)
+			var tw := float(sp.texture.get_width())
+			var ks := (sz.x * 1.1) / tw
+			sp.scale = Vector2(ks, ks)
+			sp.position = Vector2(0, sz.y / 2.0 + 2.0 - sp.texture.get_height() * ks / 2.0)
+			sp.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			sprite_crate = sp
+			add_child(sp)
+		else:
+			queue_redraw()
+
+var sprite_crate: Sprite2D = null
 
 func _draw() -> void:
-	if kind != "crate":
+	if kind != "crate" or sprite_crate != null:
 		return
 	var r := Rect2(-size / 2.0, size)
 	draw_rect(r, Color("#121315"))

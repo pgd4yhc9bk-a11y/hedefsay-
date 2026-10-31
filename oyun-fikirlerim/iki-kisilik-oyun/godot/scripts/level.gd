@@ -395,9 +395,32 @@ func _make_plate(pl: Dictionary) -> void:
 	_poly(PackedVector2Array([Vector2(r.position.x - 8, 556), Vector2(r.end.x + 8, 556), Vector2(r.end.x + 8, 562), Vector2(r.position.x - 8, 562)]), BLACK)
 	var btn := _poly(PackedVector2Array([Vector2(r.position.x, 0), Vector2(r.end.x, 0), Vector2(r.end.x, 8), Vector2(r.position.x, 8)]), Color("#55575c"))
 	btn.position.y = 550.0
-	plates.append({"area": a, "door": pl["door"], "heavy": pl["heavy"], "pressed": false, "was": false, "btn": btn})
+	var psp: Sprite2D = null
+	_load_cevre()
+	if cev_tex.has("plaka") and cev_tex.has("plaka_basili"):   # çizim plaka: basılınca alçalan doku
+		btn.visible = false
+		psp = Sprite2D.new()
+		psp.texture = cev_tex["plaka"]
+		psp.centered = false
+		psp.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		psp.z_index = -1
+		add_child(psp)
+		_place_plate(psp, r, false)
+	plates.append({"area": a, "door": pl["door"], "heavy": pl["heavy"], "pressed": false, "was": false, "btn": btn, "spr": psp, "rect": r})
+
+func _place_plate(sp: Sprite2D, r: Rect2, pressed: bool) -> void:
+	var n := "plaka_basili" if pressed else "plaka"
+	sp.texture = cev_tex[n]
+	var w := float(cev[n]["w"])
+	var k := r.size.x * 0.95 / (w / 2.0) * 0.5
+	sp.scale = Vector2(k, k)
+	sp.position = Vector2(r.position.x + r.size.x / 2.0 - w * k / 2.0, 563.0 - float(cev[n]["h"]) * k)
+
+var _spike_sprites := false
 
 func _make_spikes(r: Rect2) -> void:
+	_load_cevre()
+	_spike_sprites = cev_tex.has("diken")
 	var pts := PackedVector2Array()
 	var x := r.position.x
 	while x < r.end.x:
@@ -405,8 +428,23 @@ func _make_spikes(r: Rect2) -> void:
 		pts.append(Vector2(x, r.end.y))
 		pts.append(Vector2((x + x2) / 2.0, r.position.y))
 		pts.append(Vector2(x2, r.end.y))
-		_poly(PackedVector2Array([Vector2(x, r.end.y), Vector2((x + x2) / 2.0, r.position.y), Vector2(x2, r.end.y)]), BLACK)
+		if not _spike_sprites:
+			_poly(PackedVector2Array([Vector2(x, r.end.y), Vector2((x + x2) / 2.0, r.position.y), Vector2(x2, r.end.y)]), BLACK)
 		x += 12.0
+	if _spike_sprites:   # çizim diken sırası: her karo 3 dikenli, yükseklik = alan + 6
+		var th := r.size.y + 6.0
+		var k := th / float(cev["diken"]["h"]) * 2.0 * 0.5
+		var tw := float(cev["diken"]["w"]) * k
+		var n := maxi(1, int(round(r.size.x / tw)))
+		var step := r.size.x / float(n)
+		for i in n:
+			var sp := Sprite2D.new()
+			sp.texture = cev_tex["diken"]
+			sp.centered = false
+			sp.scale = Vector2(step / float(cev["diken"]["w"]), th / float(cev["diken"]["h"]))
+			sp.position = Vector2(r.position.x + i * step, r.end.y + 3.0 - th)
+			sp.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			add_child(sp)
 	var a := Area2D.new()
 	a.collision_layer = 0
 	a.collision_mask = 2
@@ -601,6 +639,8 @@ func _physics_process(delta: float) -> void:
 				pressed = true
 		p["pressed"] = pressed
 		(p["btn"] as Polygon2D).position.y = 554.0 if pressed else 550.0
+		if p["spr"] != null and bool(p["was"]) != pressed:
+			_place_plate(p["spr"], p["rect"], pressed)
 		if p["was"] != pressed:
 			Sfx.play("plate")
 	# kapılar
