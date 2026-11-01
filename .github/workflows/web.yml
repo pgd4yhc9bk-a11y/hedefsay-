@@ -5,6 +5,11 @@ on:
     branches: [main, "claude/**"]
     paths: ["oyun-fikirlerim/iki-kisilik-oyun/godot/**", ".github/workflows/web.yml"]
   workflow_dispatch:
+    inputs:
+      apk:
+        description: "Android APK da derlensin mi?"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -26,8 +31,17 @@ jobs:
           mkdir -p build/web
           godot --headless --import || true
           godot --headless --export-release "Web" build/web/index.html
+      - name: Önceki APK'yı koru (bu sefer derlenmiyorsa)
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.apk) && !contains(github.event.head_commit.message, '[apk]') }}
+        continue-on-error: true
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch --depth=1 origin gh-pages
+          git show origin/gh-pages:sis.apk > oyun-fikirlerim/iki-kisilik-oyun/godot/build/web/sis.apk
+          ls -la oyun-fikirlerim/iki-kisilik-oyun/godot/build/web/sis.apk
       - name: Android APK (gelişmiş görüntü motoru)
         id: apk
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.apk) || contains(github.event.head_commit.message, '[apk]') }}
         continue-on-error: true
         working-directory: oyun-fikirlerim/iki-kisilik-oyun/godot
         run: |
