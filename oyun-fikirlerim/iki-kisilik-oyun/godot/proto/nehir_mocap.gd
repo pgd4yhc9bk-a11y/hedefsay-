@@ -156,7 +156,8 @@ func _post() -> void:
 		_aim("upperarm_r", "lowerarm_r", hold_target, hold * 0.65)
 		_aim("lowerarm_r", "hand_r", hold_target, hold * 0.8)
 	# kurdeleye uzanma: sol kolu hedefe doğru çevir
-	if reach > 0.001 and reach_target != Vector3.INF:
+	var front := reach_target != Vector3.INF and (reach_target.x - global_position.x) * signf(global_transform.basis.x.x) > 0.2
+	if reach > 0.001 and front:
 		_aim("upperarm_l", "lowerarm_l", reach_target, reach)
 		_aim("lowerarm_l", "hand_l", reach_target, reach)
 

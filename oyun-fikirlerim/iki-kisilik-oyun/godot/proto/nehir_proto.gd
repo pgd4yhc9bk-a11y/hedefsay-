@@ -265,9 +265,13 @@ func _start_climb(lg: Dictionary) -> void:
 	if hang:
 		start = Vector3(p.x - dir * 0.27, p.y - 1.74, 0.0)
 	if mocap != null:
-		var end_off := 0.5 if not bool(lg.get("low", false)) else 0.12
+		# animasyonun kök hareketi: 1.39 m ileri. Kenarın ötesinde kalan kısım kenara göre sınırlanır (kasa dar).
+		var ex := position.x + dir * 1.39
+		var cap: float = lg.get("cap", 0.9)
+		if (ex - p.x) * dir > cap:
+			ex = p.x + dir * cap
 		climb = {"p": p, "dir": dir, "t": 0.0, "dur": 0.67 / 0.85, "from": position, "start": position, "hang": false, "dy": dy,
-			"end": Vector3(p.x + dir * end_off, p.y, 0.0), "mocap": true}
+			"end": Vector3(ex, p.y, 0.0), "mocap": true}
 		velocity = Vector3.ZERO
 		state = "climb"
 		_snd("kumas", -12.0)

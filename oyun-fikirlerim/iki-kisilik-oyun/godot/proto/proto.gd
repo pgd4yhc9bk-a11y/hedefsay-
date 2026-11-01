@@ -368,8 +368,8 @@ func _build_log() -> void:   # devrik kütük: z boyunca uzanan silindir
 func _static_ledges() -> void:
 	var ly := ground_y(LOG_X) + LOG_R * 2.0 - 0.06
 	ledges = [
-		{"p": Vector3(LOG_X - LOG_R * 0.75, ly, 0), "dir": 1, "low": true},
-		{"p": Vector3(LOG_X + LOG_R * 0.75, ly, 0), "dir": -1, "low": true},
+		{"p": Vector3(LOG_X - LOG_R * 0.75, ly, 0), "dir": 1, "low": true, "cap": 1.1},
+		{"p": Vector3(LOG_X + LOG_R * 0.75, ly, 0), "dir": -1, "low": true, "cap": 1.1},
 		{"p": Vector3(33.9, -0.55, 0), "dir": 1, "low": false},
 		{"p": Vector3(32.6, -0.5, 0), "dir": -1, "low": false},
 		{"p": Vector3(46.5, 1.6, 0), "dir": 1, "low": false},
@@ -753,8 +753,8 @@ func crate_at(p: Node3D, dir: int) -> Node:
 func find_ledge(p: NehirProto, airborne: bool, move_dir: float) -> Dictionary:
 	var list := ledges.duplicate()
 	if crate != null:
-		list.append({"p": Vector3(crate.position.x - 0.5, crate.top(), 0), "dir": 1, "low": false})
-		list.append({"p": Vector3(crate.position.x + 0.5, crate.top(), 0), "dir": -1, "low": false})
+		list.append({"p": Vector3(crate.position.x - 0.5, crate.top(), 0), "dir": 1, "low": false, "cap": 0.62})
+		list.append({"p": Vector3(crate.position.x + 0.5, crate.top(), 0), "dir": -1, "low": false, "cap": 0.62})
 	for lg: Dictionary in list:
 		var lp: Vector3 = lg["p"]
 		var dir: int = lg["dir"]
@@ -782,8 +782,8 @@ func find_ledge(p: NehirProto, airborne: bool, move_dir: float) -> Dictionary:
 func find_ledge_ground(p: NehirProto) -> Dictionary:
 	var list := ledges.duplicate()
 	if crate != null:
-		list.append({"p": Vector3(crate.position.x - 0.5, crate.top(), 0), "dir": 1, "low": false})
-		list.append({"p": Vector3(crate.position.x + 0.5, crate.top(), 0), "dir": -1, "low": false})
+		list.append({"p": Vector3(crate.position.x - 0.5, crate.top(), 0), "dir": 1, "low": false, "cap": 0.62})
+		list.append({"p": Vector3(crate.position.x + 0.5, crate.top(), 0), "dir": -1, "low": false, "cap": 0.62})
 	for lg: Dictionary in list:
 		var lp: Vector3 = lg["p"]
 		var dir: int = lg["dir"]
@@ -943,11 +943,11 @@ func _end_seq(dt: float) -> void:
 	if end_t > 1.0 and not music_on:
 		music_on = true
 		audio.final_music()
-	if end_t > 1.6:
+	if end_t > 1.6 and end_t <= 4.2:
 		player.reach = minf(1.0, player.reach + dt * 0.9)
-	if end_t > 4.6:
-		player.reach = maxf(0.0, player.reach - dt * 0.5)
-	if end_t > 5.5:
+	elif end_t > 4.2:
+		player.reach = maxf(0.0, player.reach - dt * 1.2)   # kol iner, sonra yürür
+	if end_t > 5.6:
 		player.face = 1
 		player.cut_target_x = RIBBON_X + 2.6
 	var ta := clampf((end_t - 5.0) / 2.0, 0.0, 1.0)
@@ -1221,6 +1221,31 @@ func _run_test() -> void:
 			print("TIRMAN t=%.1f x=%.2f y=%.2f durum=%s" % [tt, player.position.x, player.position.y, player.state])
 			await _shot("tir_%02d" % k)
 		player.input_x = 0.0
+	elif test == "protolog":
+		bot = {"on": true}
+		chase = "done"
+		close_cam = 5.0
+		await _place(LOG_X - 1.6, 0.8)
+		player.input_x = 0.45
+		var k2 := 0
+		while player.state != "climb":
+			await _wait(0.01)
+		for _i in 8:
+			k2 += 1
+			await _shot("log_%02d" % k2)
+			await _wait(0.09)
+		player.input_x = 0.0
+		close_cam = 0.0
+		await _place(RIBBON_X - 4.0, 0.3)
+		player.input_x = 0.6
+		var et := 0.0
+		while et < 9.0:
+			await _wait(0.5)
+			et += 0.5
+			if et in [3.0, 4.5, 6.0, 7.5]:
+				print("SON end_t=%.1f reach=%.2f x=%.2f" % [end_t, player.reach, player.position.x])
+				k2 += 1
+				await _shot("log_%02d" % k2)
 	elif test == "protofloor":
 		bot = {"on": true}
 		var sp := get_world_3d().direct_space_state
