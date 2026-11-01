@@ -1363,6 +1363,13 @@ func _run_test() -> void:
 			await _wait(1.1)
 			print("ACILIS t=%.1f wake=%.2f lamba=%.2f faz=%s" % [cine.t if cine != null else -1.0, player.wake_t, player.lamp_on, phase])
 			await _shot("open_%02d" % k4)
+	elif test == "protovideo":   # açılış + botla tüm bölüm + son sahne (video kaydı için)
+		phase = "intro"
+		t = 0.0
+		_start_opening()
+		while phase == "intro":
+			await _wait(0.1)
+		await _play_bot(false)
 	elif test == "protofloor":
 		bot = {"on": true}
 		var sp := get_world_3d().direct_space_state
