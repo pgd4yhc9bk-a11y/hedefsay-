@@ -1425,6 +1425,41 @@ func _run_test() -> void:
 		await _wait(1.2)
 		await _shot("yakin_2")
 		player.input_x = 0.0
+	elif test == "protosit":
+		await _wait(0.5)
+		var hs := []
+		for k5 in 8:
+			await _wait(0.25)
+			var hi := cinar.skel.find_bone("mixamorig_Hips")
+			var hp := cinar.skel.global_transform * cinar.skel.get_bone_global_pose(hi).origin
+			var lf := cinar.skel.global_transform * cinar.skel.get_bone_global_pose(cinar.skel.find_bone("mixamorig_LeftFoot")).origin
+			hs.append("kalca_y=%.2f ayak_y=%.2f kalca_x=%.2f" % [hp.y - cinar_root.position.y, lf.y - cinar_root.position.y, hp.x - cinar_root.position.x])
+		print("OTUR ", hs)
+	elif test == "protoedge":   # uçurum kenarı: düşmemeli, sendelemeli; sonra zıplayınca geçmeli
+		bot = {"on": true}
+		await _place(30.5, 0.5)
+		player.input_x = 1.0
+		await _wait(2.5)
+		print("KENAR x=%.2f y=%.2f tutuldu=%s sendeleme=%.2f durum=%s" % [player.position.x, player.position.y, player.edge_hold, player.teeter, player.state])
+		close_cam = 4.5
+		await _wait(0.6)
+		await _shot("kenar_1")
+		await _wait(0.5)
+		await _shot("kenar_2")
+		close_cam = 0.0
+		await _place(RIBBON_X - 3.5, 0.6)
+		close_cam = 5.0
+		player.position.x = RIBBON_X + 0.4
+		await _wait(0.8)
+		await _shot("kutuk")
+		close_cam = 0.0
+		await _place(30.5, 0.5)
+		player.input_x = 1.0
+		await _wait(2.5)
+		player.jump_pressed = true
+		await _wait(1.5)
+		print("KENAR_ZIPLA x=%.2f y=%.2f durum=%s faz=%s" % [player.position.x, player.position.y, player.state, phase])
+		player.input_x = 0.0
 	elif test == "protofloor":
 		bot = {"on": true}
 		var sp := get_world_3d().direct_space_state
@@ -1956,6 +1991,29 @@ func _build_cinar() -> void:
 	cinar_turn = Node3D.new()
 	cinar_turn.rotation.y = -PI
 	cinar_root.add_child(cinar_turn)
+	var stump := MeshInstance3D.new()   # oturduğu ağaç kütüğü (oturma pozu: kalça 0.35 m)
+	var sm := CylinderMesh.new()
+	sm.top_radius = 0.17
+	sm.bottom_radius = 0.22
+	sm.height = 0.27
+	sm.radial_segments = 16
+	stump.mesh = sm
+	var bark := _mat(Color(0.12, 0.09, 0.07))
+	bark.albedo_texture = _noise_tex(0.06)
+	bark.uv1_triplanar = true
+	bark.uv1_scale = Vector3(0.6, 0.15, 0.6)
+	stump.material_override = bark
+	stump.position = Vector3(x + 0.05, ground_y(x) + 0.135, 0.25)
+	add_child(stump)
+	var ring := MeshInstance3D.new()
+	var rm := CylinderMesh.new()
+	rm.top_radius = 0.165
+	rm.bottom_radius = 0.165
+	rm.height = 0.01
+	ring.mesh = rm
+	ring.material_override = _mat(Color(0.3, 0.24, 0.17))
+	ring.position = stump.position + Vector3(0, 0.137, 0)
+	add_child(ring)
 	cinar = NehirMocap.new()
 	cinar.who = "cinar"
 	cinar.height = 1.15

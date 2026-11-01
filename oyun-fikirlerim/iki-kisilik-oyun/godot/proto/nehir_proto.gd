@@ -66,6 +66,9 @@ var teeter := 0.0             # uçurum kenarında sendeleme ağırlığı
 var _prev_vx := 0.0
 var _acc_s := 0.0
 var _was_pushing := false
+var edge_hold := false          # uçurum kenarında durduruldu (sendeleme)
+var edge_intent := 0.0
+var _edge_snd := false
 var breath_t := 0.0             # kovalamacadan kurtulunca nefes nefese (Meshy: Catching_Breath)
 var idle_t := 0.0                # uzun beklemede farklı bekleme hareketi
 
@@ -185,6 +188,17 @@ func _physics_process(dt: float) -> void:
 	if (pushing or pulling) and not _was_pushing:   # kasaya değince hız kesilir, itme yavaş başlar
 		velocity.x = signf(velocity.x) * minf(absf(velocity.x), 0.25)
 	_was_pushing = pushing or pulling
+	edge_hold = false
+	if on_floor and absf(target) > 0.05 and state == "ground" and not pushing and _edge_ahead(int(signf(target))):
+		edge_hold = true
+		edge_intent = target          # kenarda durur ama niyetini hatırlar: zıplarsa bu hızla atlar
+		target = 0.0
+		velocity.x = move_toward(velocity.x, 0.0, 30.0 * dt)
+		if not _edge_snd:
+			_edge_snd = true
+			_snd("nefes_al", -12.0, 0.05)
+	elif absf(target) < 0.05 or not on_floor:
+		_edge_snd = false
 	velocity.x = move_toward(velocity.x, target, acc * dt)
 	# zıplama
 	if jump_pressed:
@@ -200,6 +214,9 @@ func _physics_process(dt: float) -> void:
 			return
 	if jump_buf > 0.0 and coyote > 0.0 and state != "cut" and not pulling:
 		velocity.y = JUMP_V
+		if edge_hold or (absf(edge_intent) > 0.05 and absf(velocity.x) < 0.5 and signf(input_x) == signf(edge_intent)):
+			velocity.x = edge_intent        # kenardan koşar gibi atla
+		edge_intent = 0.0
 		coyote = 0.0
 		jump_buf = 0.0
 		state = "air"
@@ -343,10 +360,12 @@ func _surface() -> String:
 	return "yaprak"
 
 ## Önünde zemin yoksa (uçurum kenarı) true
-func _edge_ahead() -> bool:
+func _edge_ahead(dir := 0, depth := 1.6) -> bool:
+	## Önünde tehlikeli bir düşüş var mı (derinlik metreden fazla boşluk). Kasa/kütük gibi alçak basamaklar sayılmaz.
+	var d := face if dir == 0 else dir
 	var sp := get_world_3d().direct_space_state
-	var from := global_position + Vector3(face * 0.32, 0.3, 0)
-	var q := PhysicsRayQueryParameters3D.create(from, from + Vector3(0, -0.9, 0), 1 | (1 << 2))
+	var from := global_position + Vector3(d * 0.32, 0.3, 0)
+	var q := PhysicsRayQueryParameters3D.create(from, from + Vector3(0, -0.3 - depth, 0), 1 | (1 << 2))
 	return sp.intersect_ray(q).is_empty()
 
 func _ease(x: float) -> float:
@@ -389,7 +408,7 @@ func _process(dt: float) -> void:
 	_prev_vx = vx
 	# uçurum kenarında durunca sendeleme
 	var want_teeter := 0.0
-	if state == "ground" and is_on_floor() and spd < 0.25 and not pushing and _edge_ahead():
+	if state == "ground" and is_on_floor() and spd < 0.25 and not pushing and (edge_hold or _edge_ahead()):
 		want_teeter = 1.0
 	teeter = move_toward(teeter, want_teeter, dt * 3.0)
 	hard_t = maxf(0.0, hard_t - dt)
