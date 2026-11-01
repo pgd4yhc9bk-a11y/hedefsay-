@@ -5,6 +5,7 @@ class_name ProtoTutorial extends Control
 
 var touch := true
 var step := ""                 # şu an gösterilen adım
+var extra := ""                # yazının sonuna eklenen ilerleme (ör. "1 / 3")
 var done := {}
 var _u := 0.0
 var _a := 0.0                  # görünürlük
@@ -21,6 +22,8 @@ const STEPS := {
 	"gap": {"g": "runjump", "t": "Koşarken yukarı kaydır: boşluğun üstünden atla", "k": ["→", "↑"], "kt": "Koşarken ↑ ile atla"},
 	"push": {"g": "push", "t": "Kasaya doğru kaydırıp basılı tut: it", "k": ["→"], "kt": "Kasayı itmek için → tuşunu basılı tut"},
 	"climb": {"g": "up", "t": "Kasanın dibinde yukarı kaydır: çık, sonra duvara tırman", "k": ["↑"], "kt": "Kasaya ve duvara çıkmak için ↑"},
+	"wheel": {"g": "circle", "t": "Çarkın yanında, ekranın sağında saat yönünde 3 tur çevir", "k": ["E"], "kt": "Çarkın yanında E tuşunu basılı tut: çevir"},
+	"boat": {"g": "walk", "t": "Sandala bin, sağa kaydırıp basılı tut: halatı çekerek karşıya geç", "k": ["→"], "kt": "Sandalda → basılı tut: halatı çek"},
 }
 
 func _ready() -> void:
@@ -112,7 +115,7 @@ func show_step(want: String, dt: float) -> void:
 	if step == "":
 		return
 	var s: Dictionary = STEPS[step]
-	label.text = s["t"] if touch else s["kt"]
+	label.text = (s["t"] if touch else s["kt"]) + extra
 	_u = fmod(_u + dt / 1.8, 1.0)
 	finger.visible = touch
 	ring.visible = touch
@@ -151,6 +154,17 @@ func _gesture(g: String) -> void:
 			p = a.lerp(b, k)
 			pts = PackedVector2Array([a, p]) if k > 0.0 else PackedVector2Array()
 			press = 1.0 - clampf((u - 0.1) / 0.1, 0.0, 1.0) * 0.6
+		"circle":   # ekranın sağında saat yönünde daire
+			var cc := Vector2(990, 390)
+			var r := 95.0
+			var k := clampf((u - 0.05) / 0.85, 0.0, 1.0)
+			var a0 := -PI / 2.0
+			p = cc + Vector2(cos(a0 + k * TAU), sin(a0 + k * TAU)) * r
+			var nn := 24
+			for i in nn + 1:
+				var aa := a0 + k * TAU * float(i) / nn
+				pts.append(cc + Vector2(cos(aa), sin(aa)) * r)
+			press = 1.0 - clampf((u - 0.05) / 0.1, 0.0, 1.0) * 0.6
 		"runjump":   # sağa kaydır, sonra yukarı fiske
 			var a := c + Vector2(-170, 40)
 			var m := c + Vector2(40, 40)

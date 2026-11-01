@@ -13,14 +13,18 @@ const PROFILE := [
 	Vector2(19, 0.18), Vector2(23, 0.1), Vector2(26, -0.15), Vector2(29, -0.42), Vector2(32.6, -0.5),
 	Vector2(32.6, -16.0), Vector2(33.9, -16.0), Vector2(33.9, -0.55),
 	Vector2(37, -0.5), Vector2(41, -0.45), Vector2(46.5, -0.5),
-	Vector2(46.5, 1.6), Vector2(50, 1.7), Vector2(54, 1.9), Vector2(58, 2.05), Vector2(63, 2.0), Vector2(66, 1.95), Vector2(68, 1.85),
-	Vector2(68, -30.0), Vector2(160, -30.0),
+	Vector2(46.5, 1.6), Vector2(50, 1.7), Vector2(52, 1.75), Vector2(56, -0.45),          # kaya düzlüğü, vadiye iniş
+	Vector2(60, -0.4), Vector2(63, -0.45), Vector2(66, -0.42), Vector2(67.6, -0.55),         # çark ve kapı
+	Vector2(68.6, -1.7), Vector2(78.4, -1.75), Vector2(79.2, -0.72), Vector2(80.4, -0.5), Vector2(81.5, -0.45),   # nehir yatağı ve iskele kıyısı
+	Vector2(84, 0.3), Vector2(88, 1.5), Vector2(92, 1.9), Vector2(96, 2.05), Vector2(99, 2.0), Vector2(102, 1.95), Vector2(104, 1.85),
+	Vector2(104, -30.0), Vector2(200, -30.0),
 ]
 const LOG_X := 21.0
 const LOG_R := 0.3
 const CRATE_X := 43.0   # duvara (46.5) daha yakın
-const RIBBON_X := 62.4
-const CHECKPOINTS := [Vector2(1.0, 0.0), Vector2(36.0, -0.5), Vector2(48.5, 1.65)]
+const RIBBON_X := 98.4
+const CHECKPOINTS := [Vector2(1.0, 0.0), Vector2(36.0, -0.5), Vector2(48.5, 1.65), Vector2(57.5, -0.42), Vector2(65.8, -0.43), Vector2(81.5, -0.45)]
+const FINAL_X := 104.0          # son uçurum
 
 var player: NehirProto
 var cam: Camera3D
@@ -31,6 +35,7 @@ var sun: DirectionalLight3D
 var fade: ColorRect
 var hint: Label
 var tut: ProtoTutorial
+var zones: ProtoZones            # çark ve nehir bölgesi
 var title: Label
 var sub: Label
 var post: ShaderMaterial
@@ -121,6 +126,9 @@ func _ready() -> void:
 	player.position = Vector3(CHECKPOINTS[0].x, CHECKPOINTS[0].y + 0.05, 0)
 	player.died.connect(_on_died)
 	add_child(player)
+	zones = ProtoZones.new()
+	add_child(zones)
+	zones.setup(self)
 	_static_ledges()
 	cam = Camera3D.new()
 	cam.fov = 30.0
@@ -220,7 +228,7 @@ func _build_env() -> void:
 	sun.light_color = Color(0.78, 0.84, 0.92)
 	sun.light_energy = 0.34
 	sun.rotation_degrees = Vector3(-28, 170, 0)
-	sun.shadow_enabled = true
+	sun.shadow_enabled = OS.get_environment("NOSHADOW") == ""
 	sun.shadow_blur = 2.0
 	sun.directional_shadow_max_distance = 30.0
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
@@ -249,7 +257,7 @@ func _noise_tex(freq: float, size := 256) -> NoiseTexture2D:
 	return nt
 
 const PLAT_A := 46.5
-const PLAT_B := 68.0
+const PLAT_B := 56.0            # kaya düzlüğünün sonu (vadiye iniş dahil)
 const ZF := 1.2          # yüksek kayanın kameraya bakan ön yüzü (önünde alçak patika devam eder)
 const YF := -0.5
 
@@ -429,7 +437,7 @@ func _sprite(n: String, pos: Vector3, h: float, dark := 1.0, flip := false) -> S
 	return sp
 
 func _in_gap(x: float) -> bool:
-	return (x > 32.3 and x < 34.7) or (x > 46.2 and x < 46.8) or x > 67.6
+	return (x > 32.3 and x < 34.7) or (x > 46.2 and x < 46.8) or (x > 67.3 and x < 79.7) or x > FINAL_X - 0.4
 
 func _build_vegetation() -> void:
 	var rng := RandomNumberGenerator.new()
@@ -437,7 +445,7 @@ func _build_vegetation() -> void:
 	var brk := _breaks()
 	var kinds := [["ot", 0.55], ["cimen_oku", 0.3], ["egrelti", 0.5], ["cali", 0.6], ["dikenli_cali", 0.7], ["ot", 0.75], ["cicek", 0.45], ["mantar", 0.18]]
 	var x := -14.0
-	while x < 70.0:
+	while x < FINAL_X + 2.0:
 		x += rng.randf_range(0.15, 0.55)
 		if _in_gap(x):
 			continue
@@ -487,7 +495,7 @@ func _build_trees() -> void:
 	bark.uv1_scale = Vector3(0.8, 0.12, 0.8)
 	# yakın arka: gerçek 3D gövdeler (fener ışığını alır)
 	var x := -12.0
-	while x < 70.0:
+	while x < FINAL_X + 2.0:
 		x += rng.randf_range(2.2, 4.8)
 		var z := rng.randf_range(-4.8, -1.6)
 		if _in_gap(x):
@@ -502,13 +510,13 @@ func _build_trees() -> void:
 	var names := ["agac_ince", "agac_kalin", "agac_kuru_cam", "agac_olu", "agac_cift", "agac_genc"]
 	for layer in [[-7.0, -11.0, 3.0], [-12.0, -18.0, 3.6], [-19.0, -28.0, 4.5], [-29.0, -40.0, 5.5]]:
 		x = -20.0
-		while x < 90.0:
+		while x < FINAL_X + 22.0:
 			x += rng.randf_range(float(layer[2]) * 0.6, float(layer[2]) * 1.4)
 			var z := rng.randf_range(layer[1], layer[0])
-			var gx := clampf(x, -16.0, 67.0)
+			var gx := clampf(x, -16.0, FINAL_X - 1.0)
 			var gy := gy_at(gx, z) - 0.3
-			if x > 67.0:
-				gy = -14.0 - (x - 67.0) * 0.3
+			if x > FINAL_X - 1.0:
+				gy = -14.0 - (x - FINAL_X + 1.0) * 0.3
 			_sprite(names[rng.randi() % names.size()], Vector3(x, gy, z), rng.randf_range(9.0, 15.0), 1.0, rng.randf() < 0.5)
 
 func _trunk(pos: Vector3, r: float, m: Material, rng: RandomNumberGenerator, shadow := true) -> void:
@@ -598,7 +606,7 @@ void fragment() {
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
 	var sx := -6.0
-	while sx < 70.0:
+	while sx < FINAL_X + 2.0:
 		sx += rng.randf_range(6.0, 11.0)
 		var mi := MeshInstance3D.new()
 		var qm := QuadMesh.new()
@@ -781,7 +789,7 @@ void fragment() {
 		q.size = Vector2(s, s)
 		mi.mesh = q
 		mi.material_override = m
-		mi.position = Vector3(rng.randf_range(80, 112), rng.randf_range(-1.5, 2.5), rng.randf_range(-34, -22))
+		mi.position = Vector3(rng.randf_range(FINAL_X + 12.0, FINAL_X + 44.0), rng.randf_range(-1.5, 2.5), rng.randf_range(-34, -22))
 		add_child(mi)
 
 # ================================================================ oyuncu yardımcıları
@@ -848,6 +856,8 @@ func _on_died() -> void:
 
 ## Zemin türü (adım sesi): kasa üstü tahta, kaya düzlüğü taş, aşağı patika toprak, orman yaprak
 func surface_at(p: Node3D) -> String:
+	if zones != null and zones.on_boat:
+		return "tahta"
 	if crate != null and absf(p.position.y - crate.top()) < 0.12 and absf(p.position.x - crate.position.x) < 0.6:
 		return "tahta"
 	if p.position.x > PLAT_A and p.position.y > 1.2:
@@ -937,6 +947,11 @@ func _update_tutorial(dt: float) -> void:
 		tut.finish("push")
 	if py > 1.3 and px > PLAT_A:
 		tut.finish("climb")
+	if zones != null and zones.gate_open:
+		tut.finish("wheel")
+	if zones != null and zones.boat_x > ProtoZones.DOCK_A + 1.5:
+		tut.finish("boat")
+	tut.extra = ""
 	var want := ""
 	if phase == "play" and cine == null and player.state != "climb":
 		if px < 3.0 and hint_t > 1.0:
@@ -947,12 +962,19 @@ func _update_tutorial(dt: float) -> void:
 			want = "gap"
 		elif crate != null and px > CRATE_X - 2.6 and px < crate.position.x and crate.position.x < CRATE_X + 1.2:
 			want = "push"
-		elif crate != null and crate.position.x > 45.4 and px > 43.0 and py < 1.3:
+		elif crate != null and crate.position.x > 45.4 and px > 43.0 and px < PLAT_A and py < 1.3:
 			want = "climb"
+		elif zones != null and not zones.gate_open and px > ProtoZones.STAND_X - 2.5 and px < ProtoZones.GATE_X:
+			want = "wheel"
+			tut.extra = "   (%d / 3)" % int(floor(zones.turns))
+		elif zones != null and px > ProtoZones.LAKE_A - 1.2 and zones.boat_x < ProtoZones.DOCK_A + 1.5 and py > ProtoZones.WATER_Y - 0.2:
+			want = "boat"
 	tut.show_step(want, dt)
 
 func _respawn() -> void:
 	var c: Vector2 = CHECKPOINTS[cp]
+	if zones != null:
+		zones.reset_for_checkpoint(c.x)
 	player.state = "ground"
 	player.velocity = Vector3.ZERO
 	player.position = Vector3(c.x, c.y + 0.05, 0)
@@ -1007,6 +1029,8 @@ func _process(dt: float) -> void:
 	_update_chase(dt)
 	_update_cinar(dt)
 	_update_pickup()
+	if zones != null:
+		zones.update(dt)
 	# bakış hedefi: izleyen Sisli, sonra kurdele
 	if cine != null:
 		player.look_at = cine_look
@@ -1114,6 +1138,9 @@ func _update_camera(dt: float) -> void:
 	if p.x > 37.0 and p.x < 50.0:
 		dist = 15.5   # bulmaca alanı: biraz geri çekil, kasa ve duvar birlikte görünsün
 		up = 1.5
+	elif p.x > 58.5 and p.x < 81.0:
+		dist = 15.0   # çark-kapı ve nehir birlikte görünsün
+		up = 1.4
 	if phase == "end" or phase == "done":
 		var k := clampf((end_t - 4.5) / 6.0, 0.0, 1.0)
 		k = k * k * (3.0 - 2.0 * k)
@@ -1289,10 +1316,19 @@ func _read_input() -> void:
 		var f: Dictionary = _touch[_first]
 		var dx: float = (f["pos"] as Vector2).x - (f["start"] as Vector2).x
 		tx = clampf(dx / 120.0, -1.0, 1.0) if absf(dx) > 12.0 else 0.0
+		if zones != null and zones.is_turn_touch(f["start"]):   # sağ yarıda daire çizen parmak çarkı çevirir, yürütmez
+			tx = 0.0
 	player.input_x = kx if absf(kx) > 0.0 else tx
 	if Input.is_action_just_pressed("jump"):
 		player.jump_pressed = true
-	player.grab_held = Input.is_action_pressed("grab") or _touch.size() >= 2
+	# ikinci parmak: kısa süre basılı ve sabit tutulursa tutma (kasayı çekme); hızlı kaydırma tutma sayılmaz
+	var held := false
+	for k in _touch:
+		if k != _first:
+			var g: Dictionary = _touch[k]
+			if t - float(g["t"]) > 0.3 and ((g["pos"] as Vector2) - (g["start"] as Vector2)).length() < 30.0:
+				held = true
+	player.grab_held = Input.is_action_pressed("grab") or held
 
 func _input(ev: InputEvent) -> void:
 	if not built:
@@ -1305,29 +1341,33 @@ func _input(ev: InputEvent) -> void:
 		return
 	if ev is InputEventScreenTouch:
 		if ev.pressed:
-			_touch[ev.index] = {"start": ev.position, "pos": ev.position, "t": t, "ly": ev.position.y, "lt": t}
+			_touch[ev.index] = {"start": ev.position, "pos": ev.position, "t": t, "ly": ev.position.y, "lt": t, "jumped": false}
 			if _first < 0:
 				_first = ev.index
-				_jumped_swipe = false
 		else:
 			_touch.erase(ev.index)
-			if ev.index == _first:
+			if ev.index == _first:   # yürüten parmak kalktı: ekranda kalan başka parmak varsa yürütmeyi o devralır
 				_first = -1
+				for k in _touch:
+					_first = k
+					(_touch[k] as Dictionary)["start"] = (_touch[k] as Dictionary)["pos"]
+					break
 	elif ev is InputEventScreenDrag and _touch.has(ev.index):
 		var f: Dictionary = _touch[ev.index]
 		f["pos"] = ev.position
-		# yukarı hızlı kaydırma = zıpla (her kaydırmada bir kez); sonra yatay sürüklemeye devam edilebilir
-		if ev.index == _first:
-			if t - float(f["lt"]) > 0.25:
-				f["ly"] = ev.position.y
-				f["lt"] = t
-			if not _jumped_swipe and float(f["ly"]) - ev.position.y > 55.0:
-				player.jump_pressed = true
-				_jumped_swipe = true
-				f["ly"] = ev.position.y
-			if ev.position.y - float(f["ly"]) > 30.0:
-				_jumped_swipe = false
-				f["ly"] = ev.position.y
+		if zones != null:
+			zones.touch_drag(ev.index, ev.position, ev.relative)
+		# yukarı hızlı kaydırma = zıpla. HER parmakta çalışır: sağ parmakla yürürken sol parmakla yukarı kaydırmak da zıplatır.
+		if t - float(f["lt"]) > 0.25:
+			f["ly"] = ev.position.y
+			f["lt"] = t
+		if not bool(f["jumped"]) and float(f["ly"]) - ev.position.y > 55.0:
+			player.jump_pressed = true
+			f["jumped"] = true
+			f["ly"] = ev.position.y
+		if ev.position.y - float(f["ly"]) > 30.0:
+			f["jumped"] = false
+			f["ly"] = ev.position.y
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
@@ -1512,6 +1552,85 @@ func _run_test() -> void:
 				k10 += 1
 		player.input_x = 0.0
 		close_cam = 0.0
+	elif test == "protozone":   # çark, kapı, sandal, boğulma
+		bot = {"on": true}
+		chase = "done"
+		hint_t = 5.0
+		await _place(59.3, 0.6)
+		player.input_x = 0.5
+		while player.position.x < ProtoZones.STAND_X - 0.05:
+			await _wait(0.02)
+		player.input_x = 0.0
+		await _wait(1.2)
+		print("BOLGE cark_aktif=%s ogretici=%s" % [zones.wheel_active, tut.step])
+		close_cam = 7.0
+		await _wait(1.5)
+		await _shot("bolge_1_cark")
+		for i in 60:
+			zones.add_turn(0.02)
+			await _wait(0.02)
+		await _shot("bolge_2_cevirme")
+		for i in 120:
+			zones.add_turn(0.02)
+			await _wait(0.02)
+		await _wait(1.0)
+		print("BOLGE kapi_acik=%s tur=%.2f" % [zones.gate_open, zones.turns])
+		await _shot("bolge_3_kapi")
+		# boğulma: sandalsız suya (nehrin ortasına düşer)
+		await _place(66.8, 0.4)
+		player.position = Vector3(72.5, 0.3, 0.0)
+		await _wait(1.5)
+		print("BOLGE bogulma faz=%s" % phase)
+		player.input_x = 0.0
+		while phase == "dead":
+			await _wait(0.1)
+		print("BOLGE dogdu x=%.2f cp=%d sandal=%.2f" % [player.position.x, cp, zones.boat_x])
+		# sandal
+		player.input_x = 0.5
+		while player.position.x < ProtoZones.DOCK_A - 0.4:
+			await _wait(0.02)
+		await _wait(0.6)
+		await _shot("bolge_4_sandal")
+		player.input_x = 1.0
+		await _wait(5.0)
+		print("BOLGE sandal x=%.2f cekiyor=%s fener_kancada=%s" % [zones.boat_x, zones.pulling, zones.lantern_on_hook])
+		await _shot("bolge_5_nehir")
+		await _wait(6.0)
+		await _shot("bolge_6_kiyi")
+		player.input_x = 0.0
+		close_cam = 0.0
+	elif test == "protobar":   # nehir kıyısındaki tuhaf çizgiler: o bölgedeki nesneleri listele
+		await _wait(0.5)
+		for n in find_children("*", "GeometryInstance3D", true, false):
+			var g := n as GeometryInstance3D
+			if not g.is_visible_in_tree():
+				continue
+			var ab: AABB = g.global_transform * g.get_aabb()
+			var c := ab.get_center()
+			if c.x > 55.0 and c.x < 78.0 and ab.size.x > 0.4 and ab.size.y < 0.12:
+				print("CIZGI ", g.get_class(), " ", g.name, " par=", g.get_parent().name, " c=", c.snapped(Vector3.ONE * 0.01), " boyut=", ab.size.snapped(Vector3.ONE * 0.01))
+		for n in find_children("*", "Sprite3D", true, false):
+			var sp := n as Sprite3D
+			if sp.global_position.x > 60.0 and sp.global_position.x < 74.0 and not sp.texture.resource_path.get_file().begins_with("agac") and not sp.texture.resource_path.get_file() in ["ot.png", "cali.png", "egrelti.png", "cicek.png", "cimen_oku.png", "dikenli_cali.png", "kamis.png", "mantar.png"]:
+				print("SPRITE ", sp.texture.resource_path.get_file(), " p=", sp.global_position.snapped(Vector3.ONE * 0.01), " rot=", sp.global_rotation.snapped(Vector3.ONE * 0.01), " ust=", sp.get_parent().name)
+		bot = {"on": true}
+		zones.turns = 3.0
+		zones.gate_open = true
+		await _place(66.3, 0.8)
+		close_cam = 6.0
+		await _wait(1.5)
+		await _shot("cizgi_1")
+		for cls in ["agac", "ot", "kamis"]:
+			var hidden := []
+			for n in find_children("*", "Sprite3D", true, false):
+				if (n as Node3D).visible and (n as Sprite3D).texture.resource_path.get_file().begins_with(cls):
+					(n as Node3D).visible = false
+					hidden.append(n)
+			await _wait(0.1)
+			await _shot("cizgi_" + cls)
+			for n in hidden:
+				(n as Node3D).visible = true
+		close_cam = 0.0
 	elif test == "prototut":   # öğretici: her adımda bir kare
 		bot = {"on": true}
 		chase = "done"
@@ -1679,7 +1798,8 @@ func _play_bot(shots: bool) -> void:
 	var steps := [
 		["jump_at", LOG_X - 0.9], ["jump_at", 32.3], ["run_to", CRATE_X - 0.8], ["push_stuck"], ["back_to", 44.6],
 		["walk_to", 45.1], ["jump_hold_low"], ["wait_ground"], ["walk_to", 46.2], ["wait", 0.2], ["jump_hold"], ["wait_ground"],
-		["run_to", 61.5],
+		["run_to", ProtoZones.STAND_X], ["wheel"], ["run_to", ProtoZones.DOCK_A + 0.2], ["pull"], ["run_to", 82.0],
+		["run_to", RIBBON_X - 1.0],
 	]
 	var shot_i := 0
 	for s: Array in steps:
@@ -1751,6 +1871,22 @@ func _bot_step(s: Array) -> bool:
 			player.input_x = 0.0
 			await _wait(0.2)
 			return phase != "dead"
+		"wheel":   # çarkı çevir (dokunma/klavye yerine doğrudan)
+			while not zones.gate_open and tt < 20.0:
+				zones.add_turn(0.02 * 0.8)
+				await _wait(0.02)
+				tt += 0.02
+			await _wait(0.6)
+			return zones.gate_open
+		"pull":   # sandalda halatı çek, karşı iskelede in
+			while zones.boat_x < ProtoZones.DOCK_B - 0.02 and tt < 40.0:
+				player.input_x = 1.0
+				await _wait(0.05)
+				tt += 0.05
+				if phase == "dead":
+					return false
+			print("BOT sandal x=%.2f sure=%.1f" % [zones.boat_x, tt])
+			return zones.boat_x >= ProtoZones.DOCK_B - 0.05
 		"push_stuck":
 			var lastx := player.position.x
 			var still := 0.0
@@ -1958,7 +2094,7 @@ func _build_grass() -> void:
 	rng.seed = 77
 	var xf: Array = []
 	var x := -12.0
-	while x < 67.5:
+	while x < FINAL_X - 0.5:
 		x += rng.randf_range(0.02, 0.06)
 		if _in_gap(x):
 			continue

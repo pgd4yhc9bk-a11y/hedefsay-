@@ -36,6 +36,7 @@ var lan_p := Vector3.ZERO      # fenerin orta noktası
 var lan_v := Vector3.ZERO
 var lan_ang := 0.0
 var lan_spin := 0.0
+var arm_r_target := Vector3.INF   # ara iş: sağ el buraya uzanır (halat, çark)
 var lantern_left := 0.0   # 0..1: fener sol elde (yerden alma animasyonu sol elle alır, sonra sağa geçer)
 var cut_speed := 0.45            # ara sahnede hedefe giderken girdi gücü (0.45 yürür, 1 koşar)              # ara sahne: zorla oynatılacak animasyon (crouch, torch)
 var turn: Node3D                # yön dönüşü (Y ekseni)
@@ -664,7 +665,10 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 	var fw := Vector3(1, 0, 0).rotated(Vector3.UP, yaw)
 	var rs := Vector3(0, 0, 1).rotated(Vector3.UP, yaw)
 	mocap.hold_target = global_position + fw * 0.6 + Vector3(0, 0.72, 0) + rs * 0.16   # sağ el kendi yanında
-	mocap.side_l = lerpf(mocap.side_l, 1.0 if st == "loco" and lantern_left < 0.01 else 0.0, 1.0 - exp(-dt * 6.0))
+	if arm_r_target != Vector3.INF:
+		mocap.hold = lerpf(mocap.hold, 1.0, 1.0 - exp(-dt * 8.0))
+		mocap.hold_target = arm_r_target
+	mocap.side_l = lerpf(mocap.side_l, 1.0 if st == "loco" and lantern_left < 0.01 and reach < 0.01 else 0.0, 1.0 - exp(-dt * 6.0))
 	mocap.side_l_target = global_position + fw * 0.06 + Vector3(0, 0.66, 0) - rs * 0.24
 	mocap.position.x = lerpf(mocap.position.x, -mocap.push_back if st == "push" else 0.0, 1.0 - exp(-dt * 6.0))
 	force_t = force_t + dt * absf(sc) if force_anim != "" and st == force_anim else 0.0
