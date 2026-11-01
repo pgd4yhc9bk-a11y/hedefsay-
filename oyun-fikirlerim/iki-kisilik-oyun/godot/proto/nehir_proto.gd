@@ -17,7 +17,12 @@ const SHIN := 0.355
 const LEG := 0.69
 
 var world: Node = null          # ProtoLevel: kenarlar ve kasalar
-var body: NehirBody
+var body                        # NehirBody (prosedürel) ya da NehirMocap
+var mocap: NehirMocap = null
+var land_t := 0.0
+var roll_t := 0.0
+var wake_t := 0.0               # açılışta yerden kalkma
+var caught := false             # Sisli yakaladı (ölüm animasyonu)
 var turn: Node3D                # yön dönüşü (Y ekseni)
 var face := 1
 var yaw := 0.0
@@ -91,8 +96,13 @@ func _ready() -> void:
 	add_child(cs)
 	turn = Node3D.new()
 	add_child(turn)
-	body = NehirBody.new()
-	turn.add_child(body)
+	if ResourceLoader.exists("res://proto/mocap/manken_kiz.glb") and ResourceLoader.exists("res://proto/mocap/anim.res"):
+		mocap = NehirMocap.new()
+		turn.add_child(mocap)
+		body = mocap
+	else:
+		body = NehirBody.new()
+		turn.add_child(body)
 	_build_lantern()
 	_build_scarf()
 	_build_braid()
@@ -110,6 +120,14 @@ func _physics_process(dt: float) -> void:
 		return
 	var on_floor := is_on_floor()
 	var ix := input_x
+	if wake_t > 0.0:
+		wake_t -= dt
+		ix = 0.0
+		jump_pressed = false
+	if roll_t > 0.0:
+		roll_t -= dt
+		ix = float(face) * 0.7
+	land_t = maxf(0.0, land_t - dt)
 	if state == "cut":
 		ix = 0.0
 		if cut_target_x != INF:
@@ -139,7 +157,7 @@ func _physics_process(dt: float) -> void:
 				pulling = true
 				crate = cb
 	if pushing:
-		target = signf(target) * minf(absf(target), PUSH_V)
+		target = signf(target) * minf(absf(target), PUSH_V if mocap == null else 0.8)
 	elif pulling:
 		target = signf(target) * minf(absf(target), PULL_V)
 	# yön
@@ -206,6 +224,9 @@ func _physics_process(dt: float) -> void:
 			if impact > 12.5:
 				recover = 0.55
 				hard_t = 0.75
+				roll_t = 1.0      # sert iniş: öne yuvarlan
+			elif impact > 6.5:
+				land_t = 0.42
 		state = "ground"
 		air_t = 0.0
 	if not is_on_floor():
@@ -227,11 +248,11 @@ func _start_climb(lg: Dictionary) -> void:
 	var dir: int = lg["dir"]
 	face = dir
 	var dy := p.y - position.y
-	var hang := dy > 1.35
+	var hang := dy > 1.35 and mocap == null
 	var start := position
 	if hang:
 		start = Vector3(p.x - dir * 0.27, p.y - 1.74, 0.0)
-	climb = {"p": p, "dir": dir, "t": 0.0, "dur": (1.25 if hang else (0.85 if dy > 0.8 else 0.55)), "from": position, "start": start, "hang": hang, "dy": dy}
+	climb = {"p": p, "dir": dir, "t": 0.0, "dur": (1.25 if hang else ((0.85 if dy > 0.8 else 0.55) if mocap == null else lerpf(0.5, 0.9, clampf(dy / 1.2, 0.0, 1.0)))), "from": position, "start": start, "hang": hang, "dy": dy}
 	velocity = Vector3.ZERO
 	state = "climb"
 	_snd("kumas", -12.0)
@@ -331,6 +352,10 @@ func _process(dt: float) -> void:
 		want_teeter = 1.0
 	teeter = move_toward(teeter, want_teeter, dt * 3.0)
 	hard_t = maxf(0.0, hard_t - dt)
+	if mocap != null:
+		_mocap_anim(dt, run_b)
+		_accessories(dt)
+		return
 	# kayan ağırlıklar
 	var tgt := {"loco": 0.0, "air": 0.0, "push": 0.0, "pull": 0.0}
 	if state == "air" or (not on_floor and state != "climb"):
@@ -429,6 +454,55 @@ func _process(dt: float) -> void:
 		p["foot." + s] += -(p["thigh." + s] + p["shin." + s]) * ground_w * 0.85
 	body.apply(p)
 	_accessories(dt)
+
+func _mocap_anim(dt: float, _run_b: float) -> void:
+	var on_floor := is_on_floor() or state == "climb"
+	var st := "loco"
+	var sc := 1.0
+	var xf := 0.2
+	if caught:
+		st = "death"
+		xf = 0.15
+	elif wake_t > 0.0:
+		st = "wake"
+		sc = 0.55
+	elif state == "dead":
+		st = "air"
+	elif state == "climb":
+		st = "climb"
+		sc = 0.67 / float(climb["dur"])
+		xf = 0.1
+	elif state == "air" or not on_floor:
+		st = "air"
+		xf = 0.15
+	elif roll_t > 0.0:
+		st = "roll"
+		sc = 1.4
+		xf = 0.1
+	elif land_t > 0.0:
+		st = "land"
+		sc = 1.8
+		xf = 0.08
+	elif pushing or pulling:
+		st = "push"
+		sc = clampf(absf(velocity.x) / 0.23, 0.35, 3.2) * (-1.0 if pulling else 1.0)
+	# bakış ve uzanma
+	var want_look := 0.0
+	if look_at != Vector3.INF and state != "climb":
+		var hp := global_position + Vector3(0, 1.3, 0)
+		var ldx := (look_at.x - hp.x) * face
+		if ldx > 0.4:
+			want_look = clampf(atan2(look_at.y - hp.y, ldx), -0.5, 0.6)
+	_look = lerpf(_look, want_look, 1.0 - exp(-dt * 4.0))
+	mocap.look_pitch = _look
+	mocap.reach = _ease(reach)
+	mocap.reach_target = look_at
+	var hw := 0.0
+	if st == "loco":
+		hw = clampf(spd / 0.8, 0.0, 1.0) * lerpf(0.8, 0.35, clampf((spd - 3.4) / 2.0, 0.0, 1.0))
+	mocap.hold = lerpf(mocap.hold, hw, 1.0 - exp(-dt * 6.0))
+	mocap.hold_target = global_position + Vector3(face * 0.6, 0.72, 0.16)
+	mocap.drive(st, spd, sc, dt, xf)
 
 func _blank() -> Dictionary:
 	var p := {}
@@ -633,12 +707,12 @@ void fragment() {
 	lantern.add_child(halo)
 	lamp_light = OmniLight3D.new()
 	lamp_light.light_color = Color(1.0, 0.63, 0.32)
-	lamp_light.light_energy = 2.2
+	lamp_light.light_energy = 1.7
 	lamp_light.omni_range = 7.5
-	lamp_light.omni_attenuation = 1.6
+	lamp_light.omni_attenuation = 1.9
 	lamp_light.shadow_enabled = true
 	lamp_light.shadow_bias = 0.08
-	lamp_light.position = Vector3(0, -0.145, 0)
+	lamp_light.position = Vector3(0, -0.12, 0.14)   # biraz kameraya doğru: vücudu yakmadan önünü aydınlatır
 	lantern.add_child(lamp_light)
 
 func _build_scarf() -> void:
@@ -701,7 +775,7 @@ func _accessories(dt: float) -> void:
 	wind = 0.6 + 0.4 * sin(t * 0.7) + 0.3 * sin(t * 2.3)
 	var fwd := Vector3(face, 0, 0)
 	# --- fener: elden sarkan sarkaç
-	var piv := body.bone_world("hand.R", Vector3(0, 0.1, 0))
+	var piv: Vector3 = body.bone_world("hand.R", Vector3(0, 0.1, 0) if mocap == null else Vector3.ZERO)
 	if not _acc_init or piv.distance_to(_piv_prev) > 0.8:
 		_piv_prev = piv
 		_piv_vel = Vector3.ZERO
@@ -717,11 +791,13 @@ func _accessories(dt: float) -> void:
 	lantern.global_position = piv
 	lantern.rotation = Vector3(0, 0, lan_th)
 	var fl := 1.0 + 0.05 * sin(t * 13.0) + 0.04 * sin(t * 7.3 + 1.0) + 0.03 * sin(t * 23.0)
-	lamp_light.light_energy = 2.2 * fl
+	lamp_light.light_energy = 1.7 * fl
 	glass_mat.emission_energy_multiplier = 3.0 * fl
 	halo_mat.set_shader_parameter("k", fl)
 	# --- atkı: boyuna bağlı, rüzgârda arkaya uçuşan zincir
-	var nt := body.bone_xform("neck")
+	var nt: Transform3D = body.bone_xform("neck")
+	if mocap != null:   # mankenin boyun ekseni farklı: düğüm yatay halka
+		nt = Transform3D(Basis(Vector3.UP, yaw), nt.origin + Vector3(0, 0.03, 0))
 	scarf_knot.global_transform = Transform3D(nt.basis.orthonormalized(), nt * Vector3(0, 0.0, 0))
 	scarf_knot.scale = Vector3(1.0, 0.75, 1.15)
 	var anchor := nt * Vector3(0, 0.0, 0) - fwd * 0.06 + Vector3(0, -0.01, 0)
@@ -741,8 +817,10 @@ func _accessories(dt: float) -> void:
 		scarf_mesh.surface_add_vertex(a - n * wd + Vector3(0, 0, 0.03 - tw))
 	scarf_mesh.surface_end()
 	# --- örgü: başın arkasından sarkan
-	var hb := body.bone_xform("head")
+	var hb: Transform3D = body.bone_xform("head")
 	var banchor := hb * Vector3(0, 0.07, 0) - fwd * 0.09
+	if mocap != null:
+		banchor = hb.origin + Vector3(0, 0.03, 0) - fwd * 0.1
 	_verlet(braid_pts, braid_old, banchor, 0.045, dt, Vector3(-velocity.x * 0.05 - face * 0.15 * wind, -9.0, 0.0), 0.94)
 	for i in braid_pts.size():
 		braid_balls[i].global_position = braid_pts[i] + Vector3(0, 0, -0.02)

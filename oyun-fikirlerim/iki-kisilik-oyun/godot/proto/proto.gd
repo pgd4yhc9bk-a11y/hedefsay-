@@ -108,6 +108,7 @@ func _ready() -> void:
 		_low_quality()
 	if test == "":
 		audio.start()
+		player.wake_t = 2.8   # açılış: yerde yatarken uyanır
 	else:
 		audio.muted = true
 		_run_test()
@@ -756,7 +757,7 @@ func find_ledge(p: NehirProto, airborne: bool, move_dir: float) -> Dictionary:
 		if airborne:
 			if p.face != dir or int(signf(move_dir)) == -dir:
 				continue
-			if dx < 0.12 or dx > 0.48 or dy < 0.45 or dy > 1.92:
+			if dx < 0.12 or dx > 0.48 or dy < 0.3 or dy > (1.92 if p.mocap == null else 1.3):
 				continue
 			if p.velocity.y > 5.0 and dy > 1.2:
 				continue
@@ -818,7 +819,7 @@ func _update_chase(dt: float) -> void:
 				chase_t = 0.0
 		"run":
 			chase_t += dt
-			var v := lerpf(0.5, 0.85, clampf(chase_t / 5.0, 0.0, 1.0))
+			var v := lerpf(0.42, 0.72, clampf(chase_t / 5.0, 0.0, 1.0))
 			if px - chase_x > 7.0:
 				v += 0.4   # çok geride kalırsa biraz hızlanır
 			chase_x = minf(chase_x + v * dt, PLAT_A - 0.45)
@@ -829,6 +830,7 @@ func _update_chase(dt: float) -> void:
 				caught = true
 				audio.play("yakalandi", -2.0, 0.0)
 				player.state = "cut"
+				player.caught = true
 				player.cut_target_x = INF
 				player.velocity = Vector3.ZERO
 				phase = "dead"
@@ -856,6 +858,7 @@ func _respawn() -> void:
 	cam_pos = Vector3(c.x + 1.0, c.y + 1.3, cam_dist)
 	phase = "play"
 	caught = false
+	player.caught = false
 	if chase in ["rise", "run"]:
 		chase = "off"
 		chaser.visible = false
@@ -1345,6 +1348,7 @@ func _bot_step(s: Array) -> bool:
 ## Yakın plan animasyon kareleri: her hareketin ortasında bir kare
 func _pose_shots() -> void:
 	bot = {"on": true}
+	chase = "done"
 	close_cam = 4.6
 	await _place(5.0, 1.5)
 	cam_pos = Vector3(player.position.x, player.position.y + 0.75, close_cam)
