@@ -1,2 +1,13 @@
 test_*.png
 __pycache__/
+# test kareleri (Godot --test= çıktıları)
+onsoz_*.png
+cine_*.png
+open_*.png
+yakin_*.png
+kutuk_*.png
+itme_*.png
+kenar_*.png
+log_*.png
+poz_*.png
+acilis_ilk_kare.png
