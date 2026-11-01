@@ -446,9 +446,9 @@ func _script() -> void:
 		if pofuk != null:
 			_vanish(pofuk, 1.5))
 	# 4 kapı: Nehir, arkasında anne; çividen feneri alır
-	_shot(20.0, 28.6, Vector3(1.5, 1.4, 3.7), Vector3(4.0, 1.2, 0.1), Vector3(2.0, 1.35, 3.0), Vector3(3.9, 1.15, 0.1), 30.0)
+	_shot(20.0, 28.6, Vector3(0.2, 1.4, 1.7), Vector3(4.1, 1.15, 0.2), Vector3(0.9, 1.35, 1.4), Vector3(4.1, 1.15, 0.2), 30.0)   # kapıya karşıdan
 	c.at(20.0, func() -> void:
-		pl.position = Vector3(4.45, 0.05, 0.0)
+		pl.position = Vector3(4.3, 0.05, 0.0)   # eşikte, içerinin ışığı arkasında
 		pl.mocap.visible = true
 		pl.look_at = Vector3(-8.0, 1.2, -6.0)
 		pl.mocap.set_any("M_Long_Breathe_and_Look_Around")
@@ -514,17 +514,19 @@ func _gust() -> void:   # rüzgâr hamlesi: kar yana savrulur, ses
 func _slip() -> void:   # yamaç kenarında ayağı kayar: yuvarlanarak açıklığa düşer, fener yanına yuvarlanır
 	pl.set_physics_process(false)
 	pl.velocity = Vector3.ZERO
-	pl.mocap.set_any("M_Fall_Down")
+	pl.mocap.set_any("M_falling_down")
 	pl.force_anim = "any"
 	pl.state = "cut"
 	audio.play("nefes_al", -6.0, 0.05)
 	audio.play("kumas", -8.0)
-	pl.throw_lantern(Vector3(1.9, 1.3, 0.45))
+	pl.throw_lantern(Vector3(3.4, 1.5, 0.45))   # yanına düşsün
 	var a := pl.position
 	var tw := create_tween()
 	tw.tween_property(pl, "position", Vector3(SLIP_X + 0.9, ground_y(SLIP_X + 0.9), 0.0), 0.45).from(a).set_ease(Tween.EASE_IN)
 	tw.tween_property(pl, "position", Vector3(114.3, -2.2, 0.0), 0.75).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(func() -> void: audio.play("inis", -4.0))
+	tw.tween_callback(func() -> void:   # yere çarpar ve yığılır, hareketsiz kalır
+		audio.play("inis", -4.0)
+		pl.force_anim = "death")
 	var lw := create_tween()   # alev kısılır (oyun buradan başlar)
 	lw.tween_interval(1.6)
 	lw.tween_property(pl, "lamp_on", 0.25, 1.4)
