@@ -811,6 +811,8 @@ func find_ledge(p: NehirProto, airborne: bool, move_dir: float) -> Dictionary:
 				continue
 			if p.mocap != null and (p.velocity.y > 0.5 or dy > 1.1):
 				continue
+			if lp.y - p.floor_y > 1.3:   # yüksek duvar: yerden zıplayarak değil, ancak kasaya çıkıp tırmanılır
+				continue
 			return lg
 		elif bool(lg.get("low", false)):
 			if int(signf(move_dir)) != dir:
@@ -1025,27 +1027,26 @@ func _ending_cine() -> Cinematic:
 	var meet := R - 0.65   # Çınar'ın sarılma animasyonu onu 1.46 m ileri taşır, kolları Nehir'e burada ulaşır
 	var c := Cinematic.new()
 	c.cam(0.0, cam.position, cam.position + Vector3(0, 0, -10).rotated(Vector3.RIGHT, cam.rotation.x), 30.0)
-	c.cam(1.8, Vector3(R - 0.9, G + 1.2, 6.4), Vector3(R + 0.3, G + 0.8, 0.0), 29.0)
-	c.cam(4.2, Vector3(meet + 0.1, G + 0.95, 4.6), Vector3(meet + 0.25, G + 0.7, 0.0), 27.0)
+	c.cam(1.3, Vector3(R - 0.9, G + 1.2, 6.4), Vector3(R + 0.1, G + 0.75, 0.0), 29.0)
+	c.cam(3.6, Vector3(meet + 0.1, G + 0.95, 4.6), Vector3(meet + 0.2, G + 0.65, 0.0), 27.0)
 	c.cam(7.5, Vector3(meet - 0.1, G + 0.8, 4.0), Vector3(meet + 0.2, G + 0.6, -0.1), 26.0)
 	c.cam(14.0, Vector3(meet - 0.8, G + 3.0, 12.5), Vector3(meet + 5.0, G - 0.5, -12.0), 34.0)
 	var pl := player
 	c.at(0.0, func() -> void:
 		cine_look = cinar_root.position + Vector3(0, 0.7, 0)
-		pl.cut_speed = 1.0                               # Çınar'ı görür görmez ona koşar
+		pl.cut_speed = 2.6                               # Çınar'ı görür görmez ona koşar
 		pl.cut_target_x = meet
+		end_meet = meet
 		cinar_anim = "M_Stand_Up1"                       # Çınar da onu görür, kalkar
 		cinar_anim_scale = 1.8
 		var tw := create_tween()                         # kalkarken kütükten öne doğru çıkar (içine girmesin)
-		tw.tween_property(cinar_root, "position:x", cinar_root.position.x - 0.3, 1.0).set_delay(0.2)
+		# sarılma animasyonu onu 1.46 m ileri taşır: kalçası Nehir'in 0.3 m önünde durur
+		tw.tween_property(cinar_root, "position:x", meet + 1.76, 1.0).set_delay(0.2)
 		if not music_on:
 			music_on = true
 			audio.final_music())
 	c.at(1.6, func() -> void:
-		if cinar.has_anim("M_Hug"):
-			cinar_anim = "M_Hug"                         # koşup ablasının boynuna sarılır (animasyonun kendi koşusu)
-			cinar_anim_scale = 1.0
-		else:
+		if not cinar.has_anim("M_Hug"):   # sarılma animasyonu yoksa: ona koşar (varsa _update_cinar Nehir'le aynı anda başlatır)
 			cinar_anim = ""
 			cinar_target = meet + 0.4
 			cinar_speed = 2.2)
@@ -1057,6 +1058,7 @@ func _ending_cine() -> Cinematic:
 	return c
 
 var cine_title_t := 14.5
+var end_meet := INF            # finalde buluşma noktası
 var cine_reach_from := 0.0
 var cine_reach_to := 0.0
 
@@ -1384,13 +1386,13 @@ func _run_test() -> void:
 			await _wait(0.05)
 		player.input_x = 0.0
 		var ct := 0.0
-		while ct < 14.0:
-			await _wait(1.0)
-			ct += 1.0
+		while ct < 9.0:
+			await _wait(0.5)
+			ct += 0.5
 			k3 += 1
 			var ch := cinar.skel.global_transform * cinar.skel.get_bone_global_pose(cinar.skel.find_bone("mixamorig_Hips")).origin
 			var nh := player.mocap.skel.global_transform * player.mocap.skel.get_bone_global_pose(player.mocap.skel.find_bone("pelvis")).origin
-			print("SINEMA t=%.1f anim=%s x=%.2f nehir_kalca=%s cinar_kalca=%s cinar_anim=%s" % [cine.t if cine != null else -1.0, player.force_anim, player.position.x, nh.snapped(Vector3.ONE * 0.01), ch.snapped(Vector3.ONE * 0.01), cinar_anim])
+			print("SINEMA t=%.1f anim=%s x=%.2f nehir_kalca=%s cinar_kalca=%s cinar_anim=%s fener=%s" % [cine.t if cine != null else -1.0, player.force_anim, player.position.x, nh.snapped(Vector3.ONE * 0.01), ch.snapped(Vector3.ONE * 0.01), cinar_anim, player.lantern.global_position.snapped(Vector3.ONE * 0.01)])
 			await _shot("cine_%02d" % k3)
 	elif test == "protodiag":
 		await _diag()
@@ -1440,7 +1442,41 @@ func _run_test() -> void:
 		player.input_x = 0.35
 		await _wait(1.2)
 		await _shot("yakin_2")
+		player.input_x = -0.35   # sola dönünce sol el kameraya bakar
+		await _wait(1.4)
+		cam_pos = Vector3(player.position.x, player.position.y + 0.75, close_cam)
+		await _shot("yakin_3")
+		for bn in ["hand_l", "hand_r", "fingers_l", "fingers_r", "upperarm_l", "upperarm_r"]:
+			print("EL ", bn, " ", (mc.skel.global_transform * mc.skel.get_bone_global_pose(mc.skel.find_bone(bn)).origin - player.global_position).snapped(Vector3.ONE * 0.01))
+		print("EL fener ", (player.lantern.global_position - player.global_position).snapped(Vector3.ONE * 0.01), " yaw=", player.yaw)
 		player.input_x = 0.0
+		await _wait(1.5)
+		await _shot("yakin_4")
+		player.input_x = 1.0
+		await _wait(1.2)
+		await _shot("yakin_5")
+		player.input_x = 0.0
+	elif test == "protowall":   # kasasız duvara tırmanılamamalı; kasayla tırmanılmalı. Sonra itme yakın planı
+		bot = {"on": true}
+		chase = "done"
+		crate.position = Vector3(CRATE_X, ground_y(CRATE_X), 0)
+		await _place(45.9, 0.5)
+		for k8 in 3:
+			player.input_x = 1.0
+			player.jump_pressed = true
+			await _wait(1.2)
+		print("DUVAR kasasiz y=%.2f durum=%s (tirmanmamali: y<1)" % [player.position.y, player.state])
+		player.input_x = 0.0
+		crate.position = Vector3(43.0, ground_y(43.0), 0)
+		await _place(41.6, 0.5)
+		close_cam = 3.2
+		player.input_x = 1.0
+		for k9 in 4:
+			await _wait(0.6)
+			print("ITME x=%.2f kasa=%.2f hiz=%.2f anim=%s el_fark=%.2f,%.2f bas_fark=%.2f" % [player.position.x, crate.position.x, player.velocity.x, player.mocap.state, crate.position.x - 0.5 - _foot("hand_l").x, crate.position.x - 0.5 - _foot("hand_r").x, crate.position.x - 0.5 - _foot("head").x])
+			await _shot("itme_%d" % k9)
+		player.input_x = 0.0
+		close_cam = 0.0
 	elif test == "protohug":
 		await _wait(0.3)
 		cinar_anim = "M_Hug"
@@ -1466,7 +1502,13 @@ func _run_test() -> void:
 		bot = {"on": true}
 		await _place(30.5, 0.5)
 		player.input_x = 1.0
-		await _wait(2.5)
+		var first := -1.0
+		for k7 in 50:
+			await _wait(0.05)
+			if player.edge_hold and first < 0.0:
+				first = k7 * 0.05
+			if first >= 0.0 and k7 * 0.05 - first < 0.5:
+				print("KENAR_ZAMAN t=%.2f hiz=%.2f tutuldu=%s sendeleme=%.2f anim=%s" % [k7 * 0.05 - first, player.velocity.x, player.edge_hold, player.teeter, player.mocap.any_name if player.mocap.state == "any" else player.mocap.state])
 		print("KENAR x=%.2f y=%.2f tutuldu=%s sendeleme=%.2f durum=%s" % [player.position.x, player.position.y, player.edge_hold, player.teeter, player.state])
 		close_cam = 4.5
 		await _wait(0.6)
@@ -2092,24 +2134,27 @@ func _build_cinar() -> void:
 func _update_cinar(dt: float) -> void:
 	if cinar == null:
 		return
-	if phase in ["end", "done"] and player.state == "cut" and absf(player.position.x - player.cut_target_x) < 0.08 and player.force_anim == "":
-		player.force_anim = "crouch"                     # ona ulaşınca onun boyuna eğilir
+	var ending: bool = phase in ["end", "done"] and end_meet != INF
+	var nhug: bool = player.mocap != null and player.mocap.has_anim("M_Hug")
+	# Nehir koşarken feneri yana fırlatır: fener seker, yuvarlanır, ışığı onunla birlikte oynar
+	if ending and not player.lan_free and player.position.x > end_meet - 0.7:
+		player.throw_lantern(Vector3(0.5, 1.7, 0.6))   # önüne-yana; seker, yuvarlanır
+		player.mocap.grip_r = 0.5
+	# ikisi aynı anda: Nehir varmadan hemen önce Çınar'ın sarılma atılışı başlar (atılış 0.9 s, Nehir'in diz çökmesi ~0.8 s)
+	if ending and cinar_anim == "M_Stand_Up1" and cine != null and cine.t > 0.8 and player.position.x > end_meet - 0.75 and cinar.has_anim("M_Hug"):
+		cinar_anim = "M_Hug"
+		cinar_anim_scale = 1.0
+		cinar_face = -1
+		create_tween().tween_property(cinar_root, "position:z", player.position.z + 0.12, 0.8)   # aynı derinliğe
+	if ending and player.state == "cut" and absf(player.position.x - player.cut_target_x) < 0.1 and player.force_anim == "":
+		player.force_anim = "hug" if nhug else "crouch"  # ona ulaşınca diz çöküp sarılır
 		player.face = 1
 		audio.play("kumas", -12.0)
 	var v := 0.0
-	if phase in ["end", "done"] and cinar_target != INF and absf(cinar_target - cinar_root.position.x) < 0.06 and cinar_anim == "" and cinar.has_anim("M_Hug"):
-		cinar_anim = "M_Hug"                             # ablasına varınca boynuna sarılır
+	if ending and cinar_target != INF and absf(cinar_target - cinar_root.position.x) < 0.06 and cinar_anim == "" and cinar.has_anim("M_Hug"):
+		cinar_anim = "M_Hug"                             # (yedek yol) ablasına varınca boynuna sarılır
 		cinar_anim_scale = 1.0
 		cinar_face = -1
-	if phase in ["end", "done"] and player.mocap != null and player.mocap.has_anim("M_Hug") and player.force_anim == "crouch":
-		player.force_anim = "hug"                        # Nehir'in sarılma animasyonu varsa onu kullanır
-		# feneri yanına, yere bırakır (sarılırken Çınar'ın içine girmesin); Çınar aynı derinliğe gelir
-		var lx := player.position.x - 0.32
-		var tw := create_tween().set_parallel()
-		player.lantern_ground = player.lantern.global_position
-		player.lantern_upright = true
-		tw.tween_property(player, "lantern_ground", Vector3(lx, ground_y(lx) + 0.23, player.position.z + 0.28), 0.5).set_trans(Tween.TRANS_SINE)
-		tw.tween_property(cinar_root, "position:z", player.position.z + 0.12, 1.0)
 	if cinar_target != INF:
 		var d := cinar_target - cinar_root.position.x
 		if absf(d) > 0.05:

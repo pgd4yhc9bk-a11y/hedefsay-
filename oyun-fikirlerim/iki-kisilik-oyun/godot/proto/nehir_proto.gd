@@ -30,6 +30,11 @@ var lantern_ground := Vector3.INF   # fener yerdeyse konumu
 var lantern_pick := Vector3.INF
 var lantern_pick_w := 1.0
 var lantern_upright := false   # yerdeki fener dik mi duruyor (finalde bırakılınca)
+var lan_free := false          # fener atıldı: kendi fiziğiyle uçar, seker, yuvarlanır (ışık onunla gider)
+var lan_p := Vector3.ZERO      # fenerin orta noktası
+var lan_v := Vector3.ZERO
+var lan_ang := 0.0
+var lan_spin := 0.0
 var lantern_left := 0.0   # 0..1: fener sol elde (yerden alma animasyonu sol elle alır, sonra sağa geçer)
 var cut_speed := 0.45            # ara sahnede hedefe giderken girdi gücü (0.45 yürür, 1 koşar)              # ara sahne: zorla oynatılacak animasyon (crouch, torch)
 var turn: Node3D                # yön dönüşü (Y ekseni)
@@ -43,6 +48,7 @@ var cut_target_x := INF         # ara sahne: buraya yürü
 var reach := 0.0                # ara sahne: kurdeleye uzanma (0..1)
 
 var coyote := 0.0
+var floor_y := 0.0             # en son basılan zeminin yüksekliği (yüksek duvara havadan tutunma sınırı)
 var jump_buf := 0.0
 var prev_vy := 0.0
 var land_amt := 0.0
@@ -139,6 +145,8 @@ func _physics_process(dt: float) -> void:
 		_climb_step(dt)
 		return
 	var on_floor := is_on_floor()
+	if on_floor:
+		floor_y = position.y
 	var ix := input_x
 	if wake_t > 0.0:
 		wake_t -= dt
@@ -177,7 +185,7 @@ func _physics_process(dt: float) -> void:
 				pulling = true
 				crate = cb
 	if pushing:
-		target = signf(target) * minf(absf(target), PUSH_V if mocap == null else 0.55)
+		target = signf(target) * minf(absf(target), PUSH_V if mocap == null else 0.45)
 	elif pulling:
 		target = signf(target) * minf(absf(target), PULL_V)
 	# yön
@@ -357,6 +365,45 @@ func _climb_step(dt: float) -> void:
 		_snd("adim_" + _surface(), -10.0)
 		land_amt = 0.25
 
+## Feneri elinden fırlat (final): bundan sonra fener kendi başına düşer, seker, yuvarlanıp yan yatar.
+func throw_lantern(v: Vector3) -> void:
+	lan_free = true
+	lantern_ground = Vector3.INF
+	lan_ang = lan_th
+	lan_p = lantern.global_position + Basis(Vector3.BACK, lan_ang) * Vector3(0, -0.12, 0)
+	lan_v = v
+	lan_spin = -signf(v.x if absf(v.x) > 0.01 else 1.0) * 7.0
+	_snd("kumas", -12.0)
+
+func _lantern_physics(dt: float) -> void:
+	lan_v.y -= 9.8 * dt
+	lan_p += lan_v * dt
+	lan_ang += lan_spin * dt
+	var gy: float = world.ground_y(lan_p.x) + 0.065 if world != null else 0.0
+	if lan_p.y < gy:   # yere çarptı
+		lan_p.y = gy
+		if lan_v.y < -0.9:
+			lan_v.y *= -0.32
+			lan_v.x *= 0.55
+			lan_v.z *= 0.55
+			lan_spin *= 0.5
+			_snd("adim_kaya", -10.0 + clampf(-lan_v.y, 0.0, 3.0) * 2.0, 0.2)
+			var tw := create_tween()   # çarpınca alev titrer
+			for e in [0.45, 0.9, 0.6, 1.0]:
+				tw.tween_property(self, "lamp_on", e, 0.07)
+		else:
+			lan_v.y = 0.0
+			lan_v.x = move_toward(lan_v.x, 0.0, 2.5 * dt)
+			lan_v.z = move_toward(lan_v.z, 0.0, 2.5 * dt)
+			# yan yatar: en yakın yatık açıya yaylanır, birkaç kez sallanıp durur (ışık sağa sola gider)
+			var want := PI / 2.0 if fposmod(lan_ang, TAU) < PI else -PI / 2.0
+			var cur := wrapf(lan_ang, -PI, PI)
+			lan_spin += ((want - cur) * 40.0 - lan_spin * 2.2) * dt
+	var b := Basis(Vector3.BACK, lan_ang)
+	lantern.global_transform = Transform3D(Basis(Vector3.UP, 0.3) * b, lan_p - Basis(Vector3.UP, 0.3) * b * Vector3(0, -0.12, 0))
+	# karakter ışığı fenerle döner değil, fenerin üstünde-önünde kalır: yerdeki fener ikisini aşağıdan aydınlatır
+	body_light.global_position = lan_p + Vector3(0, 0.3, 0.55)
+
 func _snd(n: String, vol := 0.0, pv := 0.08) -> void:
 	if world != null and world.get("audio") != null:
 		world.audio.play(n, vol, pv)
@@ -415,9 +462,9 @@ func _process(dt: float) -> void:
 	_prev_vx = vx
 	# uçurum kenarında durunca sendeleme
 	var want_teeter := 0.0
-	if state == "ground" and is_on_floor() and spd < 0.25 and not pushing and (edge_hold or _edge_ahead()):
+	if state == "ground" and is_on_floor() and not pushing and (edge_hold or (spd < 0.25 and _edge_ahead())):
 		want_teeter = 1.0
-	teeter = move_toward(teeter, want_teeter, dt * 3.0)
+	teeter = move_toward(teeter, want_teeter, dt * (7.0 if want_teeter > 0.0 else 3.0))   # kenara gelince hemen
 	hard_t = maxf(0.0, hard_t - dt)
 	if mocap != null:
 		_mocap_anim(dt, run_b)
@@ -559,10 +606,15 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 		xf = 0.08
 	elif pushing or pulling:
 		st = "push"
-		sc = clampf(absf(velocity.x) / 0.27, 0.35, 2.4) * (-1.0 if pulling else 1.0)
+		sc = clampf(absf(velocity.x) / mocap.push_nat, 0.35, 2.4) * (-1.0 if pulling else 1.0)
 	# durgunken: nefes nefese, kenarda denge, uzun beklemede başka bekleme hareketi (Meshy animasyonları)
 	breath_t = maxf(0.0, breath_t - dt)
-	if st == "loco" and spd < 0.2 and state == "ground":
+	if st == "loco" and state == "ground" and (edge_hold or teeter > 0.3) and mocap.has_anim("M_Stand_on_Pole_and_Balance"):
+		st = "any"   # kenara varınca beklemeden sendele (hız düşmesini bekleme)
+		mocap.set_any("M_Stand_on_Pole_and_Balance")
+		xf = 0.15
+		idle_t = 0.0
+	elif st == "loco" and spd < 0.2 and state == "ground":
 		idle_t += dt
 		if breath_t > 0.0 and mocap.has_anim("M_Catching_Breath"):
 			st = "any"
@@ -595,7 +647,12 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 	if st == "loco":
 		hw = clampf(spd / 0.8, 0.0, 1.0) * lerpf(0.8, 0.35, clampf((spd - 3.4) / 2.0, 0.0, 1.0))
 	mocap.hold = lerpf(mocap.hold, hw, 1.0 - exp(-dt * 6.0))
-	mocap.hold_target = global_position + Vector3(face * 0.6, 0.72, 0.16)
+	# gövde eksenleri (dönüş sırasında da doğru): ileri ve sağ yan
+	var fw := Vector3(1, 0, 0).rotated(Vector3.UP, yaw)
+	var rs := Vector3(0, 0, 1).rotated(Vector3.UP, yaw)
+	mocap.hold_target = global_position + fw * 0.6 + Vector3(0, 0.72, 0) + rs * 0.16   # sağ el kendi yanında
+	mocap.side_l = lerpf(mocap.side_l, 1.0 if st == "loco" and lantern_left < 0.01 else 0.0, 1.0 - exp(-dt * 6.0))
+	mocap.side_l_target = global_position + fw * 0.06 + Vector3(0, 0.66, 0) - rs * 0.24
 	mocap.position.x = lerpf(mocap.position.x, -mocap.push_back if st == "push" else 0.0, 1.0 - exp(-dt * 6.0))
 	mocap.drive(st, spd, sc, dt, xf)
 
@@ -899,7 +956,9 @@ func _accessories(dt: float) -> void:
 	var aa := -(9.8 / L) * sin(lan_th) - (clampf(acc.x, -40.0, 40.0) / L) * cos(lan_th) * 0.6 - lan_w * 3.2
 	lan_w += aa * dt
 	lan_th = clampf(lan_th + lan_w * dt, -1.2, 1.2)
-	if lantern_ground != Vector3.INF:   # fener yerde yatıyor (açılış)
+	if lan_free:
+		_lantern_physics(dt)
+	elif lantern_ground != Vector3.INF:   # fener yerde yatıyor (açılış)
 		lantern.global_position = lantern_ground
 		lantern.rotation = Vector3.ZERO if lantern_upright else Vector3(0.0, 0.3, PI / 2.0 - 0.15)
 		lan_w = 0.0
@@ -910,7 +969,7 @@ func _accessories(dt: float) -> void:
 	var fl := 1.0 + 0.05 * sin(t * 13.0) + 0.04 * sin(t * 7.3 + 1.0) + 0.03 * sin(t * 23.0)
 	fl *= lamp_on
 	lamp_light.light_energy = 1.4 * fl
-	body_light.light_energy = 0.3 * fl
+	body_light.light_energy = (0.6 if lan_free else 0.3) * fl
 	glass_mat.emission_energy_multiplier = 3.0 * fl
 	halo_mat.set_shader_parameter("k", fl)
 	# --- atkı: boyuna bağlı, rüzgârda arkaya uçuşan zincir

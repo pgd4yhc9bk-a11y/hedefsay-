@@ -9,7 +9,8 @@ var meshy := false             # Meshy modeli (kendi dokusu, saçı, atkısı) k
 var head_bone := "Head"
 var run_nat := 3.55            # koşu karışımının ölçülen doğal hızı (modele göre)
 var head_fix := 0.0            # Meshy modelinde baş öne eğik duruyor: yukarı düzeltme (radyan)
-var push_back := 0.17          # iterken gövdenin geri alınacağı mesafe (eller kasa yüzeyinde)
+var push_back := 0.17
+var push_nat := 0.27           # itme animasyonunun doğal hızı (m/s): ayak kaymasın          # iterken gövdenin geri alınacağı mesafe (eller kasa yüzeyinde)
 var anim_lib := "res://proto/mocap/anim.res"
 const STATES := ["loco", "air", "land", "roll", "push", "climb", "wake", "death", "reach", "crouch", "torch", "any", "pickup", "hug"]
 var who := "nehir"              # nehir | cinar
@@ -28,6 +29,8 @@ var reach := 0.0               # 0..1: sol kol yukarı uzanır
 var reach_target := Vector3.INF
 var hold := 0.0                # 0..1: fener kolunu öne-aşağı tut (bacağa çarpmasın)
 var hold_target := Vector3.INF
+var side_l := 0.0              # 0..1: sol kolu gövdenin sol yanına çek (animasyonda el karnın önünden sağa geçiyordu)
+var side_l_target := Vector3.INF
 var grip_r := 1.9               # sağ el kapanma açısı (radyan): fener sapını kavrar
 var grip_l := 0.45
 signal footstep(strength: float)   # ayak yere bastığında (animasyondan)
@@ -60,6 +63,9 @@ func _ready() -> void:
 		run_nat = 2.85
 		push_back = -0.05
 		head_fix = 0.32
+		if _lib_has("M_PushLoop"):   # Meshy itme döngüsü: model hızı 0.489 m/s, eller kalçanın 0.41 önünde
+			push_nat = 0.489 * SCALE
+			push_back = 0.15
 	else:
 		model = (load("res://proto/mocap/manken_kiz.glb") as PackedScene).instantiate()
 	add_child(model)
@@ -96,6 +102,9 @@ func _ready() -> void:
 					mt.vertex_color_use_as_albedo = true   # eller köşe rengiyle koyulaştırıldı
 					m3.set_surface_override_material(si, mt)
 	_build_tree()
+
+func _lib_has(n: String) -> bool:
+	return ResourceLoader.exists(anim_lib) and (load(anim_lib) as AnimationLibrary).has_animation(n)
 
 func _first_mesh(n: Node) -> MeshInstance3D:
 	for c in n.get_children():
@@ -168,7 +177,7 @@ func _build_tree() -> void:
 	bt.add_node("loco", lts)
 	bt.connect_node("loco", 0, "loco_bs")
 	var nodes := {
-		"air": _anim("Jump"), "land": _anim("Jump_Land"), "roll": _anim("Roll"), "push": _anim("Push"),
+		"air": _anim("Jump"), "land": _anim("Jump_Land"), "roll": _anim("Roll"), "push": _anim("M_PushLoop" if _lib_has("M_PushLoop") else "Push"),
 		"any": _anim("Idle"), "climb": _anim("ClimbUp_1m"), "wake": _anim("LayToIdle"), "death": _anim("Death01"), "reach": _anim("Idle_Lantern"), "crouch": _anim("Crouch_Idle"), "torch": _anim("Idle_Torch"), "hug": _anim("M_Hug" if ResourceLoader.exists(anim_lib) and (load(anim_lib) as AnimationLibrary).has_animation("M_Hug") else "Crouch_Idle"), "pickup": _anim("M_Pick_Up" if who == "nehir" and ResourceLoader.exists(anim_lib) and (load(anim_lib) as AnimationLibrary).has_animation("M_Pick_Up") else "Crouch_Idle"),
 	}
 	for k: String in nodes:
@@ -260,6 +269,9 @@ func _post() -> void:
 	if hold > 0.001 and hold_target != Vector3.INF:
 		_aim("upperarm_r", "lowerarm_r", hold_target, hold * 0.65)
 		_aim("lowerarm_r", "hand_r", hold_target, hold * 0.8)
+	if side_l > 0.001 and side_l_target != Vector3.INF and reach < 0.01:
+		_aim("upperarm_l", "lowerarm_l", side_l_target, side_l * 0.7)
+		_aim("lowerarm_l", "hand_l", side_l_target, side_l * 0.6)
 	# kurdeleye uzanma: sol kolu hedefe doğru çevir
 	# eller: eklenen parmak kemiği avuca doğru kıvrılır (sağ el feneri kavrar, sol el yarı açık)
 	_curl("fingers_r", "hand_r", "RightHand_End", Vector3(1, 0, 0), grip_r)
@@ -271,7 +283,12 @@ func _post() -> void:
 
 ## Parmak kemiğini avuca doğru kıvır. Eksen dinlenme pozundan (el yönü x avuç yönü) hesaplanır, el ile birlikte döner.
 func _curl(fb: String, hb: String, eb: String, palm: Vector3, ang: float) -> void:
-	if not _bi.has(fb) or not _bi.has(hb) or not _bi.has(eb) or absf(ang) < 0.01:
+	if not _bi.has(fb) or not _bi.has(hb) or not _bi.has(eb):
+		return
+	# parmak kemiği animasyonlarda yok: her kare dinlenme pozuna döndür, yoksa kıvırma üst üste birikip el döner
+	skel.set_bone_pose_rotation(_bi[fb], skel.get_bone_rest(_bi[fb]).basis.get_rotation_quaternion())
+	skel.force_update_bone_child_transform(_bi[hb])
+	if absf(ang) < 0.01:
 		return
 	var hr := skel.get_bone_global_rest(_bi[hb])
 	var d := (skel.get_bone_global_rest(_bi[eb]).origin - hr.origin).normalized()

@@ -126,6 +126,65 @@ func _ready() -> void:
 				if not out.has_animation(nm):
 					out.add_animation(nm, ma)
 		sc.free()
+	if out.has_animation("M_Push_and_Walk_Forward"):
+		_push_loop(out, out.get_animation("M_Push_and_Walk_Forward"))
 	print("kaydet: ", ResourceSaver.save(out, J["out"], ResourceSaver.FLAG_COMPRESS), " toplam=", out.get_animation_list().size())
 	print("animasyonlar: ", ", ".join(out.get_animation_list()))
 	get_tree().quit()
+
+## Meshy "itip yürü" animasyonunun ortasındaki sabit itme kısmından kesintisiz, yerinde bir döngü (M_PushLoop) çıkarır.
+## Döngü sınırları, pozun en çok benzediği iki an aranarak bulunur; kalçanın ileri kayması (kök hareketi) çıkarılır.
+func _push_loop(out: AnimationLibrary, a: Animation) -> void:
+	var rot := []
+	var pos := []
+	for t in a.get_track_count():
+		if a.track_get_type(t) == Animation.TYPE_ROTATION_3D:
+			rot.append(t)
+		elif a.track_get_type(t) == Animation.TYPE_POSITION_3D:
+			pos.append(t)
+	var best := [0.0, 0.0, INF]
+	var t0 := 1.8
+	while t0 <= 3.2:
+		var t1 := t0 + 0.9
+		while t1 <= minf(t0 + 3.2, 5.6):
+			var e := 0.0
+			for t: int in rot:
+				e += a.rotation_track_interpolate(t, t0).angle_to(a.rotation_track_interpolate(t, t1))
+			if e < best[2]:
+				best = [t0, t1, e]
+			t1 += 1.0 / 30.0
+		t0 += 1.0 / 30.0
+	var a0: float = best[0]
+	var a1: float = best[1]
+	var L := a1 - a0
+	var na := Animation.new()
+	na.length = L
+	na.loop_mode = Animation.LOOP_LINEAR
+	var drift := Vector3.ZERO
+	for t in a.get_track_count():
+		var ty := a.track_get_type(t)
+		if ty != Animation.TYPE_ROTATION_3D and ty != Animation.TYPE_POSITION_3D and ty != Animation.TYPE_SCALE_3D:
+			continue
+		var nt := na.add_track(ty)
+		na.track_set_path(nt, a.track_get_path(t))
+		var d := Vector3.ZERO
+		if ty == Animation.TYPE_POSITION_3D:
+			d = a.position_track_interpolate(t, a1) - a.position_track_interpolate(t, a0)
+			d.y = 0.0
+			if d.length() > drift.length():
+				drift = d
+		var off := Vector3.ZERO   # kök: döngü başındaki ileri konumu da sıfırla (gövde başlangıç noktasında kalsın)
+		if d.length() > 0.05:
+			off = a.position_track_interpolate(t, a0) - a.position_track_interpolate(t, 0.0)
+			off.y = 0.0
+		var n := int(round(L * 30.0))
+		for k in n + 1:
+			var tt := minf(k / 30.0, L)
+			if ty == Animation.TYPE_ROTATION_3D:
+				na.rotation_track_insert_key(nt, tt, a.rotation_track_interpolate(t, a0 + tt))
+			elif ty == Animation.TYPE_POSITION_3D:
+				na.position_track_insert_key(nt, tt, a.position_track_interpolate(t, a0 + tt) - off - d * (tt / L))
+			else:
+				na.scale_track_insert_key(nt, tt, a.scale_track_interpolate(t, a0 + tt))
+	out.add_animation("M_PushLoop", na)
+	print("itme dongusu: %.2f-%.2f s hata=%.3f kayma=%s hiz(model)=%.3f m/s" % [a0, a1, best[2], drift, drift.length() / L])
