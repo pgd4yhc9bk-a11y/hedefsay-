@@ -107,7 +107,14 @@ func _build_ui() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 96)
 	menu.add_child(title)
-	var y := 290.0
+	var pb := Button.new()   # yeni: tek bölümlük 3D prototip (Inside tarzı)
+	pb.text = "▶  PROTOTİP: Kurdele  (3D, Inside tarzı)"
+	pb.position = Vector2(440, 262)
+	pb.size = Vector2(400, 50)
+	pb.add_theme_font_size_override("font_size", 20)
+	pb.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://proto/proto.tscn"))
+	menu.add_child(pb)
+	var y := 330.0
 	for group: Array in [["Hikâye", STORY], ["Deneme bölümleri", order.slice(STORY.size())]]:
 		var glb := Label.new()
 		glb.text = group[0]
@@ -131,7 +138,7 @@ func _build_ui() -> void:
 		y += 32.0 + 70.0 * ceil(float(n) / 7.0) + 20.0
 	var snd := Button.new()
 	snd.text = "Ses: açık"
-	snd.position = Vector2(560, 640)
+	snd.position = Vector2(560, 662)
 	snd.size = Vector2(160, 46)
 	snd.pressed.connect(func() -> void:
 		Sfx.set_muted(not Sfx.muted)
