@@ -18,7 +18,7 @@ const PROFILE := [
 ]
 const LOG_X := 21.0
 const LOG_R := 0.3
-const CRATE_X := 40.0
+const CRATE_X := 43.0   # duvara (46.5) daha yakın
 const RIBBON_X := 62.4
 const CHECKPOINTS := [Vector2(1.0, 0.0), Vector2(36.0, -0.5), Vector2(48.5, 1.65)]
 
@@ -963,7 +963,7 @@ func _process(dt: float) -> void:
 				_respawn()
 		"play":
 			fade.color.a = maxf(0.0, fade.color.a - dt * 0.8)
-			if player.position.x > RIBBON_X - 4.5 and player.position.y > 1.2 and player.state == "ground":
+			if player.position.x > RIBBON_X - 6.5 and player.position.y > 1.2 and player.state == "ground":   # sahne erken başlar: oyuncu kontrolü sarılmaya karışmasın
 				phase = "end"
 				end_t = 0.0
 				player.state = "cut"
@@ -974,6 +974,7 @@ func _process(dt: float) -> void:
 	_update_world(dt)
 	_update_chase(dt)
 	_update_cinar(dt)
+	_update_pickup()
 	# bakış hedefi: izleyen Sisli, sonra kurdele
 	if cine != null:
 		player.look_at = cine_look
@@ -1010,6 +1011,8 @@ func _process(dt: float) -> void:
 
 func _end_seq(dt: float) -> void:
 	end_t += dt
+	if player.state == "ground":   # final boyunca kontrol sahnede (oyuncu girdisi sarılmaya karışmasın)
+		player.state = "cut"
 	if cine == null:
 		cine = _ending_cine()
 	cine.step(dt)
@@ -1027,14 +1030,14 @@ func _ending_cine() -> Cinematic:
 	var meet := R - 0.65   # Çınar'ın sarılma animasyonu onu 1.46 m ileri taşır, kolları Nehir'e burada ulaşır
 	var c := Cinematic.new()
 	c.cam(0.0, cam.position, cam.position + Vector3(0, 0, -10).rotated(Vector3.RIGHT, cam.rotation.x), 30.0)
-	c.cam(1.3, Vector3(R - 0.9, G + 1.2, 6.4), Vector3(R + 0.1, G + 0.75, 0.0), 29.0)
-	c.cam(3.6, Vector3(meet + 0.1, G + 0.95, 4.6), Vector3(meet + 0.2, G + 0.65, 0.0), 27.0)
+	c.cam(2.0, Vector3(R - 0.9, G + 1.2, 6.4), Vector3(R + 0.1, G + 0.75, 0.0), 29.0)
+	c.cam(4.4, Vector3(meet + 0.1, G + 0.95, 4.6), Vector3(meet + 0.2, G + 0.65, 0.0), 27.0)
 	c.cam(7.5, Vector3(meet - 0.1, G + 0.8, 4.0), Vector3(meet + 0.2, G + 0.6, -0.1), 26.0)
 	c.cam(14.0, Vector3(meet - 0.8, G + 3.0, 12.5), Vector3(meet + 5.0, G - 0.5, -12.0), 34.0)
 	var pl := player
 	c.at(0.0, func() -> void:
 		cine_look = cinar_root.position + Vector3(0, 0.7, 0)
-		pl.cut_speed = 2.6                               # Çınar'ı görür görmez ona koşar
+		pl.cut_speed = 1.0                               # Çınar'ı görür görmez ona koşar (1 = tam koşu)
 		pl.cut_target_x = meet
 		end_meet = meet
 		cinar_anim = "M_Stand_Up1"                       # Çınar da onu görür, kalkar
@@ -1379,7 +1382,7 @@ func _run_test() -> void:
 	elif test == "protocine":
 		bot = {"on": true}
 		chase = "done"
-		await _place(RIBBON_X - 6.0, 0.5)
+		await _place(RIBBON_X - 8.5, 0.5)
 		player.input_x = 0.5
 		var k3 := 0
 		while phase != "end":
@@ -1392,7 +1395,7 @@ func _run_test() -> void:
 			k3 += 1
 			var ch := cinar.skel.global_transform * cinar.skel.get_bone_global_pose(cinar.skel.find_bone("mixamorig_Hips")).origin
 			var nh := player.mocap.skel.global_transform * player.mocap.skel.get_bone_global_pose(player.mocap.skel.find_bone("pelvis")).origin
-			print("SINEMA t=%.1f anim=%s x=%.2f nehir_kalca=%s cinar_kalca=%s cinar_anim=%s fener=%s" % [cine.t if cine != null else -1.0, player.force_anim, player.position.x, nh.snapped(Vector3.ONE * 0.01), ch.snapped(Vector3.ONE * 0.01), cinar_anim, player.lantern.global_position.snapped(Vector3.ONE * 0.01)])
+			print("SINEMA t=%.1f anim=%s x=%.2f nehir_kalca=%s cinar_kalca=%s cinar_anim=%s pofuk=%s fener=%s" % [cine.t if cine != null else -1.0, player.force_anim, player.position.x, nh.snapped(Vector3.ONE * 0.01), ch.snapped(Vector3.ONE * 0.01), cinar_anim, pofuk.global_position.snapped(Vector3.ONE * 0.01), player.lantern.global_position.snapped(Vector3.ONE * 0.01)])
 			await _shot("cine_%02d" % k3)
 	elif test == "protodiag":
 		await _diag()
@@ -1458,6 +1461,24 @@ func _run_test() -> void:
 		await _wait(1.2)
 		await _shot("yakin_5")
 		player.input_x = 0.0
+	elif test == "protokutuk":   # kütük geçişi: gövde kütük boyuna göre mi
+		bot = {"on": true}
+		chase = "done"
+		await _place(LOG_X - 1.4, 0.6)
+		close_cam = 3.4
+		player.input_x = 0.45
+		var top := ground_y(LOG_X) + LOG_R * 2.0 - 0.04
+		var k10 := 0
+		for i in 60:
+			await _wait(0.05)
+			var ft := minf(_foot("ball_l").y, _foot("ball_r").y)
+			if player.state == "climb" or (i % 4 == 0):
+				print("KUTUK t=%.2f x=%.2f y=%.2f durum=%s ayak_min-ust=%.2f kalca-ust=%.2f" % [i * 0.05, player.position.x, player.position.y, player.state, ft - top, _foot("pelvis").y - top])
+			if player.state == "climb" and k10 < 4 and i % 3 == 0:
+				await _shot("kutuk_%d" % k10)
+				k10 += 1
+		player.input_x = 0.0
+		close_cam = 0.0
 	elif test == "protowall":   # kasasız duvara tırmanılamamalı; kasayla tırmanılmalı. Sonra itme yakın planı
 		bot = {"on": true}
 		chase = "done"
@@ -1468,6 +1489,15 @@ func _run_test() -> void:
 			player.jump_pressed = true
 			await _wait(1.2)
 		print("DUVAR kasasiz y=%.2f durum=%s (tirmanmamali: y<1)" % [player.position.y, player.state])
+		crate.position = Vector3(46.0, ground_y(46.0), 0)   # kasa duvara dayalı, üstünde duvara yürü: sendelememeli
+		await _wait(0.3)
+		player.position = Vector3(45.7, crate.top() + 0.05, 0)
+		await _wait(0.6)
+		player.input_x = 0.5
+		for k11 in 6:
+			await _wait(0.2)
+			print("KASA_UST x=%.2f y=%.2f sendeleme=%.2f anim=%s" % [player.position.x, player.position.y, player.teeter, player.mocap.any_name if player.mocap.state == "any" else player.mocap.state])
+		player.input_x = 0.0
 		player.input_x = 0.0
 		crate.position = Vector3(43.0, ground_y(43.0), 0)
 		await _place(41.6, 0.5)
@@ -1604,7 +1634,7 @@ func _play_bot(shots: bool) -> void:
 	var log := []
 	var t0 := Time.get_ticks_msec()
 	var steps := [
-		["jump_at", LOG_X - 0.9], ["jump_at", 32.3], ["run_to", 39.2], ["push_stuck"], ["back_to", 44.6],
+		["jump_at", LOG_X - 0.9], ["jump_at", 32.3], ["run_to", CRATE_X - 0.8], ["push_stuck"], ["back_to", 44.6],
 		["walk_to", 45.1], ["jump_hold_low"], ["wait_ground"], ["walk_to", 46.2], ["wait", 0.2], ["jump_hold"], ["wait_ground"],
 		["run_to", 61.5],
 	]
@@ -2066,26 +2096,46 @@ func _start_opening() -> void:
 		pl.cut_target_x = INF
 		pl.force_anim = "pickup" if pl.mocap != null and pl.mocap.has_anim("M_Pick_Up") else "crouch"
 		audio.play("kumas", -14.0))
-	c.at(8.0 if mp else 6.9, func() -> void:   # feneri alır, fener titreyerek canlanır
-		if mp:
-			pl.lantern_left = 1.0
-			pl.lantern_pick = pl.lantern_ground   # yerden ele kısa geçiş, yatık fener sarkaç gibi doğrulur
-			pl.lan_th = 1.2
-			create_tween().tween_property(pl, "lantern_pick_w", 1.0, 0.2).from(0.0)
-		pl.lantern_ground = Vector3.INF
-		audio.play("kumas", -12.0)
-		var tw := create_tween()
-		for v in [0.5, 0.15, 0.7, 0.35, 0.9, 0.6, 1.0]:
-			tw.tween_property(pl, "lamp_on", v, 0.12))
-	c.at(9.5 if mp else 7.8, func() -> void:
-		pl.force_anim = ""
-		if mp:   # fener sol elden sağ ele geçer
-			create_tween().tween_property(pl, "lantern_left", 0.0, 0.7))
+	if not mp:
+		c.at(6.9, func() -> void:   # feneri alır, fener titreyerek canlanır
+			pl.lantern_ground = Vector3.INF
+			_lamp_flicker())
+		c.at(7.8, func() -> void: pl.force_anim = "")
+	else:
+		pick_step = 1   # alma anı animasyonun kendi zamanına göre (_update_pickup): el fenere değdiği an kavrar
 	c.at(10.6, func() -> void:
-		pl.state = "ground"
+		if pick_step == 0:   # yavaş cihazda alma bitmediyse kontrol, alma bitince verilir (_update_pickup)
+			pl.state = "ground"
 		cam_pos = gp
 		look = 0.0)
 	cine = c
+
+var pick_step := 0
+
+## Açılış: yerden alma animasyonunun kendi zamanına bağlı. Sol el 2.1 s'de yere en çok iner, fener o an ele geçer;
+## animasyon bitince fener sol elden sağ ele geçer. (Sahne saatine bağlanınca yavaş cihazda el boşa kapanıyordu.)
+func _update_pickup() -> void:
+	var pl := player
+	if pick_step == 1 and pl.force_anim == "pickup" and pl.force_t >= 2.1:
+		pick_step = 2
+		pl.lantern_left = 1.0
+		pl.lantern_pick = pl.lantern_ground
+		pl.lan_th = 1.2
+		create_tween().tween_property(pl, "lantern_pick_w", 1.0, 0.15).from(0.0)
+		pl.lantern_ground = Vector3.INF
+		audio.play("kumas", -12.0)
+		_lamp_flicker()
+	elif pick_step == 2 and pl.force_t >= 3.55:
+		pick_step = 0
+		pl.force_anim = ""
+		if phase != "intro":
+			pl.state = "ground"
+		create_tween().tween_property(pl, "lantern_left", 0.0, 0.7)
+
+func _lamp_flicker() -> void:
+	var tw := create_tween()
+	for v in [0.5, 0.15, 0.7, 0.35, 0.9, 0.6, 1.0]:
+		tw.tween_property(player, "lamp_on", v, 0.12)
 
 ## Çınar: kurdele ağacının dibinde (son sahne). Mocap gövde + elinde tavşan Pofuk.
 func _build_cinar() -> void:
@@ -2143,7 +2193,7 @@ func _update_cinar(dt: float) -> void:
 		player.throw_lantern(Vector3(0.5, 1.7, 0.6))   # önüne-yana; seker, yuvarlanır
 		player.mocap.grip_r = 0.5
 	# ikisi aynı anda: Nehir varmadan hemen önce Çınar'ın sarılma atılışı başlar (atılış 0.9 s, Nehir'in diz çökmesi ~0.8 s)
-	if ending and cinar_anim == "M_Stand_Up1" and cine != null and cine.t > 0.8 and player.position.x > end_meet - 0.75 and cinar.has_anim("M_Hug"):
+	if ending and cinar_anim == "M_Stand_Up1" and cine != null and cine.t > 0.8 and player.position.x > end_meet - 0.3 and cinar.has_anim("M_Hug"):
 		cinar_anim = "M_Hug"
 		cinar_anim_scale = 1.0
 		cinar_face = -1
@@ -2165,11 +2215,6 @@ func _update_cinar(dt: float) -> void:
 			cinar_root.position.x += signf(d) * v * dt
 			cinar_root.position.y = ground_y(cinar_root.position.x)
 	cinar_spd = lerpf(cinar_spd, v, 1.0 - exp(-dt * 8.0))
-	if pofuk != null:   # elinin altında, dik, yüzü öne
-		var hand := cinar.bone_world("hand.L")
-		var sc := 0.34 / 1.7
-		var yaw := cinar_turn.rotation.y
-		pofuk.global_transform = Transform3D(Basis(Vector3.UP, yaw + PI / 2.0).scaled(Vector3.ONE * sc), hand + Vector3(0, -0.24, 0.0))
 	var ty := 0.0 if cinar_face > 0 else -PI
 	cinar_turn.rotation.y = move_toward(cinar_turn.rotation.y, ty, dt * 7.0)
 	if cinar_anim != "" and cinar_spd < 0.1 and cinar.has_anim(cinar_anim):
@@ -2177,3 +2222,12 @@ func _update_cinar(dt: float) -> void:
 		cinar.drive("any", 0.0, cinar_anim_scale, dt, 0.4)
 	else:
 		cinar.drive("loco", cinar_spd, 1.0, dt, 0.3)
+	_place_pofuk()
+
+func _place_pofuk() -> void:   # animasyon ilerledikten sonra: elinin altında, dik, yüzü öne (bir kare geriden gelmesin)
+	if pofuk == null:
+		return
+	var hand := cinar.bone_world("hand.L")
+	var sc := 0.34 / 1.7
+	var yaw := cinar_turn.rotation.y
+	pofuk.global_transform = Transform3D(Basis(Vector3.UP, yaw + PI / 2.0).scaled(Vector3.ONE * sc), hand + Vector3(0, -0.24, 0.0))

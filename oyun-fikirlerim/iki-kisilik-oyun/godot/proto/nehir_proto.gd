@@ -24,6 +24,7 @@ var roll_t := 0.0
 var wake_t := 0.0               # açılışta yerden kalkma
 var caught := false             # Sisli yakaladı (ölüm animasyonu)
 var force_anim := ""
+var force_t := 0.0             # zorla oynatılan animasyonun kendi zamanı (sahne saatinden bağımsız: yavaş cihazda kaymasın)
 var wake_hold := false           # açılış: yerde yatarken animasyon durur
 var lamp_on := 1.0               # fener parlaklığı (açılışta titreyerek yanar)
 var lantern_ground := Vector3.INF   # fener yerdeyse konumu
@@ -162,6 +163,7 @@ func _physics_process(dt: float) -> void:
 			var d := cut_target_x - position.x
 			ix = clampf(d * 1.2, -cut_speed, cut_speed) if absf(d) > 0.04 else 0.0
 	# hedef hız: analog girdi (küçük = yürü, büyük = koş)
+	ix = clampf(ix, -1.0, 1.0)
 	var a := absf(ix)
 	var target := 0.0
 	if a > 0.05:
@@ -311,6 +313,12 @@ func _start_climb(lg: Dictionary) -> void:
 			ex = p.x + dir * cap
 		climb = {"p": p, "dir": dir, "t": 0.0, "dur": 0.67 / 0.85, "from": position, "start": position, "hang": false, "dy": dy,
 			"end": Vector3(ex, p.y, 0.0), "mocap": true}
+		if bool(lg.get("low", false)) and world != null:
+			# alçak engel (kütük): üstüne çıkmaz, üzerinden atlar. Animasyon ayakları ~0.5 m toplar; gövde yalnız
+			# hafif bir yayla kalkar, kütüğün öbür yanında yere iner (havada süzülmez)
+			var fx := p.x + dir * 0.95
+			climb["end"] = Vector3(fx, world.ground_y(fx), 0.0)
+			climb["arc"] = maxf(0.12, dy - 0.28)
 		velocity = Vector3.ZERO
 		state = "climb"
 		_snd("kumas", -12.0)
@@ -327,6 +335,8 @@ func _climb_step(dt: float) -> void:
 	if climb.has("mocap"):
 		var km: float = minf(1.0, climb["t"])
 		position = (climb["start"] as Vector3).lerp(climb["end"], km)
+		if climb.has("arc"):
+			position.y += sin(km * PI) * float(climb["arc"])
 		if km >= 1.0:
 			state = "ground"
 			climb = {}
@@ -419,6 +429,9 @@ func _edge_ahead(dir := 0, depth := 1.6) -> bool:
 	var d := face if dir == 0 else dir
 	var sp := get_world_3d().direct_space_state
 	var from := global_position + Vector3(d * 0.32, 0.3, 0)
+	# önde zemin yüksekse (duvar, yokuş) boşluk yoktur: ışın duvarın içinden başlayınca boşluk sanıyordu (kasa üstünde sendeleme)
+	if world != null and world.ground_y(from.x) > global_position.y - depth:
+		return false
 	var q := PhysicsRayQueryParameters3D.create(from, from + Vector3(0, -0.3 - depth, 0), 1 | (1 << 2))
 	return sp.intersect_ray(q).is_empty()
 
@@ -654,6 +667,7 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 	mocap.side_l = lerpf(mocap.side_l, 1.0 if st == "loco" and lantern_left < 0.01 else 0.0, 1.0 - exp(-dt * 6.0))
 	mocap.side_l_target = global_position + fw * 0.06 + Vector3(0, 0.66, 0) - rs * 0.24
 	mocap.position.x = lerpf(mocap.position.x, -mocap.push_back if st == "push" else 0.0, 1.0 - exp(-dt * 6.0))
+	force_t = force_t + dt * absf(sc) if force_anim != "" and st == force_anim else 0.0
 	mocap.drive(st, spd, sc, dt, xf)
 
 func _blank() -> Dictionary:
