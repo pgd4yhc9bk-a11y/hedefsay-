@@ -7,7 +7,7 @@ extends Node3D
 const SRC := "res://proto/mocap/manken_kiz.glb"
 const FPS := 30.0
 const JOBS := {
-	"nehir": {"model": "res://proto/mocap/nehir_meshy.glb", "ek": ["res://proto/mocap/ek/nehir_animlar1.glb"], "out": "res://proto/mocap/anim_nehir.res"},
+	"nehir": {"model": "res://proto/mocap/nehir_meshy.glb", "ek": ["res://proto/mocap/ek/nehir_animlar1.glb", "res://proto/mocap/ek/nehir_animlar2.glb"], "out": "res://proto/mocap/anim_nehir.res"},
 	"cinar": {"model": "res://proto/mocap/cinar_meshy.glb", "ek": [], "out": "res://proto/mocap/anim_cinar.res"},
 }
 # UAL (UE) kemik adı -> hedef kemik adı (Mixamo); listede olmayanlar aynı ad
@@ -118,8 +118,13 @@ func _ready() -> void:
 					for t in ma.get_track_count():
 						var tp := str(ma.track_get_path(t))
 						ma.track_set_path(t, NodePath(tp.replace(epath + ":", dpath + ":")))
-				if not out.has_animation("M_" + mn):
-					out.add_animation("M_" + mn, ma)
+				var nm := "M_" + mn
+				if mn.length() > 30 and mn.begins_with("_"):   # Meshy "metinden harekete" animasyonları kod adıyla gelir: sarılma
+					nm = "M_Hug"
+				if mn == "Female_Bend_Over_Pick_Up_Inspect":   # yerden fener alma
+					nm = "M_Pick_Up"
+				if not out.has_animation(nm):
+					out.add_animation(nm, ma)
 		sc.free()
 	print("kaydet: ", ResourceSaver.save(out, J["out"], ResourceSaver.FLAG_COMPRESS), " toplam=", out.get_animation_list().size())
 	print("animasyonlar: ", ", ".join(out.get_animation_list()))

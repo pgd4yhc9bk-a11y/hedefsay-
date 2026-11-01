@@ -11,7 +11,7 @@ var run_nat := 3.55            # koşu karışımının ölçülen doğal hızı
 var head_fix := 0.0            # Meshy modelinde baş öne eğik duruyor: yukarı düzeltme (radyan)
 var push_back := 0.17          # iterken gövdenin geri alınacağı mesafe (eller kasa yüzeyinde)
 var anim_lib := "res://proto/mocap/anim.res"
-const STATES := ["loco", "air", "land", "roll", "push", "climb", "wake", "death", "reach", "crouch", "torch", "any", "pickup"]
+const STATES := ["loco", "air", "land", "roll", "push", "climb", "wake", "death", "reach", "crouch", "torch", "any", "pickup", "hug"]
 var who := "nehir"              # nehir | cinar
 var height := 1.45
 var bone_aliases := {}          # UAL adı -> bu modeldeki kemik adı (kol, baş, ayak)
@@ -169,7 +169,7 @@ func _build_tree() -> void:
 	bt.connect_node("loco", 0, "loco_bs")
 	var nodes := {
 		"air": _anim("Jump"), "land": _anim("Jump_Land"), "roll": _anim("Roll"), "push": _anim("Push"),
-		"any": _anim("Idle"), "climb": _anim("ClimbUp_1m"), "wake": _anim("LayToIdle"), "death": _anim("Death01"), "reach": _anim("Idle_Lantern"), "crouch": _anim("Crouch_Idle"), "torch": _anim("Idle_Torch"), "pickup": _anim("M_Pick_Up" if who == "nehir" and ResourceLoader.exists(anim_lib) and (load(anim_lib) as AnimationLibrary).has_animation("M_Pick_Up") else "Crouch_Idle"),
+		"any": _anim("Idle"), "climb": _anim("ClimbUp_1m"), "wake": _anim("LayToIdle"), "death": _anim("Death01"), "reach": _anim("Idle_Lantern"), "crouch": _anim("Crouch_Idle"), "torch": _anim("Idle_Torch"), "hug": _anim("M_Hug" if ResourceLoader.exists(anim_lib) and (load(anim_lib) as AnimationLibrary).has_animation("M_Hug") else "Crouch_Idle"), "pickup": _anim("M_Pick_Up" if who == "nehir" and ResourceLoader.exists(anim_lib) and (load(anim_lib) as AnimationLibrary).has_animation("M_Pick_Up") else "Crouch_Idle"),
 	}
 	for k: String in nodes:
 		bt.add_node(k + "_a", nodes[k])

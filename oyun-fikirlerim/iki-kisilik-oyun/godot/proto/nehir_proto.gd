@@ -27,6 +27,10 @@ var force_anim := ""
 var wake_hold := false           # açılış: yerde yatarken animasyon durur
 var lamp_on := 1.0               # fener parlaklığı (açılışta titreyerek yanar)
 var lantern_ground := Vector3.INF   # fener yerdeyse konumu
+var lantern_pick := Vector3.INF
+var lantern_pick_w := 1.0
+var lantern_upright := false   # yerdeki fener dik mi duruyor (finalde bırakılınca)
+var lantern_left := 0.0   # 0..1: fener sol elde (yerden alma animasyonu sol elle alır, sonra sağa geçer)
 var cut_speed := 0.45            # ara sahnede hedefe giderken girdi gücü (0.45 yürür, 1 koşar)              # ara sahne: zorla oynatılacak animasyon (crouch, torch)
 var turn: Node3D                # yön dönüşü (Y ekseni)
 var face := 1
@@ -876,6 +880,13 @@ func _accessories(dt: float) -> void:
 	var fwd := Vector3(face, 0, 0)
 	# --- fener: elden sarkan sarkaç
 	var piv: Vector3 = body.bone_world("hand.R", Vector3(0, 0.1, 0) if mocap == null else Vector3.ZERO)
+	if lantern_left > 0.001 and mocap != null:
+		piv = piv.lerp(body.bone_world("hand.L"), lantern_left)
+		mocap.grip_l = lerpf(0.45, 1.9, lantern_left)
+	if lantern_pick != Vector3.INF:
+		piv = lantern_pick.lerp(piv, lantern_pick_w)
+		if lantern_pick_w >= 1.0:
+			lantern_pick = Vector3.INF
 	if not _acc_init or piv.distance_to(_piv_prev) > 0.8:
 		_piv_prev = piv
 		_piv_vel = Vector3.ZERO
@@ -890,7 +901,7 @@ func _accessories(dt: float) -> void:
 	lan_th = clampf(lan_th + lan_w * dt, -1.2, 1.2)
 	if lantern_ground != Vector3.INF:   # fener yerde yatıyor (açılış)
 		lantern.global_position = lantern_ground
-		lantern.rotation = Vector3(0.0, 0.3, PI / 2.0 - 0.15)
+		lantern.rotation = Vector3.ZERO if lantern_upright else Vector3(0.0, 0.3, PI / 2.0 - 0.15)
 		lan_w = 0.0
 		lan_th = 0.0
 	else:
