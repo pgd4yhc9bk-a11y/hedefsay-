@@ -11,16 +11,16 @@ const Z1 := 12.0
 const PROFILE := [
 	Vector2(-16, 0.4), Vector2(-8, 0.05), Vector2(0, 0.0), Vector2(4, 0.12), Vector2(8, 0.0), Vector2(12, 0.22), Vector2(16, 0.32),
 	Vector2(19, 0.18), Vector2(23, 0.1), Vector2(26, -0.15), Vector2(29, -0.42), Vector2(32.6, -0.5),
-	Vector2(32.6, -16.0), Vector2(34.4, -16.0), Vector2(34.4, -0.55),
+	Vector2(32.6, -16.0), Vector2(33.9, -16.0), Vector2(33.9, -0.55),
 	Vector2(37, -0.5), Vector2(41, -0.45), Vector2(46.5, -0.5),
-	Vector2(46.5, 2.7), Vector2(50, 2.8), Vector2(54, 3.0), Vector2(58, 3.15), Vector2(63, 3.1), Vector2(66, 3.05), Vector2(68, 2.95),
+	Vector2(46.5, 1.6), Vector2(50, 1.7), Vector2(54, 1.9), Vector2(58, 2.05), Vector2(63, 2.0), Vector2(66, 1.95), Vector2(68, 1.85),
 	Vector2(68, -30.0), Vector2(160, -30.0),
 ]
 const LOG_X := 21.0
 const LOG_R := 0.3
 const CRATE_X := 40.0
 const RIBBON_X := 62.4
-const CHECKPOINTS := [Vector2(1.0, 0.0), Vector2(36.0, -0.5), Vector2(48.5, 2.75)]
+const CHECKPOINTS := [Vector2(1.0, 0.0), Vector2(36.0, -0.5), Vector2(48.5, 1.65)]
 
 var player: NehirProto
 var cam: Camera3D
@@ -121,10 +121,16 @@ func ground_y(x: float) -> float:
 		if a.x == b.x:
 			continue
 		if x >= a.x and x <= b.x:
-			var u := (x - a.x) / (b.x - a.x)
-			u = u * u * (3.0 - 2.0 * u) * 0.5 + u * 0.5   # yumuşak eğim
-			return lerpf(a.y, b.y, u)
+			var y := _seg_y(a, b, x)
+			if x == b.x and i + 1 < PROFILE.size() - 1 and PROFILE[i + 1].x == PROFILE[i + 2].x:
+				return maxf(y, PROFILE[i + 2].y)   # tam kenarda: yüksek olan taraf
+			return y
 	return PROFILE[PROFILE.size() - 1].y
+
+func _seg_y(a: Vector2, b: Vector2, x: float) -> float:
+	var u := clampf((x - a.x) / (b.x - a.x), 0.0, 1.0)
+	u = u * u * (3.0 - 2.0 * u) * 0.5 + u * 0.5   # yumuşak eğim
+	return lerpf(a.y, b.y, u)
 
 func _breaks() -> Array:
 	var out := []
@@ -222,7 +228,7 @@ func _plat(x: float) -> bool:
 ## Görsel zemin yüksekliği (tümsekler dahil): bitki ve ağaç yerleştirmek için
 var _brk_cache: Array = []
 
-func gy_at(x: float, z: float) -> float:
+func gy_at(x: float, z: float, base := NAN) -> float:
 	if _brk_cache.is_empty():
 		_brk_cache = _breaks()
 	var brk := _brk_cache
@@ -231,7 +237,7 @@ func gy_at(x: float, z: float) -> float:
 	var b := _bump(x, z, brk)
 	if _plat(x):
 		b *= clampf((ZF - z) / 1.0, 0.0, 1.0)
-	return ground_y(x) + b
+	return (ground_y(x) if is_nan(base) else base) + b
 
 func _build_terrain() -> void:
 	var brk := _breaks()
@@ -262,8 +268,8 @@ func _build_terrain() -> void:
 		for k in n:
 			var x0 := lerpf(a.x, b.x, float(k) / n)
 			var x1 := lerpf(a.x, b.x, float(k + 1) / n)
-			var y0 := a.y if last else ground_y(x0)
-			var y1 := b.y if last else ground_y(x1)
+			var y0 := a.y if last else _seg_y(a, b, x0)
+			var y1 := b.y if last else _seg_y(a, b, x1)
 			var plat := not last and _plat(x0) and _plat(x1)
 			for zi in range(zs.size() - 1):
 				var z0: float = zs[zi]
@@ -278,16 +284,16 @@ func _build_terrain() -> void:
 					q2 = Vector3(x1, y1, z1)
 					q3 = Vector3(x0, y0, z1)
 				else:
-					q0 = Vector3(x0, gy_at(x0, z0), z0)
-					q1 = Vector3(x1, gy_at(x1, z0), z0)
-					q2 = Vector3(x1, gy_at(x1, z1), z1)
-					q3 = Vector3(x0, gy_at(x0, z1), z1)
+					q0 = Vector3(x0, gy_at(x0, z0, y0), z0)
+					q1 = Vector3(x1, gy_at(x1, z0, y1), z0)
+					q2 = Vector3(x1, gy_at(x1, z1, y1), z1)
+					q3 = Vector3(x0, gy_at(x0, z1, y0), z1)
 					if plat and absf(z0 - ZF) < 0.001:   # ön patikanın ilk sırası: kaya yüzüyle aynı hizada başlasın
 						q0.y = YF
 						q1.y = YF
 					if plat and absf(z1 - ZF) < 0.001:
-						q2.y = ground_y(x1)
-						q3.y = ground_y(x0)
+						q2.y = y1
+						q3.y = y0
 				_quad(st, q0, q1, q2, q3, true)
 			if plat:   # kayanın kameraya bakan ön yüzü
 				_quad(st, Vector3(x0, y0, ZF), Vector3(x1, y1, ZF), Vector3(x1, YF, ZF), Vector3(x0, YF, ZF), true)
@@ -364,9 +370,9 @@ func _static_ledges() -> void:
 	ledges = [
 		{"p": Vector3(LOG_X - LOG_R * 0.75, ly, 0), "dir": 1, "low": true},
 		{"p": Vector3(LOG_X + LOG_R * 0.75, ly, 0), "dir": -1, "low": true},
-		{"p": Vector3(34.4, -0.55, 0), "dir": 1, "low": false},
+		{"p": Vector3(33.9, -0.55, 0), "dir": 1, "low": false},
 		{"p": Vector3(32.6, -0.5, 0), "dir": -1, "low": false},
-		{"p": Vector3(46.5, 2.7, 0), "dir": 1, "low": false},
+		{"p": Vector3(46.5, 1.6, 0), "dir": 1, "low": false},
 	]
 
 func _tex_of(n: String) -> Texture2D:
@@ -761,12 +767,31 @@ func find_ledge(p: NehirProto, airborne: bool, move_dir: float) -> Dictionary:
 				continue
 			if p.velocity.y > 5.0 and dy > 1.2:
 				continue
+			if p.mocap != null and (p.velocity.y > 0.5 or dy > 1.1):
+				continue
 			return lg
 		elif bool(lg.get("low", false)):
 			if int(signf(move_dir)) != dir:
 				continue
 			if dx < 0.1 or dx > 0.36 or dy < 0.2 or dy > 0.8:
 				continue
+			return lg
+	return {}
+
+## Yerde, zıplama tuşuyla: önündeki 0.4–1.3 m yüksekliğindeki kenara tırman (kasa, kaya, kütük)
+func find_ledge_ground(p: NehirProto) -> Dictionary:
+	var list := ledges.duplicate()
+	if crate != null:
+		list.append({"p": Vector3(crate.position.x - 0.5, crate.top(), 0), "dir": 1, "low": false})
+		list.append({"p": Vector3(crate.position.x + 0.5, crate.top(), 0), "dir": -1, "low": false})
+	for lg: Dictionary in list:
+		var lp: Vector3 = lg["p"]
+		var dir: int = lg["dir"]
+		if p.face != dir:
+			continue
+		var dx := (lp.x - p.position.x) * dir
+		var dy := lp.y - p.position.y
+		if dx >= 0.15 and dx <= 0.75 and dy >= 0.35 and dy <= 1.3:
 			return lg
 	return {}
 
@@ -779,7 +804,7 @@ func _on_died() -> void:
 func surface_at(p: Node3D) -> String:
 	if crate != null and absf(p.position.y - crate.top()) < 0.12 and absf(p.position.x - crate.position.x) < 0.6:
 		return "tahta"
-	if p.position.x > PLAT_A and p.position.y > 2.0:
+	if p.position.x > PLAT_A and p.position.y > 1.2:
 		return "kaya"
 	if p.position.x > 34.0 and p.position.x < PLAT_A:
 		return "toprak"
@@ -823,7 +848,7 @@ func _update_chase(dt: float) -> void:
 			if px - chase_x > 7.0:
 				v += 0.4   # çok geride kalırsa biraz hızlanır
 			chase_x = minf(chase_x + v * dt, PLAT_A - 0.45)
-			if py > 2.2:   # oyuncu kayaya çıktı: dibinde kalır, dağılır
+			if py > 1.3:   # oyuncu kayaya çıktı: dibinde kalır, dağılır
 				chase = "stop"
 				chase_t = 0.0
 			elif not caught and phase == "play" and absf(chase_x - px) < 0.5 and py < ground_y(chase_x) + 1.3:
@@ -884,7 +909,7 @@ func _process(dt: float) -> void:
 				_respawn()
 		"play":
 			fade.color.a = maxf(0.0, fade.color.a - dt * 0.8)
-			if player.position.x > RIBBON_X - 1.6 and player.position.y > 2.0 and player.state == "ground":
+			if player.position.x > RIBBON_X - 1.6 and player.position.y > 1.2 and player.state == "ground":
 				phase = "end"
 				end_t = 0.0
 				player.state = "cut"
@@ -897,7 +922,7 @@ func _process(dt: float) -> void:
 	# bakış hedefi: izleyen Sisli, sonra kurdele
 	if sisli_a > 0.2:
 		player.look_at = sisli.position + Vector3(0, 1.3, 0)
-	elif player.position.x > RIBBON_X - 6.0 and player.position.y > 2.0:
+	elif player.position.x > RIBBON_X - 6.0 and player.position.y > 1.2:
 		player.look_at = Vector3(RIBBON_X, ground_y(RIBBON_X) + 1.6, 0)
 	elif chase != "run":
 		player.look_at = Vector3.INF
@@ -1179,6 +1204,30 @@ func _run_test() -> void:
 		print("YAKALANDI=%s sure=%.1f sisli=%.2f oyuncu=%.2f" % [caught, tt, chase_x, player.position.x])
 		await _wait(2.0)
 		print("DEVAM faz=%s x=%.2f cp=%d kovalama=%s" % [phase, player.position.x, cp, chase])
+	elif test == "protoclimb":
+		bot = {"on": true}
+		chase = "done"
+		close_cam = 6.0
+		crate.position = Vector3(46.0, ground_y(46.0), 0)
+		await _place(45.1, 1.0)
+		player.input_x = 0.0
+		player.jump_pressed = true
+		var k := 0
+		var tt := 0.0
+		while tt < 1.2:
+			await _wait(0.1)
+			tt += 0.1
+			k += 1
+			print("TIRMAN t=%.1f x=%.2f y=%.2f durum=%s" % [tt, player.position.x, player.position.y, player.state])
+			await _shot("tir_%02d" % k)
+		player.input_x = 0.0
+	elif test == "protofloor":
+		bot = {"on": true}
+		var sp := get_world_3d().direct_space_state
+		for xx in [33.95, 34.0, 34.1, 34.3, 34.6, 35.0, 36.0, 38.0, 45.0, 47.0, 50.0]:
+			var q := PhysicsRayQueryParameters3D.create(Vector3(xx, 5, 0), Vector3(xx, -20, 0), 1)
+			var r := sp.intersect_ray(q)
+			print("ZEMIN x=%.2f -> %s (beklenen %.2f)" % [xx, str(r.get("position", "YOK")), ground_y(xx)])
 	elif test == "protopose":
 		await _pose_shots()
 	get_tree().quit()
@@ -1231,8 +1280,8 @@ func _play_bot(shots: bool) -> void:
 	var log := []
 	var t0 := Time.get_ticks_msec()
 	var steps := [
-		["jump_at", LOG_X - 0.9], ["jump_at", 32.25], ["run_to", 39.2], ["push_stuck"], ["back_to", 43.6],
-		["jump_at", 44.45], ["wait_ground"], ["walk_to", 46.25], ["wait", 0.2], ["jump_hold"], ["wait_ground"],
+		["jump_at", LOG_X - 0.9], ["jump_at", 32.3], ["run_to", 39.2], ["push_stuck"], ["back_to", 44.6],
+		["walk_to", 45.1], ["jump_hold_low"], ["wait_ground"], ["walk_to", 46.2], ["wait", 0.2], ["jump_hold"], ["wait_ground"],
 		["run_to", 61.5],
 	]
 	var shot_i := 0
@@ -1300,6 +1349,8 @@ func _bot_step(s: Array) -> bool:
 			while (player.state == "air" or player.state == "climb") and tt < 26.0:
 				await _wait(0.02)
 				tt += 0.02
+				if OS.get_environment("IZ") != "":
+					print("  iz x=%.2f y=%.2f vy=%.2f %s" % [player.position.x, player.position.y, player.velocity.y, player.state])
 			player.input_x = 0.0
 			await _wait(0.2)
 			return phase != "dead"
@@ -1326,6 +1377,13 @@ func _bot_step(s: Array) -> bool:
 				await _wait(0.02)
 				tt += 0.02
 			return phase != "dead"
+		"jump_hold_low":
+			player.jump_pressed = true
+			await _wait(0.05)
+			while (player.state == "air" or player.state == "climb") and tt < 6.0:
+				await _wait(0.02)
+				tt += 0.02
+			return phase != "dead" and player.position.y > 0.3
 		"jump_hold":
 			player.input_x = 1.0
 			player.jump_pressed = true
@@ -1334,7 +1392,7 @@ func _bot_step(s: Array) -> bool:
 				await _wait(0.02)
 				tt += 0.02
 			player.input_x = 0.0
-			return phase != "dead" and player.position.y > 2.0
+			return phase != "dead" and player.position.y > 1.2
 		"wait_ground":
 			while player.state != "ground" and tt < 6.0:
 				await _wait(0.02)

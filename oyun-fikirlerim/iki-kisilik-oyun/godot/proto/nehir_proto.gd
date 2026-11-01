@@ -7,8 +7,8 @@ class_name NehirProto extends CharacterBody3D
 signal died
 
 const GRAV := 21.0
-const WALK := 1.5
-const RUN := 3.75
+const WALK := 1.2
+const RUN := 2.7
 const JUMP_V := 6.7
 const PUSH_V := 1.15
 const PULL_V := 0.95
@@ -62,6 +62,7 @@ var _look := 0.0
 var teeter := 0.0             # uçurum kenarında sendeleme ağırlığı
 var _prev_vx := 0.0
 var _acc_s := 0.0
+var _was_pushing := false
 
 # aksesuarlar
 var lantern: Node3D
@@ -99,6 +100,8 @@ func _ready() -> void:
 	if ResourceLoader.exists("res://proto/mocap/manken_kiz.glb") and ResourceLoader.exists("res://proto/mocap/anim.res"):
 		mocap = NehirMocap.new()
 		turn.add_child(mocap)
+		mocap.footstep.connect(func(strength: float) -> void:
+			_snd("adim_" + _surface(), -16.0 + strength * 7.0, 0.1))
 		body = mocap
 	else:
 		body = NehirBody.new()
@@ -172,6 +175,9 @@ func _physics_process(dt: float) -> void:
 			acc = 2.6
 		if signf(target) != signf(velocity.x) and absf(velocity.x) > 0.5 and target != 0.0:
 			acc = 16.0   # ani dönüş
+	if (pushing or pulling) and not _was_pushing:   # kasaya değince hız kesilir, itme yavaş başlar
+		velocity.x = signf(velocity.x) * minf(absf(velocity.x), 0.25)
+	_was_pushing = pushing or pulling
 	velocity.x = move_toward(velocity.x, target, acc * dt)
 	# zıplama
 	if jump_pressed:
@@ -179,6 +185,12 @@ func _physics_process(dt: float) -> void:
 		jump_pressed = false
 	jump_buf -= dt
 	coyote = 0.1 if on_floor else coyote - dt
+	if mocap != null and jump_buf > 0.0 and on_floor and state != "cut" and world != null:
+		var glg: Dictionary = world.find_ledge_ground(self)
+		if not glg.is_empty():
+			jump_buf = 0.0
+			_start_climb(glg)
+			return
 	if jump_buf > 0.0 and coyote > 0.0 and state != "cut" and not pulling:
 		velocity.y = JUMP_V
 		coyote = 0.0
@@ -252,6 +264,15 @@ func _start_climb(lg: Dictionary) -> void:
 	var start := position
 	if hang:
 		start = Vector3(p.x - dir * 0.27, p.y - 1.74, 0.0)
+	if mocap != null:
+		var end_off := 0.5 if not bool(lg.get("low", false)) else 0.12
+		climb = {"p": p, "dir": dir, "t": 0.0, "dur": 0.67 / 0.85, "from": position, "start": position, "hang": false, "dy": dy,
+			"end": Vector3(p.x + dir * end_off, p.y, 0.0), "mocap": true}
+		velocity = Vector3.ZERO
+		state = "climb"
+		_snd("kumas", -12.0)
+		_snd("caba", -16.0, 0.08)
+		return
 	climb = {"p": p, "dir": dir, "t": 0.0, "dur": (1.25 if hang else ((0.85 if dy > 0.8 else 0.55) if mocap == null else lerpf(0.5, 0.9, clampf(dy / 1.2, 0.0, 1.0)))), "from": position, "start": start, "hang": hang, "dy": dy}
 	velocity = Vector3.ZERO
 	state = "climb"
@@ -260,6 +281,14 @@ func _start_climb(lg: Dictionary) -> void:
 
 func _climb_step(dt: float) -> void:
 	climb["t"] += dt / float(climb["dur"])
+	if climb.has("mocap"):
+		var km: float = minf(1.0, climb["t"])
+		position = (climb["start"] as Vector3).lerp(climb["end"], km)
+		if km >= 1.0:
+			state = "ground"
+			climb = {}
+			velocity = Vector3.ZERO
+		return
 	var k: float = minf(1.0, climb["t"])
 	var p: Vector3 = climb["p"]
 	var dir: int = climb["dir"]
@@ -331,7 +360,8 @@ func _process(dt: float) -> void:
 		phase += (vx * face) * dt / stride
 		var stp := int(floor(phase * 2.0))
 		if stp != _last_step and absf(vx) > 0.3 and state != "climb":
-			_snd("adim_" + _surface(), -13.0 + run_b * 5.0, 0.12)
+			if mocap == null:
+				_snd("adim_" + _surface(), -13.0 + run_b * 5.0, 0.12)
 		_last_step = stp
 	# yorgunluk ve nefes: koştukça artar, nefes hızlanır ve duyulur
 	exert = clampf(exert + (dt * 0.12 if run_b > 0.6 and on_floor else -dt * 0.05), 0.0, 1.0)

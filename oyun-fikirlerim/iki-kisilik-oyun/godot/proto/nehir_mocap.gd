@@ -19,6 +19,8 @@ var reach := 0.0               # 0..1: sol kol yukarı uzanır
 var reach_target := Vector3.INF
 var hold := 0.0                # 0..1: fener kolunu öne-aşağı tut (bacağa çarpmasın)
 var hold_target := Vector3.INF
+signal footstep(strength: float)   # ayak yere bastığında (animasyondan)
+var _foot_down := {"ball_l": true, "ball_r": true}
 var _bi := {}
 
 func _ready() -> void:
@@ -130,6 +132,20 @@ func drive(st: String, speed: float, scale: float, dt: float, xfade := 0.2) -> v
 		tree.set("parameters/%s/scale" % st, scale)
 	tree.advance(dt)
 	_post()
+	if st == "loco" or st == "push" or st == "land":
+		_feet(speed)
+
+func _feet(speed: float) -> void:   # ayak yüksekliği eşiği geçince adım sesi
+	if speed < 0.15 and state == "loco":
+		return
+	for b: String in _foot_down:
+		var y := (skel.get_bone_global_pose(_bi[b]).origin.y) * SCALE
+		var down: bool = _foot_down[b]
+		if down and y > 0.07:
+			_foot_down[b] = false
+		elif not down and y < 0.035:
+			_foot_down[b] = true
+			footstep.emit(clampf(speed / 3.4, 0.0, 1.0))
 
 func _post() -> void:
 	# bakış: kafayı yan eksende (iskelet X) çevir

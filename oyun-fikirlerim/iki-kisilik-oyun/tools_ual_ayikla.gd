@@ -15,6 +15,17 @@ func _init() -> void:
 				lib.add_animation(n, a)
 				print("  ", n, " ", snappedf(a.length, 0.01), "s dongu=", a.loop_mode, " izler=", a.get_track_count())
 		sc.free()
+	# tırmanma: kök hareketli sürüm (kalça hareketi dahil); kök izi silinir, kökü oyun kodu taşır
+	var rm: Node = (load("res://proto/ual_src/ual2_rm.glb") as PackedScene).instantiate()
+	var rap: AnimationPlayer = rm.find_child("AnimationPlayer", true, false)
+	var ca: Animation = rap.get_animation("ClimbUp_1m").duplicate(true)
+	for i in range(ca.get_track_count() - 1, -1, -1):
+		if str(ca.track_get_path(i)).ends_with(":root"):
+			ca.remove_track(i)
+	lib.remove_animation("ClimbUp_1m")
+	lib.add_animation("ClimbUp_1m", ca)
+	print("  ClimbUp_1m (kök hareketli, kök izi silindi) izler=", ca.get_track_count())
+	rm.free()
 	print("kaydet: ", ResourceSaver.save(lib, "res://proto/mocap/anim.res", ResourceSaver.FLAG_COMPRESS))
 	var m: Node = (load("res://proto/mocap/manken_kiz.glb") as PackedScene).instantiate()
 	_dump(m, "")
