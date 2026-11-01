@@ -48,11 +48,22 @@ var glance := 0.0
 var _glance_t := 2.0
 var _glance_target := 0.0
 var hy_s := 0.0
+var hard_t := 0.0             # sert iniş: eller yere
+var exert := 0.0              # koşu yorgunluğu (nefes)
+var _breath_t := 0.0
+var _breath_in := true
+var look_at := Vector3.INF    # kafa bu noktaya bakar (Sisli, kurdele)
+var _look := 0.0
+var teeter := 0.0             # uçurum kenarında sendeleme ağırlığı
+var _prev_vx := 0.0
+var _acc_s := 0.0
 
 # aksesuarlar
 var lantern: Node3D
 var lamp_light: OmniLight3D
 var glass_mat: StandardMaterial3D
+var halo: MeshInstance3D
+var halo_mat: ShaderMaterial
 var lan_th := 0.0
 var lan_w := 0.0
 var _piv_prev := Vector3.ZERO
@@ -155,7 +166,8 @@ func _physics_process(dt: float) -> void:
 		coyote = 0.0
 		jump_buf = 0.0
 		state = "air"
-		Sfx.play("jump", -10.0)
+		_snd("kumas", -14.0)
+		_snd("nefes_ver", -18.0 + exert * 8.0, 0.1)
 	if not on_floor:
 		velocity.y -= GRAV * dt
 		velocity.y = maxf(velocity.y, -18.0)
@@ -178,15 +190,22 @@ func _physics_process(dt: float) -> void:
 		_drag_t -= dt
 		if _drag_t <= 0.0:
 			_drag_t = 0.42
-			Sfx.play("drag", -9.0)
+			_snd("kasa_surt", -11.0, 0.12)
+			if randf() < 0.4:
+				_snd("caba", -20.0, 0.1)
 	# iniş
 	if is_on_floor() and not was_floor:
 		var impact := -prev_vy
 		if impact > 2.0:
 			land_amt = clampf((impact - 2.0) / 9.0, 0.15, 1.0)
-			Sfx.play("land", linear_to_db(clampf(impact / 14.0, 0.15, 1.0)) - 4.0)
+			var lv := linear_to_db(clampf(impact / 14.0, 0.15, 1.0))
+			_snd("adim_" + _surface(), lv - 6.0, 0.1)
+			if impact > 7.0:
+				_snd("inis", lv - 4.0)
+				_snd("nefes_ver", -16.0, 0.1)
 			if impact > 12.5:
 				recover = 0.55
+				hard_t = 0.75
 		state = "ground"
 		air_t = 0.0
 	if not is_on_floor():
@@ -200,7 +219,7 @@ func _physics_process(dt: float) -> void:
 			_start_climb(lg)
 	if position.y < -6.0 and state != "dead":
 		state = "dead"
-		Sfx.play("die", -4.0)
+		_snd("yakalandi", -8.0, 0.0)
 		died.emit()
 
 func _start_climb(lg: Dictionary) -> void:
@@ -215,7 +234,8 @@ func _start_climb(lg: Dictionary) -> void:
 	climb = {"p": p, "dir": dir, "t": 0.0, "dur": (1.25 if hang else (0.85 if dy > 0.8 else 0.55)), "from": position, "start": start, "hang": hang, "dy": dy}
 	velocity = Vector3.ZERO
 	state = "climb"
-	Sfx.play("clink" if hang else "step", -14.0)
+	_snd("kumas", -12.0)
+	_snd("caba" if hang else "nefes_ver", -14.0 if hang else -18.0, 0.08)
 
 func _climb_step(dt: float) -> void:
 	climb["t"] += dt / float(climb["dur"])
@@ -249,8 +269,24 @@ func _climb_step(dt: float) -> void:
 		state = "ground"
 		climb = {}
 		velocity = Vector3.ZERO
-		Sfx.play("step", -8.0)
+		_snd("adim_" + _surface(), -10.0)
 		land_amt = 0.25
+
+func _snd(n: String, vol := 0.0, pv := 0.08) -> void:
+	if world != null and world.get("audio") != null:
+		world.audio.play(n, vol, pv)
+
+func _surface() -> String:
+	if world != null and world.has_method("surface_at"):
+		return world.surface_at(self)
+	return "yaprak"
+
+## Önünde zemin yoksa (uçurum kenarı) true
+func _edge_ahead() -> bool:
+	var sp := get_world_3d().direct_space_state
+	var from := global_position + Vector3(face * 0.32, 0.3, 0)
+	var q := PhysicsRayQueryParameters3D.create(from, from + Vector3(0, -0.9, 0), 1 | (1 << 2))
+	return sp.intersect_ray(q).is_empty()
 
 func _ease(x: float) -> float:
 	x = clampf(x, 0.0, 1.0)
@@ -274,8 +310,27 @@ func _process(dt: float) -> void:
 		phase += (vx * face) * dt / stride
 		var stp := int(floor(phase * 2.0))
 		if stp != _last_step and absf(vx) > 0.3 and state != "climb":
-			Sfx.play("step", -17.0 + run_b * 5.0, 0.15)
+			_snd("adim_" + _surface(), -13.0 + run_b * 5.0, 0.12)
 		_last_step = stp
+	# yorgunluk ve nefes: koştukça artar, nefes hızlanır ve duyulur
+	exert = clampf(exert + (dt * 0.12 if run_b > 0.6 and on_floor else -dt * 0.05), 0.0, 1.0)
+	_breath_t -= dt
+	if _breath_t <= 0.0:
+		_breath_t = lerpf(1.7, 0.75, exert) * (1.1 if _breath_in else 0.9)
+		if exert > 0.25:
+			_snd("nefes_al" if _breath_in else "nefes_ver", lerpf(-26.0, -14.0, exert), 0.06)
+		_breath_in = not _breath_in
+	# ivme: harekete başlarken öne, dururken geriye yaslanma
+	if state != "climb":
+		var ax := (vx - _prev_vx) / maxf(dt, 0.001) * face
+		_acc_s = lerpf(_acc_s, clampf(ax, -12.0, 12.0) if on_floor else 0.0, 1.0 - exp(-dt * 8.0))
+	_prev_vx = vx
+	# uçurum kenarında durunca sendeleme
+	var want_teeter := 0.0
+	if state == "ground" and is_on_floor() and spd < 0.25 and not pushing and _edge_ahead():
+		want_teeter = 1.0
+	teeter = move_toward(teeter, want_teeter, dt * 3.0)
+	hard_t = maxf(0.0, hard_t - dt)
 	# kayan ağırlıklar
 	var tgt := {"loco": 0.0, "air": 0.0, "push": 0.0, "pull": 0.0}
 	if state == "air" or (not on_floor and state != "climb"):
@@ -324,6 +379,36 @@ func _process(dt: float) -> void:
 		p["lean"] -= 0.32 * la
 		p["upperarm.L"] += 0.35 * la
 		p["head"] -= 0.15 * la
+	if hard_t > 0.0 and state != "climb":   # sert iniş: elleri yere koyarak toparlanma
+		var hk := _ease(minf(1.0, hard_t / 0.45))
+		p["lean"] -= 0.55 * hk
+		p["upperarm.L"] += 0.9 * hk
+		p["upperarm.R"] += 0.7 * hk
+		p["head"] += 0.25 * hk
+	if state != "climb":
+		p["lean"] += -_acc_s * 0.018
+		p["chest"] += sin(t * lerpf(1.7, 4.8, exert)) * 0.035 * exert
+		p["head"] += sin(t * lerpf(1.7, 4.8, exert) + 0.5) * 0.03 * exert
+	if teeter > 0.0:   # kenarda: geriye yaslan, kollar savrulur, aşağı bak
+		var tk := _ease(teeter)
+		var sw := sin(t * 6.5)
+		p["lean"] = lerpf(p["lean"], 0.12 + sw * 0.07, tk)
+		p["upperarm.L"] = lerpf(p["upperarm.L"], 1.4 + sin(t * 5.2) * 0.7, tk)
+		p["upperarm.R"] = lerpf(p["upperarm.R"], 1.1 + cos(t * 5.2) * 0.5, tk)
+		p["forearm.L"] = lerpf(p["forearm.L"], 0.4, tk)
+		p["head"] = lerpf(p["head"], -0.45, tk)
+		p["thigh.L"] = lerpf(p["thigh.L"], 0.12, tk)
+		p["thigh.R"] = lerpf(p["thigh.R"], -0.08, tk)
+	# bakış: hedef öndeyse kafa ona çevrilir
+	var want_look := 0.0
+	if look_at != Vector3.INF and state != "climb":
+		var hp := global_position + Vector3(0, 1.35, 0)
+		var ldx := (look_at.x - hp.x) * face
+		if ldx > 0.4:
+			want_look = clampf(atan2(look_at.y - hp.y, ldx), -0.55, 0.6)
+	_look = lerpf(_look, want_look, 1.0 - exp(-dt * 4.0))
+	p["head"] += _look * 0.7
+	p["neck"] += _look * 0.3
 	if reach > 0.0:
 		var r := _ease(reach)
 		p["upperarm.L"] = lerpf(p["upperarm.L"], 2.55, r)
@@ -523,6 +608,29 @@ func _build_lantern() -> void:
 	glass.material_override = glass_mat
 	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	lantern.add_child(glass)
+	# sisin içinde fenerin etrafında yumuşak hale (kameraya dönük)
+	halo = MeshInstance3D.new()
+	var hq := QuadMesh.new()
+	hq.size = Vector2(1.1, 1.1)
+	halo.mesh = hq
+	var hs := Shader.new()
+	hs.code = """shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, shadows_disabled, fog_disabled, cull_disabled;
+uniform float k = 1.0;
+void vertex() {
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
+}
+void fragment() {
+	float r = length(UV - 0.5) * 2.0;
+	float g = pow(max(0.0, 1.0 - r), 2.4);
+	ALBEDO = vec3(1.0, 0.6, 0.28) * g * 0.32 * k;
+}"""
+	halo_mat = ShaderMaterial.new()
+	halo_mat.shader = hs
+	halo.material_override = halo_mat
+	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	halo.position = Vector3(0, -0.145, 0)
+	lantern.add_child(halo)
 	lamp_light = OmniLight3D.new()
 	lamp_light.light_color = Color(1.0, 0.63, 0.32)
 	lamp_light.light_energy = 2.2
@@ -611,6 +719,7 @@ func _accessories(dt: float) -> void:
 	var fl := 1.0 + 0.05 * sin(t * 13.0) + 0.04 * sin(t * 7.3 + 1.0) + 0.03 * sin(t * 23.0)
 	lamp_light.light_energy = 2.2 * fl
 	glass_mat.emission_energy_multiplier = 3.0 * fl
+	halo_mat.set_shader_parameter("k", fl)
 	# --- atkı: boyuna bağlı, rüzgârda arkaya uçuşan zincir
 	var nt := body.bone_xform("neck")
 	scarf_knot.global_transform = Transform3D(nt.basis.orthonormalized(), nt * Vector3(0, 0.0, 0))

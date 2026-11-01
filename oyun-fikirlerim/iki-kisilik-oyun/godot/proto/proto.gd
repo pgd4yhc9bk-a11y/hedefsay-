@@ -58,6 +58,15 @@ var _first := -1
 var _jumped_swipe := false
 var _grab_fingers := 0
 var _tex := {}
+var audio: ProtoAudio
+var veg: Array = []              # rüzgârda sallanan bitkiler [sprite, faz]
+var chaser: Sprite3D
+var chase_tex: Array = []
+var chase := "off"               # off | rise | run | stop | done
+var chase_t := 0.0
+var chase_x := 0.0
+var caught := false
+var music_on := false
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -73,6 +82,10 @@ func _ready() -> void:
 	_build_sisli()
 	_build_ribbon()
 	_build_valley()
+	_build_chaser()
+	audio = ProtoAudio.new()
+	add_child(audio)
+	Sfx.set_ambient(false)
 	crate = ProtoCrate.new()
 	crate.position = Vector3(CRATE_X, -0.45, 0)
 	crate.min_x = 37.6
@@ -93,7 +106,10 @@ func _ready() -> void:
 	_build_ui()
 	if DisplayServer.is_touchscreen_available() or OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios"):
 		_low_quality()
-	if test != "":
+	if test == "":
+		audio.start()
+	else:
+		audio.muted = true
 		_run_test()
 
 # ================================================================ dünya
@@ -392,7 +408,9 @@ func _build_vegetation() -> void:
 			z = -0.9 if z < 0.0 else 0.9          # yolun üstü biraz açık kalsın
 		var k: Array = kinds[rng.randi() % kinds.size()]
 		var h: float = float(k[1]) * rng.randf_range(0.7, 1.4) * (1.25 if z > 1.5 else 1.0)
-		_sprite(k[0], Vector3(x, gy_at(x, z) - 0.04, z), h, 1.0, rng.randf() < 0.5)
+		var vs := _sprite(k[0], Vector3(x, gy_at(x, z) - 0.04, z), h, 1.0, rng.randf() < 0.5)
+		if z > -3.5:
+			veg.append([vs, rng.randf() * TAU])
 	# yüksek kayanın ön yüzüne sarkan kökler, sarmaşıklar ve kenar otları
 	var hx := PLAT_A + 0.4
 	while hx < PLAT_B - 0.5:
@@ -407,10 +425,11 @@ func _build_vegetation() -> void:
 		sp.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		sp.flip_h = rng.randf() < 0.5
-		sp.modulate = Color(0.55, 0.55, 0.55)
+		sp.modulate = Color(0.13, 0.13, 0.14)
+		sp.shaded = false
 		add_child(sp)
 		_sprite("ot", Vector3(hx + 0.6, ground_y(hx + 0.6) - 0.03, ZF - 0.05), rng.randf_range(0.4, 0.7), 1.0, rng.randf() < 0.5)
-		hx += rng.randf_range(1.6, 3.2)
+		hx += rng.randf_range(2.4, 4.5)
 	# kayalar ve kütükler
 	for spec in [["kaya_orta", 6.5, -1.6, 0.8], ["tas_yigin", 13.5, 1.6, 0.6], ["kaya_buyuk", 27.0, -3.0, 1.6], ["kutuk_kesik", 10.0, -2.4, 0.7],
 			["kaya_catlak", 43.0, -2.5, 1.3], ["kok_yigin", 37.5, 1.5, 0.7], ["kaya_orta", 52.5, -1.8, 0.9], ["tas", 56.0, 1.2, 0.35], ["kutuk_devrik", 59.0, -3.5, 0.9]]:
@@ -755,6 +774,79 @@ func _on_died() -> void:
 	phase = "dead"
 	dead_t = 0.0
 
+## Zemin türü (adım sesi): kasa üstü tahta, kaya düzlüğü taş, aşağı patika toprak, orman yaprak
+func surface_at(p: Node3D) -> String:
+	if crate != null and absf(p.position.y - crate.top()) < 0.12 and absf(p.position.x - crate.position.x) < 0.6:
+		return "tahta"
+	if p.position.x > PLAT_A and p.position.y > 2.0:
+		return "kaya"
+	if p.position.x > 34.0 and p.position.x < PLAT_A:
+		return "toprak"
+	return "yaprak"
+
+func _build_chaser() -> void:   # kasa bölümünde peşine düşen Sisli
+	for i in 4:
+		chase_tex.append(load("res://assets/sisli/kos_%d.png" % i))
+	chaser = Sprite3D.new()
+	chaser.texture = chase_tex[0]
+	chaser.pixel_size = 1.6 / 190.0
+	chaser.offset = Vector2(0, chase_tex[0].get_height() / 2.0)
+	chaser.shaded = false
+	chaser.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	chaser.modulate = Color(1, 1, 1, 0)
+	chaser.position = Vector3(34.8, -0.55, 0.15)
+	chaser.visible = false
+	add_child(chaser)
+
+func _update_chase(dt: float) -> void:
+	var px := player.position.x
+	var py := player.position.y
+	match chase:
+		"off":
+			if phase == "play" and px > 39.0 and px < PLAT_A and py < 1.5:
+				chase = "rise"
+				chase_t = 0.0
+				chase_x = 34.9
+				chaser.visible = true
+				Game.shake(0.25)
+				audio.play("yakalandi", -22.0, 0.0)
+		"rise":   # uçurumun kenarından sisin içinden yükselir
+			chase_t += dt
+			chaser.modulate.a = minf(0.92, chase_t / 1.2)
+			if chase_t > 1.3:
+				chase = "run"
+				chase_t = 0.0
+		"run":
+			chase_t += dt
+			var v := lerpf(0.5, 0.85, clampf(chase_t / 5.0, 0.0, 1.0))
+			if px - chase_x > 7.0:
+				v += 0.4   # çok geride kalırsa biraz hızlanır
+			chase_x = minf(chase_x + v * dt, PLAT_A - 0.45)
+			if py > 2.2:   # oyuncu kayaya çıktı: dibinde kalır, dağılır
+				chase = "stop"
+				chase_t = 0.0
+			elif not caught and phase == "play" and absf(chase_x - px) < 0.5 and py < ground_y(chase_x) + 1.3:
+				caught = true
+				audio.play("yakalandi", -2.0, 0.0)
+				player.state = "cut"
+				player.cut_target_x = INF
+				player.velocity = Vector3.ZERO
+				phase = "dead"
+				dead_t = 0.3
+		"stop":
+			chase_t += dt
+			chaser.modulate.a = maxf(0.0, 0.92 - chase_t / 2.5)
+			if chase_t > 2.6:
+				chase = "done"
+				chaser.visible = false
+	chaser.position.x = chase_x
+	chaser.position.y = ground_y(chase_x) - 0.05
+	chaser.texture = chase_tex[int(t * (9.0 if chase == "run" else 4.0)) % 4]
+	var dist := absf(chase_x - px) if chase in ["rise", "run"] else 99.0
+	audio.danger = clampf(1.0 - (dist - 0.8) / 8.0, 0.0, 1.0) if dist < 50.0 else 0.0
+	if chase == "run":
+		player.look_at = Vector3.INF
+
 func _respawn() -> void:
 	var c: Vector2 = CHECKPOINTS[cp]
 	player.state = "ground"
@@ -763,6 +855,11 @@ func _respawn() -> void:
 	player.face = 1
 	cam_pos = Vector3(c.x + 1.0, c.y + 1.3, cam_dist)
 	phase = "play"
+	caught = false
+	if chase in ["rise", "run"]:
+		chase = "off"
+		chaser.visible = false
+		chaser.modulate.a = 0.0
 
 func _process(dt: float) -> void:
 	t += dt
@@ -793,6 +890,20 @@ func _process(dt: float) -> void:
 			_end_seq(dt)
 	_update_camera(dt)
 	_update_world(dt)
+	_update_chase(dt)
+	# bakış hedefi: izleyen Sisli, sonra kurdele
+	if sisli_a > 0.2:
+		player.look_at = sisli.position + Vector3(0, 1.3, 0)
+	elif player.position.x > RIBBON_X - 6.0 and player.position.y > 2.0:
+		player.look_at = Vector3(RIBBON_X, ground_y(RIBBON_X) + 1.6, 0)
+	elif chase != "run":
+		player.look_at = Vector3.INF
+	# rüzgârda sallanan bitkiler (yalnızca kameraya yakın olanlar)
+	var wind := 0.6 + 0.4 * sin(t * 0.7) + 0.3 * sin(t * 2.3)
+	for v: Array in veg:
+		var sp: Sprite3D = v[0]
+		if absf(sp.position.x - cam_pos.x) < 13.0:
+			sp.rotation.z = sin(t * 1.6 + float(v[1]) + sp.position.x * 0.6) * 0.045 * wind - 0.02 * wind
 	# ipucu metni: ilk saniyelerde görünür, hareket edince söner
 	hint_t += dt
 	var ha := clampf((hint_t - 2.0) / 1.0, 0.0, 1.0) * clampf((9.0 - hint_t) / 1.5, 0.0, 1.0)
@@ -801,6 +912,9 @@ func _process(dt: float) -> void:
 
 func _end_seq(dt: float) -> void:
 	end_t += dt
+	if end_t > 1.0 and not music_on:
+		music_on = true
+		audio.final_music()
 	if end_t > 1.6:
 		player.reach = minf(1.0, player.reach + dt * 0.9)
 	if end_t > 4.6:
@@ -830,6 +944,10 @@ func _update_camera(dt: float) -> void:
 		dist = lerpf(cam_dist, 24.0, k)
 		up = lerpf(1.0, 2.6, k)
 		look = lerpf(look, 4.0, k * dt)
+	if chase in ["rise", "run"]:   # kovalamaca: kamera açılır, Sisli de kadrajda
+		var gap := absf(p.x - chase_x)
+		dist = maxf(dist, 14.0 + gap * 0.45)
+		look = lerpf(look, ((p.x + chase_x) * 0.5 - p.x) * 0.8, 1.0 - exp(-dt * 1.5))
 	if close_cam > 0.0:
 		dist = close_cam
 		up = 0.75
@@ -840,7 +958,7 @@ func _update_camera(dt: float) -> void:
 	cam_pos.y = lerpf(cam_pos.y, target.y, 1.0 - exp(-dt * 1.9))
 	cam_pos.z = lerpf(cam_pos.z, target.z, 1.0 - exp(-dt * 1.2))
 	var sway := Vector3(sin(t * 0.37) * 0.04, sin(t * 0.53) * 0.03, 0.0)
-	cam.position = cam_pos + sway
+	cam.position = cam_pos + sway + Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * Game.shake_amt * 0.12
 	var pitch := 1.5
 	if phase == "end" or phase == "done":
 		pitch = lerpf(1.5, -5.0, clampf((end_t - 4.5) / 6.0, 0.0, 1.0))
@@ -1024,6 +1142,7 @@ func _input(ev: InputEvent) -> void:
 func _back_to_menu() -> void:
 	if test != "":
 		return
+	Sfx.set_ambient(true)
 	get_tree().change_scene_to_file("res://main.tscn")
 
 # ================================================================ test
@@ -1044,6 +1163,19 @@ func _run_test() -> void:
 		player.input_x = 0.0
 		await _wait(2.5)
 		print("DIRILIS faz=%s x=%.2f y=%.2f durum=%s" % [phase, player.position.x, player.position.y, player.state])
+	elif test == "protocatch":
+		bot = {"on": true}
+		await _place(38.5, 0.5)
+		player.input_x = 0.6
+		await _wait(0.8)
+		player.input_x = 0.0
+		var tt := 0.0
+		while not caught and tt < 25.0:
+			await _wait(0.25)
+			tt += 0.25
+		print("YAKALANDI=%s sure=%.1f sisli=%.2f oyuncu=%.2f" % [caught, tt, chase_x, player.position.x])
+		await _wait(2.0)
+		print("DEVAM faz=%s x=%.2f cp=%d kovalama=%s" % [phase, player.position.x, cp, chase])
 	elif test == "protopose":
 		await _pose_shots()
 	get_tree().quit()
@@ -1080,6 +1212,13 @@ func _shots() -> void:
 	await _shot("proto_4_kasa")
 	await _place(57.0)
 	await _shot("proto_5_tepe")
+	await _place(38.0, 0.3)
+	player.input_x = 0.7
+	await _wait(1.0)
+	player.input_x = 0.6
+	await _wait(3.5)
+	await _shot("proto_6_kovalama")
+	player.input_x = 0.0
 
 ## Botla baştan sona oyna: kütük, uçurum, kasa, duvar, son.
 func _play_bot(shots: bool) -> void:
@@ -1096,7 +1235,7 @@ func _play_bot(shots: bool) -> void:
 	var shot_i := 0
 	for s: Array in steps:
 		var ok := await _bot_step(s)
-		var line := "%s -> x=%.2f y=%.2f state=%s cp=%d ok=%s" % [str(s), player.position.x, player.position.y, player.state, cp, ok]
+		var line := "%s -> x=%.2f y=%.2f state=%s cp=%d ok=%s sisli=%s@%.2f" % [str(s), player.position.x, player.position.y, player.state, cp, ok, chase, chase_x]
 		print("BOT ", line)
 		log.append(line)
 		if shots and s[0] in ["jump_at", "push_stuck", "jump_hold"]:

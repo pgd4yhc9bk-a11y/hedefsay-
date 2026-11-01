@@ -5,6 +5,7 @@ const NAMES := ["step", "jump", "land", "clink", "whoosh", "fire", "block", "doo
 var _streams := {}
 var _pool: Array[AudioStreamPlayer] = []
 var muted := false
+var _loops: Array[AudioStreamPlayer] = []
 
 func _ready() -> void:
 	for n: String in NAMES:
@@ -22,6 +23,7 @@ func _ready() -> void:
 		p.stream = s
 		p.volume_db = -14.0 if n == "wind" else -22.0
 		add_child(p)
+		_loops.append(p)
 		if not Game.test_mode:
 			p.play()
 
@@ -39,3 +41,11 @@ func play(n: String, vol_db: float = 0.0, pitch_var: float = 0.08) -> void:
 func set_muted(m: bool) -> void:
 	muted = m
 	AudioServer.set_bus_mute(0, m)
+
+## Genel rüzgâr/uğultu döngülerini aç/kapat (prototip bölümün kendi ambiyansı var)
+func set_ambient(on: bool) -> void:
+	for p in _loops:
+		if on and not p.playing and not Game.test_mode:
+			p.play()
+		elif not on:
+			p.stop()
