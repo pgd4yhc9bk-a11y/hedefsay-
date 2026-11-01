@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://du1aqaem3035d"
-path="res://.godot/imported/nehir_meshy_texture_0_metallic-texture_0_roughness.png-7167f19155403625adfd911152c5bcfe.ctex"
+uid="uid://c430jyw5oj026"
+path="res://.godot/imported/cinar_meshy_texture_0_metallic_roughness.jpg-21bd5908e604527d6a3e3c02c137fcc5.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "9a2c3d48d947bb4301eaec435bdd6108"
+"md5": "8c768b0be61cbce144d6e4cabe99fef4"
 }
 
 [deps]
 
-source_file="res://proto/mocap/nehir_meshy_texture_0_metallic-texture_0_roughness.png"
-dest_files=["res://.godot/imported/nehir_meshy_texture_0_metallic-texture_0_roughness.png-7167f19155403625adfd911152c5bcfe.ctex"]
+source_file="res://proto/mocap/cinar_meshy_texture_0_metallic_roughness.jpg"
+dest_files=["res://.godot/imported/cinar_meshy_texture_0_metallic_roughness.jpg-21bd5908e604527d6a3e3c02c137fcc5.ctex"]
 
 [params]
 

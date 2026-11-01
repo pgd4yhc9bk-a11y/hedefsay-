@@ -11,7 +11,10 @@ var run_nat := 3.55            # koşu karışımının ölçülen doğal hızı
 var head_fix := 0.0            # Meshy modelinde baş öne eğik duruyor: yukarı düzeltme (radyan)
 var push_back := 0.17          # iterken gövdenin geri alınacağı mesafe (eller kasa yüzeyinde)
 var anim_lib := "res://proto/mocap/anim.res"
-const STATES := ["loco", "air", "land", "roll", "push", "climb", "wake", "death", "reach", "crouch", "torch"]
+const STATES := ["loco", "air", "land", "roll", "push", "climb", "wake", "death", "reach", "crouch", "torch", "any"]
+var who := "nehir"              # nehir | cinar
+var height := 1.45
+var bone_aliases := {}          # UAL adı -> bu modeldeki kemik adı (kol, baş, ayak)
 # isimsiz arayüz adları -> manken kemikleri (fener, atkı, örgü bağlantısı için)
 var MAP := {"neck": "neck_01", "head": "Head", "hand.R": "middle_01_r", "hand.L": "middle_01_l"}
 
@@ -26,12 +29,27 @@ var reach_target := Vector3.INF
 var hold := 0.0                # 0..1: fener kolunu öne-aşağı tut (bacağa çarpmasın)
 var hold_target := Vector3.INF
 signal footstep(strength: float)   # ayak yere bastığında (animasyondan)
-var _foot_down := {"ball_l": true, "ball_r": true}
+var _foot_down := {}
 var _bi := {}
 
 func _ready() -> void:
-	meshy = ResourceLoader.exists("res://proto/mocap/nehir_meshy.glb") and ResourceLoader.exists("res://proto/mocap/anim_nehir.res")
-	if meshy:   # Meshy ile üretilen Nehir (1.70 m) + ona aktarılmış animasyonlar
+	if who == "cinar":   # Meshy ile üretilen Çınar (Mixamo iskeleti), 6 yaş: 1.15 m
+		meshy = true
+		model = (load("res://proto/mocap/cinar_meshy.glb") as PackedScene).instantiate()
+		SCALE = height / 1.70
+		head_bone = "mixamorig_Head"
+		anim_lib = "res://proto/mocap/anim_cinar.res"
+		MAP = {"neck": "mixamorig_Neck", "head": "mixamorig_Head", "hand.R": "mixamorig_RightHand", "hand.L": "mixamorig_LeftHand"}
+		bone_aliases = {"neck_01": "mixamorig_Neck", "upperarm_l": "mixamorig_LeftArm", "lowerarm_l": "mixamorig_LeftForeArm", "hand_l": "mixamorig_LeftHand",
+			"upperarm_r": "mixamorig_RightArm", "lowerarm_r": "mixamorig_RightForeArm", "hand_r": "mixamorig_RightHand",
+			"ball_l": "mixamorig_LeftToeBase", "ball_r": "mixamorig_RightToeBase"}
+		run_nat = 2.85
+		head_fix = 0.0
+		push_back = 0.0
+	meshy = meshy or (ResourceLoader.exists("res://proto/mocap/nehir_meshy.glb") and ResourceLoader.exists("res://proto/mocap/anim_nehir.res"))
+	if who == "cinar":
+		pass
+	elif meshy:   # Meshy ile üretilen Nehir (1.70 m) + ona aktarılmış animasyonlar
 		model = (load("res://proto/mocap/nehir_meshy.glb") as PackedScene).instantiate()
 		SCALE = 1.45 / 1.70
 		head_bone = "head"
@@ -49,6 +67,10 @@ func _ready() -> void:
 	mesh = model.find_child("Mannequin_F", true, false) if not meshy else _first_mesh(skel)
 	for i in skel.get_bone_count():
 		_bi[skel.get_bone_name(i)] = i
+	for k: String in bone_aliases:   # UAL adıyla da bulunsun
+		if _bi.has(bone_aliases[k]):
+			_bi[k] = _bi[bone_aliases[k]]
+	_foot_down = {"ball_l": true, "ball_r": true}
 	var oldap := model.find_child("AnimationPlayer", true, false)
 	if oldap != null:
 		oldap.queue_free()   # modelin kendi oynatıcısı değil, bizim ağacımız sürer
@@ -129,7 +151,7 @@ func _build_tree() -> void:
 	bt.connect_node("loco", 0, "loco_bs")
 	var nodes := {
 		"air": _anim("Jump"), "land": _anim("Jump_Land"), "roll": _anim("Roll"), "push": _anim("Push"),
-		"climb": _anim("ClimbUp_1m"), "wake": _anim("LayToIdle"), "death": _anim("Death01"), "reach": _anim("Idle_Lantern"), "crouch": _anim("Crouch_Idle"), "torch": _anim("Idle_Torch"),
+		"any": _anim("Idle"), "climb": _anim("ClimbUp_1m"), "wake": _anim("LayToIdle"), "death": _anim("Death01"), "reach": _anim("Idle_Lantern"), "crouch": _anim("Crouch_Idle"), "torch": _anim("Idle_Torch"),
 	}
 	for k: String in nodes:
 		bt.add_node(k + "_a", nodes[k])
@@ -152,8 +174,24 @@ func _build_tree() -> void:
 		tree.set("parameters/%s/scale" % k, 1.0)
 	tree.set("parameters/loco/scale", 1.0)
 
+## Herhangi bir animasyonu (ör. Meshy'den gelen M_...) "any" durumunda oynat. Aynı ad tekrar istenirse baştan başlamaz.
+var any_name := ""
+func set_any(anim_name: String) -> void:
+	if anim_name == any_name:
+		return
+	any_name = anim_name
+	var node := (tree.tree_root as AnimationNodeBlendTree).get_node("any_a") as AnimationNodeAnimation
+	node.animation = anim_name
+	if state == "any":   # zaten bu durumdaysak geçişi yeniden başlat
+		state = ""
+
+func has_anim(anim_name: String) -> bool:
+	return tree.has_animation(anim_name)
+
 ## Her kare: durum, hız ve zaman ölçeği; sonra animasyonu ilerlet ve kodla eklemeleri uygula.
 func drive(st: String, speed: float, scale: float, dt: float, xfade := 0.2) -> void:
+	if st != "any":
+		any_name = "" if st != state else any_name
 	if st != state:
 		state = st
 		(tree.tree_root as AnimationNodeBlendTree).get_node("state").xfade_time = xfade
@@ -200,7 +238,7 @@ func _post() -> void:
 	var lp := look_pitch + (head_fix if state in ["loco", "air", "land"] else 0.0)
 	if absf(lp) > 0.001:
 		_rot_global(head_bone, Vector3(1, 0, 0), -lp * 0.7)
-		_rot_global("neck_01", Vector3(1, 0, 0), -lp * 0.3)
+		_rot_global(MAP["neck"], Vector3(1, 0, 0), -lp * 0.3)
 	if hold > 0.001 and hold_target != Vector3.INF:
 		_aim("upperarm_r", "lowerarm_r", hold_target, hold * 0.65)
 		_aim("lowerarm_r", "hand_r", hold_target, hold * 0.8)

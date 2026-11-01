@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bbcngenpkp6f4"
-path="res://.godot/imported/nehir_meshy_texture_0_normal.png-60cb85cf01ea434587d9b9db5c4d4b0f.ctex"
+uid="uid://bjknkn23yun4r"
+path="res://.godot/imported/nehir_animlar1_texture_0.jpg-3d0bcdfa6a37a768c2952c4d81483974.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "e0251610164f6a5717eb860a47710b22"
+"md5": "de0443eaac8137e06935c72272de0db8"
 }
 
 [deps]
 
-source_file="res://proto/mocap/nehir_meshy_texture_0_normal.png"
-dest_files=["res://.godot/imported/nehir_meshy_texture_0_normal.png-60cb85cf01ea434587d9b9db5c4d4b0f.ctex"]
+source_file="res://proto/mocap/ek/nehir_animlar1_texture_0.jpg"
+dest_files=["res://.godot/imported/nehir_animlar1_texture_0.jpg-3d0bcdfa6a37a768c2952c4d81483974.ctex"]
 
 [params]
 

@@ -70,6 +70,15 @@ var music_on := false
 var built := false               # bölüm kurulumu bitti mi
 var cine: Cinematic = null       # oynayan ara sahne
 var cine_look := Vector3.INF
+var cinar_root: Node3D = null      # son sahnede kurdelenin dibinde bekleyen Çınar
+var cinar_turn: Node3D
+var cinar: NehirMocap
+var cinar_target := INF
+var cinar_speed := 1.0
+var cinar_anim := "M_Sit_Shout_Hands_on_Mouth"   # başta: oturmuş, ellerini ağzına koyup sesleniyor
+var cinar_anim_scale := 1.0
+var cinar_face := -1
+var cinar_spd := 0.0
 var bars: Array = []             # sinema bantları (üst, alt)
 var bar_k := 0.0
 var hq := false                  # gelişmiş görüntü motoru (Vulkan: telefon uygulaması / masaüstü)
@@ -92,7 +101,7 @@ func _ready() -> void:
 	lbl.modulate.a = 0.6
 	ld.add_child(lbl)
 	var steps := [_build_env, _build_terrain, _build_log, _build_vegetation, _build_trees, _build_sky, _build_fx,
-		_build_sisli, _build_ribbon, _build_valley, _build_chaser, _build_grass, _build_smoke]
+		_build_sisli, _build_ribbon, _build_valley, _build_chaser, _build_cinar, _build_grass, _build_smoke]
 	for i in steps.size():
 		(steps[i] as Callable).call()
 		lbl.text = "yükleniyor" + ".".repeat(i % 4)
@@ -871,6 +880,7 @@ func _update_chase(dt: float) -> void:
 			chase_x = minf(chase_x + v * dt, PLAT_A - 0.45)
 			if py > 1.3:   # oyuncu kayaya çıktı: dibinde kalır, dağılır
 				chase = "stop"
+				player.breath_t = 4.0   # kurtuldu: nefes nefese
 				chase_t = 0.0
 			elif not caught and phase == "play" and absf(chase_x - px) < 0.5 and py < ground_y(chase_x) + 1.3:
 				caught = true
@@ -949,6 +959,7 @@ func _process(dt: float) -> void:
 	_update_camera(dt)
 	_update_world(dt)
 	_update_chase(dt)
+	_update_cinar(dt)
 	# bakış hedefi: izleyen Sisli, sonra kurdele
 	if cine != null:
 		player.look_at = cine_look
@@ -956,9 +967,10 @@ func _process(dt: float) -> void:
 		var rw := clampf((et - cine_reach_from) / 1.2, 0.0, 1.0) * clampf((cine_reach_to - et) / 0.8, 0.0, 1.0)
 		player.reach = rw
 		# yazı, kararma
-		title.modulate.a = clampf((et - 14.5) / 2.0, 0.0, 1.0) * clampf((19.5 - et) / 1.5, 0.0, 1.0)
-		fade.color.a = clampf((et - 17.5) / 3.0, 0.0, 1.0)
-		sub.modulate.a = clampf((et - 20.0) / 1.0, 0.0, 1.0)
+		var T0 := cine_title_t
+		title.modulate.a = clampf((et - T0) / 2.0, 0.0, 1.0) * clampf((T0 + 5.0 - et) / 1.5, 0.0, 1.0)
+		fade.color.a = clampf((et - T0 - 3.0) / 3.0, 0.0, 1.0)
+		sub.modulate.a = clampf((et - T0 - 5.5) / 1.0, 0.0, 1.0)
 	elif sisli_a > 0.2:
 		player.look_at = sisli.position + Vector3(0, 1.3, 0)
 	elif player.position.x > RIBBON_X - 6.0 and player.position.y > 1.2:
@@ -999,12 +1011,13 @@ func _ending_cine() -> Cinematic:
 	var edge := 66.3
 	var c := Cinematic.new()
 	c.cam(0.0, cam.position, cam.position + Vector3(0, 0, -10).rotated(Vector3.RIGHT, cam.rotation.x), 30.0)
-	c.cam(2.4, Vector3(R - 1.9, G + 1.25, 5.2), Vector3(R - 0.25, G + 1.3, -0.2), 28.0)
+	c.cam(2.4, Vector3(R - 1.6, G + 1.2, 5.6), Vector3(R + 0.2, G + 1.1, -0.2), 29.0)
 	c.cam(4.6, Vector3(R - 1.7, G + 1.15, 3.6), Vector3(R - 0.2, G + 1.4, -0.3), 26.0)
-	c.cam(7.4, Vector3(R - 2.3, G + 0.75, 4.3), Vector3(R - 0.4, G + 0.6, -0.1), 28.0)
-	c.cam(10.6, Vector3(R + 0.6, G + 1.3, 6.8), Vector3(R + 3.6, G + 1.0, -1.5), 30.0)
-	c.cam(14.5, Vector3(R + 0.2, G + 3.6, 13.5), Vector3(edge + 14.0, G - 3.5, -24.0), 34.0)
-	c.cam(20.0, Vector3(R + 0.8, G + 4.6, 16.0), Vector3(edge + 15.0, G - 4.0, -26.0), 35.0)
+	c.cam(6.6, Vector3(R - 0.2, G + 1.0, 4.8), Vector3(R + 0.9, G + 0.7, 0.0), 28.0)
+	c.cam(9.6, Vector3(R - 0.1, G + 0.7, 3.9), Vector3(R - 0.05, G + 0.6, -0.1), 27.0)
+	c.cam(13.0, Vector3(R + 1.6, G + 1.3, 7.0), Vector3(R + 4.0, G + 1.0, -1.5), 30.0)
+	c.cam(17.5, Vector3(R + 0.2, G + 3.6, 13.5), Vector3(edge + 14.0, G - 3.5, -24.0), 34.0)
+	c.cam(23.5, Vector3(R + 0.8, G + 4.6, 16.0), Vector3(edge + 15.0, G - 4.0, -26.0), 35.0)
 	var pl := player
 	c.at(0.0, func() -> void:
 		cine_look = Vector3(R, G + 1.6, 0)
@@ -1013,23 +1026,35 @@ func _ending_cine() -> Cinematic:
 		if not music_on:
 			music_on = true
 			audio.final_music())
-	c.at(4.9, func() -> void: pl.force_anim = "")
-	c.at(5.6, func() -> void:
-		pl.force_anim = "crouch"   # kurdelenin dibinde diz çöker
+	c.at(4.9, func() -> void:
+		pl.force_anim = ""
+		cine_look = Vector3(R + 1.4, G + 0.8, 0)      # Çınar'ı görür
+		cinar_anim = "M_Stand_Up1"                     # Çınar kalkar
+		cinar_anim_scale = 1.6)
+	c.at(7.0, func() -> void:
+		cinar_anim = ""
+		cinar_target = R + 0.25                        # ablasına koşar
+		cinar_speed = 1.6)
+	c.at(7.6, func() -> void:
+		pl.force_anim = "crouch"                       # onun boyuna iner
 		audio.play("kumas", -12.0))
-	c.at(8.6, func() -> void:
+	c.at(10.6, func() -> void:
 		pl.force_anim = ""
 		pl.face = 1
 		pl.cut_target_x = edge
+		cinar_target = edge - 0.7
+		cinar_speed = 1.0
 		cine_look = Vector3(edge + 14.0, G - 3.5, -24.0))
-	c.at(12.6, func() -> void:
+	c.at(15.0, func() -> void:
 		pl.force_anim = "torch"     # feneri kaldırıp vadiye bakar
 		audio.play("nefes_ver", -16.0))
-	c.at(20.5, func() -> void: pass)
+	c.at(24.0, func() -> void: pass)
 	cine_reach_from = 1.6
 	cine_reach_to = 4.6
+	cine_title_t = 17.5
 	return c
 
+var cine_title_t := 14.5
 var cine_reach_from := 0.0
 var cine_reach_to := 0.0
 
@@ -1357,7 +1382,7 @@ func _run_test() -> void:
 			await _wait(0.05)
 		player.input_x = 0.0
 		var ct := 0.0
-		while ct < 21.0:
+		while ct < 24.0:
 			await _wait(1.5)
 			ct += 1.5
 			k3 += 1
@@ -1911,3 +1936,51 @@ func _start_opening() -> void:
 		cam_pos = gp
 		look = 0.0)
 	cine = c
+
+## Çınar: kurdele ağacının dibinde (son sahne). Mocap gövde + elinde tavşan Pofuk.
+func _build_cinar() -> void:
+	if not ResourceLoader.exists("res://proto/mocap/cinar_meshy.glb") or not ResourceLoader.exists("res://proto/mocap/anim_cinar.res"):
+		return
+	var x := RIBBON_X + 1.4
+	cinar_root = Node3D.new()
+	cinar_root.position = Vector3(x, ground_y(x), 0.25)
+	add_child(cinar_root)
+	cinar_turn = Node3D.new()
+	cinar_turn.rotation.y = -PI
+	cinar_root.add_child(cinar_turn)
+	cinar = NehirMocap.new()
+	cinar.who = "cinar"
+	cinar.height = 1.15
+	cinar_turn.add_child(cinar)
+	if ResourceLoader.exists("res://proto/mocap/pofuk.glb"):   # sol elinde tavşanı
+		var ba := BoneAttachment3D.new()
+		ba.bone_name = "mixamorig_LeftHand"
+		cinar.skel.add_child(ba)
+		var bunny: Node3D = (load("res://proto/mocap/pofuk.glb") as PackedScene).instantiate()
+		var bap := bunny.find_child("AnimationPlayer", true, false)
+		if bap != null:
+			bap.queue_free()
+		bunny.scale = Vector3.ONE * (0.4 / 1.7) / cinar.SCALE
+		bunny.position = Vector3(0, 0.1, 0.02) / cinar.SCALE
+		bunny.rotation = Vector3(PI, 0, 0)       # kulaklarından tutulmuş, aşağı sarkar
+		ba.add_child(bunny)
+
+func _update_cinar(dt: float) -> void:
+	if cinar == null:
+		return
+	var v := 0.0
+	if cinar_target != INF:
+		var d := cinar_target - cinar_root.position.x
+		if absf(d) > 0.05:
+			cinar_face = 1 if d > 0.0 else -1
+			v = minf(cinar_speed, absf(d) * 2.5)
+			cinar_root.position.x += signf(d) * v * dt
+			cinar_root.position.y = ground_y(cinar_root.position.x)
+	cinar_spd = lerpf(cinar_spd, v, 1.0 - exp(-dt * 8.0))
+	var ty := 0.0 if cinar_face > 0 else -PI
+	cinar_turn.rotation.y = move_toward(cinar_turn.rotation.y, ty, dt * 7.0)
+	if cinar_anim != "" and cinar_spd < 0.1 and cinar.has_anim(cinar_anim):
+		cinar.set_any(cinar_anim)
+		cinar.drive("any", 0.0, cinar_anim_scale, dt, 0.4)
+	else:
+		cinar.drive("loco", cinar_spd, 1.0, dt, 0.3)

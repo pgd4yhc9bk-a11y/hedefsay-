@@ -66,6 +66,8 @@ var teeter := 0.0             # uçurum kenarında sendeleme ağırlığı
 var _prev_vx := 0.0
 var _acc_s := 0.0
 var _was_pushing := false
+var breath_t := 0.0             # kovalamacadan kurtulunca nefes nefese (Meshy: Catching_Breath)
+var idle_t := 0.0                # uzun beklemede farklı bekleme hareketi
 
 # aksesuarlar
 var lantern: Node3D
@@ -508,8 +510,16 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 	elif wake_t > 0.0:
 		st = "wake"
 		sc = 0.0 if wake_hold else 0.55
+		if wake_hold and mocap.has_anim("M_Toss_and_Turn"):   # açılış: yerde huzursuzca dönerek yatıyor
+			st = "any"
+			sc = 1.0
+			mocap.set_any("M_Toss_and_Turn")
+			xf = 0.6
 	elif state == "dead":
 		st = "air"
+		if mocap.has_anim("M_falling_down"):   # uçuruma düşüş
+			st = "any"
+			mocap.set_any("M_falling_down")
 	elif state == "climb":
 		st = "climb"
 		sc = 0.67 / float(climb["dur"])
@@ -528,6 +538,26 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 	elif pushing or pulling:
 		st = "push"
 		sc = clampf(absf(velocity.x) / 0.27, 0.35, 2.4) * (-1.0 if pulling else 1.0)
+	# durgunken: nefes nefese, kenarda denge, uzun beklemede başka bekleme hareketi (Meshy animasyonları)
+	breath_t = maxf(0.0, breath_t - dt)
+	if st == "loco" and spd < 0.2 and state == "ground":
+		idle_t += dt
+		if breath_t > 0.0 and mocap.has_anim("M_Catching_Breath"):
+			st = "any"
+			mocap.set_any("M_Catching_Breath")
+			xf = 0.35
+		elif teeter > 0.5 and mocap.has_anim("M_Stand_on_Pole_and_Balance"):
+			st = "any"
+			mocap.set_any("M_Stand_on_Pole_and_Balance")
+			xf = 0.3
+		elif idle_t > 8.0 and idle_t < 18.0 and mocap.has_anim("M_Idle_3"):
+			st = "any"
+			mocap.set_any("M_Idle_3")
+			xf = 0.5
+		elif idle_t >= 18.0:
+			idle_t = 0.0
+	else:
+		idle_t = 0.0
 	# bakış ve uzanma
 	var want_look := 0.0
 	if look_at != Vector3.INF and state != "climb":
