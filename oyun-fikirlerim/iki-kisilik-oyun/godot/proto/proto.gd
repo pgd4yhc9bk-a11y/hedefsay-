@@ -1401,6 +1401,8 @@ func _run_test() -> void:
 		phase = "intro"
 		t = 0.0
 		_start_opening()
+		await _wait(0.05)
+		await _shot("acilis_ilk_kare")   # Flow'daki köprü klibinin son karesi (video oyuna kesintisiz bağlansın)
 		for k4 in 9:
 			await _wait(1.1)
 			print("ACILIS t=%.1f wake=%.2f lamba=%.2f faz=%s" % [cine.t if cine != null else -1.0, player.wake_t, player.lamp_on, phase])
