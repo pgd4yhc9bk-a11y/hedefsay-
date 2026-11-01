@@ -67,6 +67,9 @@ var chase_t := 0.0
 var chase_x := 0.0
 var caught := false
 var music_on := false
+var hq := false                  # gelişmiş görüntü motoru (Vulkan: telefon uygulaması / masaüstü)
+var smoke: Array = []
+var fog_vol: FogVolume = null
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -83,6 +86,8 @@ func _ready() -> void:
 	_build_ribbon()
 	_build_valley()
 	_build_chaser()
+	_build_grass()
+	_build_smoke()
 	audio = ProtoAudio.new()
 	add_child(audio)
 	Sfx.set_ambient(false)
@@ -104,7 +109,10 @@ func _ready() -> void:
 	cam_pos = Vector3(player.position.x + 1.0, player.position.y + 1.3, cam_dist)
 	cam.position = cam_pos
 	_build_ui()
-	if DisplayServer.is_touchscreen_available() or OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios"):
+	hq = RenderingServer.get_rendering_device() != null   # Vulkan (Forward+) varsa
+	if hq:
+		_high_quality()
+	elif DisplayServer.is_touchscreen_available() or OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios"):
 		_low_quality()
 	if test == "":
 		audio.start()
@@ -1004,6 +1012,9 @@ func _update_world(dt: float) -> void:
 		sisli_gone = true
 	sisli_a = move_toward(sisli_a, want, dt * (0.35 if want > 0.0 else 0.9))
 	sisli.modulate.a = sisli_a
+	if smoke.size() == 2:
+		(smoke[0] as CPUParticles3D).emitting = sisli_a > 0.2
+		(smoke[1] as CPUParticles3D).emitting = chaser.visible and chaser.modulate.a > 0.2
 	sisli.texture = sisli_tex[int(t * 5.0) % 4]
 	sisli.position.x = 30.3 + (0.0 if not sisli_gone else (1.0 - sisli_a) * 0.8)
 	# kurdele rüzgârda dalgalanır
@@ -1166,6 +1177,10 @@ func _input(ev: InputEvent) -> void:
 			if ev.position.y - float(f["ly"]) > 30.0:
 				_jumped_swipe = false
 				f["ly"] = ev.position.y
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_back_to_menu()
 
 func _back_to_menu() -> void:
 	if test != "":
@@ -1502,3 +1517,182 @@ func _low_quality() -> void:   # telefon: fener gölgesi kapalı, güneş gölge
 	sun.directional_shadow_max_distance = 22.0
 	env.glow_enabled = false
 	dust.amount = 60
+
+## Gelişmiş motor (Forward+): gerçek hacimsel sis ve ışık huzmeleri, ortam gölgesi (SSAO), uzak plan bulanıklığı
+func _high_quality() -> void:
+	env.volumetric_fog_enabled = true
+	env.volumetric_fog_density = 0.011
+	env.volumetric_fog_albedo = Color(0.82, 0.85, 0.88)
+	env.volumetric_fog_emission = Color(0, 0, 0)
+	env.volumetric_fog_anisotropy = 0.55          # arkadan gelen ışık sisin içinde parlar
+	env.volumetric_fog_length = 48.0
+	env.volumetric_fog_detail_spread = 2.0
+	env.volumetric_fog_ambient_inject = 0.2
+	env.volumetric_fog_sky_affect = 0.0
+	env.fog_depth_begin = 14.0                     # derinlik sisi geriye çekilir, yakın planı hacimsel sis doldurur
+	env.ssao_enabled = true
+	env.ssao_radius = 1.4
+	env.ssao_intensity = 1.6
+	env.ssao_light_affect = 0.15
+	env.glow_bloom = 0.06
+	sun.light_volumetric_fog_energy = 1.6
+	sun.shadow_blur = 1.5
+	player.lamp_light.light_volumetric_fog_energy = 5.0
+	# yere yakın, yavaşça kıvrılan sis tabakası (gerçek hacim)
+	var fv := FogVolume.new()
+	fv.shape = RenderingServer.FOG_VOLUME_SHAPE_BOX
+	fv.size = Vector3(110.0, 4.0, 30.0)
+	fv.position = Vector3(30.0, 0.6, -2.0)
+	var fm := FogMaterial.new()
+	fm.density = 0.28
+	fm.albedo = Color(0.8, 0.83, 0.86)
+	fm.height_falloff = 2.6
+	fm.edge_fade = 0.35
+	var n3 := NoiseTexture3D.new()
+	var fn := FastNoiseLite.new()
+	fn.frequency = 0.05
+	n3.noise = fn
+	n3.width = 64
+	n3.height = 32
+	n3.depth = 64
+	n3.seamless = true
+	fm.density_texture = n3
+	fv.material = fm
+	add_child(fv)
+	fog_vol = fv
+	var ca := CameraAttributesPractical.new()
+	ca.dof_blur_far_enabled = true
+	ca.dof_blur_far_distance = 24.0
+	ca.dof_blur_far_transition = 18.0
+	ca.dof_blur_amount = 0.07
+	cam.attributes = ca
+	# sahte ışık huzmeleri hafifler (gerçekleri sis çiziyor)
+	for c in get_children():
+		if c is MeshInstance3D and (c as MeshInstance3D).material_override is ShaderMaterial:
+			var sm := (c as MeshInstance3D).material_override as ShaderMaterial
+			if sm.shader != null and sm.shader.code.contains("blend_add, cull_disabled, depth_draw_never, shadows_disabled, fog_disabled;\nuniform float strength"):
+				sm.set_shader_parameter("strength", float(sm.get_shader_parameter("strength")) * 0.35)
+
+## Yolun iki yanında rüzgârda eğilen 3D çimen (fener ışığını alır)
+func _build_grass() -> void:
+	var blade := ArrayMesh.new()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var segs := 4
+	for k in segs:
+		var y0 := float(k) / segs
+		var y1 := float(k + 1) / segs
+		var w0 := 0.022 * (1.0 - y0)
+		var w1 := 0.022 * (1.0 - y1)
+		var a := Vector3(-w0, y0, 0)
+		var b := Vector3(w0, y0, 0)
+		var c := Vector3(w1, y1, 0)
+		var d := Vector3(-w1, y1, 0)
+		for v in [a, b, c, a, c, d]:
+			st.set_normal(Vector3(0, 0.3, 1).normalized())
+			st.set_uv(Vector2(0.5, 1.0 - (v as Vector3).y))
+			st.add_vertex(v)
+	blade = st.commit()
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = blade
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	var xf: Array = []
+	var x := -12.0
+	while x < 67.5:
+		x += rng.randf_range(0.02, 0.06)
+		if _in_gap(x):
+			continue
+		for _k in 2:
+			var z := rng.randf_range(-2.6, 2.4)
+			if absf(z) < 0.35 and rng.randf() < 0.85:
+				continue
+			var h := rng.randf_range(0.18, 0.5) * (1.3 if absf(z) > 1.2 else 1.0)
+			var bs := Basis(Vector3.UP, rng.randf_range(-0.6, 0.6)) * Basis(Vector3(0, 0, 1), rng.randf_range(-0.25, 0.25)) * Basis.from_scale(Vector3(rng.randf_range(0.8, 1.4), h, 1.0))
+			xf.append(Transform3D(bs, Vector3(x + rng.randf_range(-0.03, 0.03), gy_at(x, z) - 0.02, z)))
+	mm.instance_count = xf.size()
+	for i in xf.size():
+		mm.set_instance_transform(i, xf[i])
+		var g := rng.randf_range(0.6, 1.0)
+		mm.set_instance_color(i, Color(g, g, g))
+	var mi := MultiMeshInstance3D.new()
+	mi.multimesh = mm
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var sh := Shader.new()
+	sh.code = """shader_type spatial;
+render_mode cull_disabled, diffuse_lambert_wrap;
+uniform vec3 base_c = vec3(0.045, 0.05, 0.04);
+uniform vec3 tip_c = vec3(0.11, 0.115, 0.09);
+varying float hgt;
+void vertex() {
+	hgt = VERTEX.y;
+	vec3 wp = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	float w = sin(TIME * 1.7 + wp.x * 0.9 + wp.z * 0.6) * 0.5 + sin(TIME * 3.1 + wp.x * 2.3) * 0.2 + 0.35;
+	VERTEX.x += w * 0.12 * VERTEX.y * VERTEX.y;
+	VERTEX.z += sin(TIME * 2.0 + wp.x) * 0.03 * VERTEX.y;
+}
+void fragment() {
+	ALBEDO = mix(base_c, tip_c, hgt) * COLOR.rgb;
+	ROUGHNESS = 0.9;
+	BACKLIGHT = vec3(0.25, 0.25, 0.2);
+}"""
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	mi.material_override = m
+	add_child(mi)
+	print("cimen: ", xf.size())
+
+## Sisli'lerin etrafında yavaşça kopan duman
+func _build_smoke() -> void:
+	var gt := GradientTexture2D.new()
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(1.0, 0.5)
+	var gg := Gradient.new()
+	gg.set_color(0, Color(1, 1, 1, 0.55))
+	gg.set_color(1, Color(1, 1, 1, 0.0))
+	gt.gradient = gg
+	gt.width = 64
+	gt.height = 64
+	var sm := StandardMaterial3D.new()
+	sm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	sm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	sm.vertex_color_use_as_albedo = true
+	sm.albedo_color = Color(0.04, 0.045, 0.05, 0.6)
+	sm.albedo_texture = gt
+	sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for target in [sisli, chaser]:
+		var p := CPUParticles3D.new()
+		p.amount = 26
+		p.lifetime = 2.6
+		p.preprocess = 2.6
+		p.local_coords = false
+		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		p.emission_box_extents = Vector3(0.25, 0.7, 0.15)
+		p.direction = Vector3(0, 1, 0)
+		p.spread = 50.0
+		p.gravity = Vector3(-0.05, 0.12, 0)
+		p.initial_velocity_min = 0.05
+		p.initial_velocity_max = 0.25
+		p.scale_amount_min = 0.35
+		p.scale_amount_max = 0.8
+		var curve := Curve.new()
+		curve.add_point(Vector2(0, 0.4))
+		curve.add_point(Vector2(1, 1.6))
+		p.scale_amount_curve = curve
+		var grad := Gradient.new()
+		grad.set_color(0, Color(1, 1, 1, 0))
+		grad.add_point(0.25, Color(1, 1, 1, 1))
+		grad.set_color(grad.get_point_count() - 1, Color(1, 1, 1, 0))
+		p.color_ramp = grad
+		var q := QuadMesh.new()
+		q.size = Vector2(0.9, 0.9)
+		q.material = sm
+		p.mesh = q
+		p.position = Vector3(0, 0.75, 0)
+		p.emitting = false
+		target.add_child(p)
+		smoke.append(p)

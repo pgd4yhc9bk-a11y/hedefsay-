@@ -26,6 +26,35 @@ jobs:
           mkdir -p build/web
           godot --headless --import || true
           godot --headless --export-release "Web" build/web/index.html
+      - name: Android APK (gelişmiş görüntü motoru)
+        id: apk
+        continue-on-error: true
+        working-directory: oyun-fikirlerim/iki-kisilik-oyun/godot
+        run: |
+          set -x
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/lib/android-sdk}}"
+          ls "$SDK" || true
+          KS=/root/debug.keystore
+          if [ ! -f "$KS" ]; then
+            KS="$PWD/debug.keystore"
+            keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore "$KS" -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
+          fi
+          mkdir -p ~/.config/godot
+          for f in editor_settings-4.tres editor_settings-4.3.tres; do
+            printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/debug_keystore = "%s"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "$SDK" "$KS" > ~/.config/godot/$f
+          done
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$KS" GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
+          mkdir -p build/android
+          godot --headless --export-debug "Android" build/android/sis.apk
+          ls -la build/android
+          cp build/android/sis.apk build/web/sis.apk
+      - name: APK'yı sakla
+        if: steps.apk.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sis-android-apk
+          path: oyun-fikirlerim/iki-kisilik-oyun/godot/build/android/sis.apk
+          retention-days: 30
       - name: Web sürümünü indirilebilir paket olarak sakla (itch.io için)
         uses: actions/upload-artifact@v4
         with:
