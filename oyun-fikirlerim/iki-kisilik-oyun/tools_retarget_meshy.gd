@@ -126,6 +126,8 @@ func _ready() -> void:
 				if not out.has_animation(nm):
 					out.add_animation(nm, ma)
 		sc.free()
+	if job == "cinar" and out.has_animation("M_Hug"):   # atılışı çıkarılmış, yerinde sarılma (koşarak gelip sarılsın)
+		_slice(out, out.get_animation("M_Hug"), "M_HugHold", -1.0)
 	if out.has_animation("M_Push_and_Walk_Forward"):
 		_push_loop(out, out.get_animation("M_Push_and_Walk_Forward"))
 	print("kaydet: ", ResourceSaver.save(out, J["out"], ResourceSaver.FLAG_COMPRESS), " toplam=", out.get_animation_list().size())
@@ -188,3 +190,49 @@ func _push_loop(out: AnimationLibrary, a: Animation) -> void:
 				na.scale_track_insert_key(nt, tt, a.scale_track_interpolate(t, a0 + tt))
 	out.add_animation("M_PushLoop", na)
 	print("itme dongusu: %.2f-%.2f s hata=%.3f kayma=%s hiz(model)=%.3f m/s" % [a0, a1, best[2], drift, drift.length() / L])
+
+## Animasyonun a0'dan sonuna kadar olan kısmını, kökün yatay konumu başlangıç noktasına çekilmiş olarak ayrı kaydeder.
+func _slice(out: AnimationLibrary, a: Animation, name: String, a0: float) -> void:
+	var root := -1
+	var best := 0.0
+	for t in a.get_track_count():
+		if a.track_get_type(t) == Animation.TYPE_POSITION_3D:
+			var d := a.position_track_interpolate(t, a.length) - a.position_track_interpolate(t, 0.0)
+			d.y = 0.0
+			if d.length() > best:
+				best = d.length()
+				root = t
+	if a0 < 0.0 and root >= 0:   # kök hareketinin bittiği ilk an (sonrasında yatayda %3'ten az kayar)
+		var pend := a.position_track_interpolate(root, a.length)
+		a0 = 0.0
+		while a0 < a.length - 0.5:
+			var d2 := a.position_track_interpolate(root, a0) - pend
+			d2.y = 0.0
+			if d2.length() < best * 0.03:
+				break
+			a0 += 1.0 / 30.0
+	var L := a.length - a0
+	var na := Animation.new()
+	na.length = L
+	for t in a.get_track_count():
+		var ty := a.track_get_type(t)
+		if ty != Animation.TYPE_ROTATION_3D and ty != Animation.TYPE_POSITION_3D and ty != Animation.TYPE_SCALE_3D:
+			continue
+		var nt := na.add_track(ty)
+		na.track_set_path(nt, a.track_get_path(t))
+		var n := int(round(L * 30.0))
+		for k in n + 1:
+			var tt := minf(k / 30.0, L)
+			if ty == Animation.TYPE_ROTATION_3D:
+				na.rotation_track_insert_key(nt, tt, a.rotation_track_interpolate(t, a0 + tt))
+			elif ty == Animation.TYPE_POSITION_3D:
+				var p := a.position_track_interpolate(t, a0 + tt)
+				if t == root:
+					var p0 := a.position_track_interpolate(t, 0.0)
+					p.x = p0.x + (p.x - a.position_track_interpolate(t, a0).x)
+					p.z = p0.z + (p.z - a.position_track_interpolate(t, a0).z)
+				na.position_track_insert_key(nt, tt, p)
+			else:
+				na.scale_track_insert_key(nt, tt, a.scale_track_interpolate(t, a0 + tt))
+	out.add_animation(name, na)
+	print("dilim %s: %.2f-%.2f s, kok kaymasi %.2f" % [name, a0, a.length, best])

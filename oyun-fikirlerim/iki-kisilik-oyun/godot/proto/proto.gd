@@ -30,6 +30,7 @@ var env: Environment
 var sun: DirectionalLight3D
 var fade: ColorRect
 var hint: Label
+var tut: ProtoTutorial
 var title: Label
 var sub: Label
 var post: ShaderMaterial
@@ -63,6 +64,7 @@ var veg: Array = []              # rüzgârda sallanan bitkiler [sprite, faz]
 var chaser: Sprite3D
 var chase_tex: Array = []
 var chase := "off"               # off | rise | run | stop | done
+const SISLI_ON := false          # Sisliler şimdilik oyundan kaldırıldı (izleyen ve kovalayan)
 var chase_t := 0.0
 var chase_x := 0.0
 var caught := false
@@ -101,7 +103,7 @@ func _ready() -> void:
 	var lbl := _label("yükleniyor", 22, Vector2(0, 330))
 	lbl.modulate.a = 0.6
 	ld.add_child(lbl)
-	var steps := [_build_env, _build_terrain, _build_log, _build_vegetation, _build_trees, _build_sky, _build_fx,
+	var steps := [_build_env, _build_terrain, _build_pit, _build_log, _build_vegetation, _build_trees, _build_sky, _build_fx,
 		_build_sisli, _build_ribbon, _build_valley, _build_chaser, _build_cinar, _build_grass, _build_smoke]
 	for i in steps.size():
 		(steps[i] as Callable).call()
@@ -873,7 +875,7 @@ func _update_chase(dt: float) -> void:
 	var py := player.position.y
 	match chase:
 		"off":
-			if phase == "play" and px > 39.0 and px < PLAT_A and py < 1.5:
+			if SISLI_ON and phase == "play" and px > 39.0 and px < PLAT_A and py < 1.5:
 				chase = "rise"
 				chase_t = 0.0
 				chase_x = 34.9
@@ -918,6 +920,36 @@ func _update_chase(dt: float) -> void:
 	audio.danger = clampf(1.0 - (dist - 0.8) / 8.0, 0.0, 1.0) if dist < 50.0 else 0.0
 	if chase == "run":
 		player.look_at = Vector3.INF
+
+## Öğretici: oyuncunun o an karşısındaki engele göre hangi hareketin gösterileceği; hareketi yapınca adım kapanır.
+func _update_tutorial(dt: float) -> void:
+	if tut == null:
+		return
+	var px := player.position.x
+	var py := player.position.y
+	if px > 3.0:
+		tut.finish("walk")
+	if px > LOG_X + 0.8:
+		tut.finish("log")
+	if px > 34.2:
+		tut.finish("gap")
+	if crate != null and crate.position.x > CRATE_X + 1.2:
+		tut.finish("push")
+	if py > 1.3 and px > PLAT_A:
+		tut.finish("climb")
+	var want := ""
+	if phase == "play" and cine == null and player.state != "climb":
+		if px < 3.0 and hint_t > 1.0:
+			want = "walk"
+		elif px > LOG_X - 3.2 and px < LOG_X:
+			want = "log"
+		elif px > 29.6 and px < 32.7 and py > -1.0:
+			want = "gap"
+		elif crate != null and px > CRATE_X - 2.6 and px < crate.position.x and crate.position.x < CRATE_X + 1.2:
+			want = "push"
+		elif crate != null and crate.position.x > 45.4 and px > 43.0 and py < 1.3:
+			want = "climb"
+	tut.show_step(want, dt)
 
 func _respawn() -> void:
 	var c: Vector2 = CHECKPOINTS[cp]
@@ -1000,8 +1032,8 @@ func _process(dt: float) -> void:
 			sp.rotation.z = sin(t * 1.6 + float(v[1]) + sp.position.x * 0.6) * 0.045 * wind - 0.02 * wind
 	# ipucu metni: ilk saniyelerde görünür, hareket edince söner
 	hint_t += dt
-	var ha := clampf((hint_t - 2.0) / 1.0, 0.0, 1.0) * clampf((9.0 - hint_t) / 1.5, 0.0, 1.0)
-	hint.modulate.a = ha * 0.8 * (1.0 - bar_k)
+	hint.modulate.a = 0.0
+	_update_tutorial(dt)
 	post.set_shader_parameter("t", fmod(t, 100.0))
 	bar_k = move_toward(bar_k, 1.0 if cine != null else 0.0, dt * 1.2)
 	var bh := 78.0 * (bar_k * bar_k * (3.0 - 2.0 * bar_k))
@@ -1040,11 +1072,10 @@ func _ending_cine() -> Cinematic:
 		pl.cut_speed = 1.0                               # Çınar'ı görür görmez ona koşar (1 = tam koşu)
 		pl.cut_target_x = meet
 		end_meet = meet
-		cinar_anim = "M_Stand_Up1"                       # Çınar da onu görür, kalkar
-		cinar_anim_scale = 1.8
+		cinar_anim = "M_Stand_Up1"                       # Çınar da onu görür, hızla kalkar
+		cinar_anim_scale = 3.0
 		var tw := create_tween()                         # kalkarken kütükten öne doğru çıkar (içine girmesin)
-		# sarılma animasyonu onu 1.46 m ileri taşır: kalçası Nehir'in 0.3 m önünde durur
-		tw.tween_property(cinar_root, "position:x", meet + 1.76, 1.0).set_delay(0.2)
+		tw.tween_property(cinar_root, "position:x", cinar_root.position.x - 0.3, 0.8).set_delay(0.1)
 		if not music_on:
 			music_on = true
 			audio.final_music())
@@ -1115,7 +1146,7 @@ func _update_world(dt: float) -> void:
 	# Sisli: uzaktan izler, yaklaşınca dağılır
 	var px := player.position.x
 	var want := 0.0
-	if not sisli_gone and px > 21.0 and px < 29.0:
+	if SISLI_ON and not sisli_gone and px > 21.0 and px < 29.0:
 		want = 0.85
 	if px > 28.0 and sisli_a > 0.3:
 		sisli_gone = true
@@ -1208,9 +1239,11 @@ void fragment() {
 	fade.color = Color(0, 0, 0, 1)
 	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(fade)
-	hint = _label("← →  /  parmağını kaydır : yürü, koş        ↑  /  yukarı kaydır : zıpla", 20, Vector2(0, 640))
+	hint = _label("", 20, Vector2(0, 640))   # eski düz metin ipucu (yerini uygulamalı öğretici aldı)
 	hint.modulate.a = 0.0
 	cl.add_child(hint)
+	tut = ProtoTutorial.new()
+	cl.add_child(tut)
 	title = _label("Kurdeleleri takip et.", 40, Vector2(0, 520))
 	title.modulate.a = 0.0
 	cl.add_child(title)
@@ -1479,6 +1512,16 @@ func _run_test() -> void:
 				k10 += 1
 		player.input_x = 0.0
 		close_cam = 0.0
+	elif test == "prototut":   # öğretici: her adımda bir kare
+		bot = {"on": true}
+		chase = "done"
+		hint_t = 5.0
+		for spec in [[1.0, "walk", 0.7], [LOG_X - 2.0, "log", 0.6], [31.0, "gap", 0.8], [CRATE_X - 1.5, "push", 0.6]]:
+			await _place(spec[0], 0.5)
+			hint_t = 5.0
+			await _wait(spec[2] + 0.6)
+			print("OGRETICI ", spec[1], " adim=", tut.step, " gorunur=%.2f" % tut.modulate.a)
+			await _shot("tut_" + spec[1])
 	elif test == "protowall":   # kasasız duvara tırmanılamamalı; kasayla tırmanılmalı. Sonra itme yakın planı
 		bot = {"on": true}
 		chase = "done"
@@ -1961,6 +2004,136 @@ void fragment() {
 	print("cimen: ", xf.size())
 
 ## Sisli'lerin etrafında yavaşça kopan duman
+## Uçurum (x 32.6..33.9): düz kesik duvarlar yerine kayalık, karla örtülü kenarlar, sarkan kökler, arkada
+## dolgu kayalarla kapanan karanlık bir yarık ve dipten yükselen ince sis.
+func _rock(pos: Vector3, size: Vector3, seed: int, snow := true) -> MeshInstance3D:
+	var sm := SphereMesh.new()
+	sm.radius = 0.5
+	sm.height = 1.0
+	sm.radial_segments = 14
+	sm.rings = 8
+	var fn := FastNoiseLite.new()
+	fn.seed = seed
+	fn.frequency = 1.6
+	var arr := sm.get_mesh_arrays()
+	var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+	var moved := PackedVector3Array()
+	for v in vs:
+		var d := 1.0 + fn.get_noise_3dv(v * 2.0) * 0.45
+		var w := Vector3(v.x * d, v.y * d, v.z * d)
+		w.y = maxf(w.y, -0.25) if w.y < 0.0 else w.y * 0.8   # alt düz, üst basık: kaya bloğu
+		moved.append(w * size)
+	for i in idx:
+		var w := moved[i]
+		var up := clampf((w.y / maxf(size.y, 0.01) - 0.12) * 4.0, 0.0, 1.0) if snow else 0.0
+		st.set_color(Color(0.07, 0.065, 0.06).lerp(Color(0.62, 0.65, 0.7), up))
+		st.add_vertex(w)
+	st.generate_normals()
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	var m := _mat(Color(1, 1, 1))
+	m.vertex_color_use_as_albedo = true
+	m.albedo_texture = _noise_tex(0.08)
+	m.uv1_triplanar = true
+	m.uv1_scale = Vector3(1.5, 1.5, 1.5)
+	mi.material_override = m
+	mi.position = pos
+	mi.rotation.y = float(seed % 7) * 0.9
+	add_child(mi)
+	return mi
+
+func _build_pit() -> void:
+	var L := 32.6
+	var R := 33.9
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 33
+	var k := 0
+	# kenar kayaları: düz çizgiyi kırar, yarığın ağzına hafifçe taşar (oyuncunun bastığı z≈0 şeridi boş kalır)
+	for z in [-2.6, -1.7, -0.9, 0.9, 1.7, 2.6, 3.7, 5.0]:
+		for side in [-1, 1]:
+			var ex := L if side < 0 else R
+			var sx := rng.randf_range(0.4, 0.6)
+			var sy := rng.randf_range(0.3, 0.5)
+			var sz := rng.randf_range(0.6, 1.0)
+			var gy := ground_y(ex + side * 0.6)
+			# kenarın üstünde, yarığa en çok 5-8 cm taşar (köprü gibi görünmesin)
+			_rock(Vector3(ex + side * (sx * 0.5 - rng.randf_range(0.05, 0.08)), gy - sy * 0.6, z + rng.randf_range(-0.2, 0.2)), Vector3(sx, sy, sz), 100 + k)
+			k += 1
+	# duvar yüzleri: üst üste iki sıra düzensiz kaya (düz kesik çizgiyi kırar)
+	var zz := -3.0
+	while zz < 6.5:
+		for side in [-1, 1]:
+			var ex := L if side < 0 else R
+			var gy := ground_y(ex + side * 0.6)
+			for row in 2:
+				var sy := rng.randf_range(0.55, 0.85)
+				_rock(Vector3(ex + side * rng.randf_range(0.1, 0.2), gy - 0.35 - row * 0.75 - rng.randf_range(0.0, 0.15), zz + rng.randf_range(-0.15, 0.15)),
+					Vector3(rng.randf_range(0.5, 0.7), sy, rng.randf_range(0.6, 0.85)), 400 + k, row == 0)
+				k += 1
+		zz += rng.randf_range(0.45, 0.65)
+	# arkada yarığı kapatan dolgu kayalar: ufka uzanan beyaz şerit görünmesin
+	for i in 9:
+		var z := -2.6 - i * 1.3
+		_rock(Vector3((L + R) * 0.5 + rng.randf_range(-0.2, 0.2), -1.5 + rng.randf_range(-0.2, 0.1), z), Vector3(2.0, 1.6, 1.7), 300 + i, false)
+	# dip: siste ağarmayan zifiri karanlık
+	var ab := StandardMaterial3D.new()
+	ab.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ab.albedo_color = Color(0.008, 0.008, 0.01)
+	ab.disable_fog = true
+	var fl := MeshInstance3D.new()
+	var fq := PlaneMesh.new()
+	fq.size = Vector2(R - L + 0.4, 14.0)
+	fl.mesh = fq
+	fl.material_override = ab
+	fl.position = Vector3((L + R) * 0.5, -2.6, 1.5)
+	add_child(fl)
+	# sarkan kökler
+	for spec in [[L + 0.02, 1.0, false], [R - 0.02, 0.6, true], [L + 0.02, -1.4, false], [R - 0.02, 2.1, true]]:
+		var sp := _sprite("kok_sarkit", Vector3(spec[0], -1.25, spec[1]), 1.1, 0.25, spec[2])
+		sp.rotation.y = PI / 2.0
+	# dipten yükselen ince sis
+	var smk := GradientTexture2D.new()
+	smk.fill = GradientTexture2D.FILL_RADIAL
+	smk.fill_from = Vector2(0.5, 0.5)
+	smk.fill_to = Vector2(1.0, 0.5)
+	var sg := Gradient.new()
+	sg.set_color(0, Color(1, 1, 1, 0.5))
+	sg.set_color(1, Color(1, 1, 1, 0.0))
+	smk.gradient = sg
+	var mm := StandardMaterial3D.new()
+	mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mm.vertex_color_use_as_albedo = true
+	mm.albedo_texture = smk
+	var pm := CPUParticles3D.new()
+	pm.amount = 16
+	pm.lifetime = 7.0
+	pm.preprocess = 7.0
+	pm.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(0.45, 0.2, 1.6)
+	pm.direction = Vector3(0, 1, 0)
+	pm.spread = 15.0
+	pm.initial_velocity_min = 0.12
+	pm.initial_velocity_max = 0.25
+	pm.gravity = Vector3(0.02, 0.0, 0)
+	pm.scale_amount_min = 1.0
+	pm.scale_amount_max = 1.8
+	var cr := Gradient.new()
+	cr.set_color(0, Color(0.6, 0.64, 0.68, 0.0))
+	cr.add_point(0.35, Color(0.6, 0.64, 0.68, 0.18))
+	cr.set_color(cr.get_point_count() - 1, Color(0.6, 0.64, 0.68, 0.0))
+	pm.color_ramp = cr
+	var qq := QuadMesh.new()
+	qq.size = Vector2(1.2, 1.2)
+	qq.material = mm
+	pm.mesh = qq
+	pm.position = Vector3((L + R) * 0.5, -2.6, 0.2)
+	add_child(pm)
+
 func _build_smoke() -> void:
 	var gt := GradientTexture2D.new()
 	gt.fill = GradientTexture2D.FILL_RADIAL
@@ -2111,13 +2284,24 @@ func _start_opening() -> void:
 	cine = c
 
 var pick_step := 0
+var pick_min := 99.0
 
 ## Açılış: yerden alma animasyonunun kendi zamanına bağlı. Sol el 2.1 s'de yere en çok iner, fener o an ele geçer;
 ## animasyon bitince fener sol elden sağ ele geçer. (Sahne saatine bağlanınca yavaş cihazda el boşa kapanıyordu.)
 func _update_pickup() -> void:
 	var pl := player
-	if pick_step == 1 and pl.force_anim == "pickup" and pl.force_t >= 2.1:
+	if pick_step == 1 and pl.force_anim == "pickup":
+		# el fenere değdiği an: sol el en aşağı indikten sonra kalkmaya başlarken, fenere yakınsa kavrar
+		var hp: Vector3 = pl.body.bone_world("hand.L")
+		var dd := hp.distance_to(pl.lantern_ground)
+		pick_min = minf(pick_min, dd)
+		var touch := pick_min < 0.2 and dd > pick_min + 0.015
+		if not touch and pl.force_t < 3.0:
+			return
 		pick_step = 2
+		if test != "":
+			print("ALMA force_t=%.2f el-fener=%.3f en_yakin=%.3f" % [pl.force_t, dd, pick_min])
+		pick_min = 99.0
 		pl.lantern_left = 1.0
 		pl.lantern_pick = pl.lantern_ground
 		pl.lan_th = 1.2
@@ -2192,11 +2376,11 @@ func _update_cinar(dt: float) -> void:
 	if ending and not player.lan_free and player.position.x > end_meet - 0.7:
 		player.throw_lantern(Vector3(0.5, 1.7, 0.6))   # önüne-yana; seker, yuvarlanır
 		player.mocap.grip_r = 0.5
-	# ikisi aynı anda: Nehir varmadan hemen önce Çınar'ın sarılma atılışı başlar (atılış 0.9 s, Nehir'in diz çökmesi ~0.8 s)
-	if ending and cinar_anim == "M_Stand_Up1" and cine != null and cine.t > 0.8 and player.position.x > end_meet - 0.3 and cinar.has_anim("M_Hug"):
-		cinar_anim = "M_Hug"
-		cinar_anim_scale = 1.0
-		cinar_face = -1
+	# Çınar kalkınca ablasına koşar; varınca yerinde sarılır (animasyonun ani atılışı çıkarıldı: bir anda gelmez)
+	if ending and cinar_anim == "M_Stand_Up1" and cine != null and cine.t > 1.6 and player.position.x > end_meet - 2.6:
+		cinar_anim = ""
+		cinar_target = end_meet + 0.3
+		cinar_speed = 2.0
 		create_tween().tween_property(cinar_root, "position:z", player.position.z + 0.12, 0.8)   # aynı derinliğe
 	if ending and player.state == "cut" and absf(player.position.x - player.cut_target_x) < 0.1 and player.force_anim == "":
 		player.force_anim = "hug" if nhug else "crouch"  # ona ulaşınca diz çöküp sarılır
@@ -2204,7 +2388,7 @@ func _update_cinar(dt: float) -> void:
 		audio.play("kumas", -12.0)
 	var v := 0.0
 	if ending and cinar_target != INF and absf(cinar_target - cinar_root.position.x) < 0.06 and cinar_anim == "" and cinar.has_anim("M_Hug"):
-		cinar_anim = "M_Hug"                             # (yedek yol) ablasına varınca boynuna sarılır
+		cinar_anim = "M_HugHold" if cinar.has_anim("M_HugHold") else "M_Hug"   # ablasına varınca boynuna sarılır
 		cinar_anim_scale = 1.0
 		cinar_face = -1
 	if cinar_target != INF:
