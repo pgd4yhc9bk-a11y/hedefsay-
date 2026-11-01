@@ -112,7 +112,7 @@ func _build_ui() -> void:
 	pb.position = Vector2(440, 262)
 	pb.size = Vector2(400, 50)
 	pb.add_theme_font_size_override("font_size", 20)
-	pb.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://proto/proto.tscn"))
+	pb.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://proto/onsoz.tscn"))   # önce önsöz, sonra bölüm
 	menu.add_child(pb)
 	var y := 330.0
 	for group: Array in [["Hikâye", STORY], ["Deneme bölümleri", order.slice(STORY.size())]]:
