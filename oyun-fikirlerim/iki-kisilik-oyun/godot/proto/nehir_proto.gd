@@ -103,6 +103,8 @@ func _ready() -> void:
 	if ResourceLoader.exists("res://proto/mocap/manken_kiz.glb") and ResourceLoader.exists("res://proto/mocap/anim.res"):
 		mocap = NehirMocap.new()
 		turn.add_child(mocap)
+		if mocap.meshy:
+			call_deferred("_hide_extras")
 		mocap.footstep.connect(func(strength: float) -> void:
 			_snd("adim_" + _surface(), -16.0 + strength * 7.0, 0.1))
 		body = mocap
@@ -542,7 +544,7 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 		hw = clampf(spd / 0.8, 0.0, 1.0) * lerpf(0.8, 0.35, clampf((spd - 3.4) / 2.0, 0.0, 1.0))
 	mocap.hold = lerpf(mocap.hold, hw, 1.0 - exp(-dt * 6.0))
 	mocap.hold_target = global_position + Vector3(face * 0.6, 0.72, 0.16)
-	mocap.position.x = lerpf(mocap.position.x, -0.17 if st == "push" else 0.0, 1.0 - exp(-dt * 6.0))
+	mocap.position.x = lerpf(mocap.position.x, -mocap.push_back if st == "push" else 0.0, 1.0 - exp(-dt * 6.0))
 	mocap.drive(st, spd, sc, dt, xf)
 
 func _blank() -> Dictionary:
@@ -895,3 +897,11 @@ func _verlet(pts: Array[Vector3], old: Array[Vector3], anchor: Vector3, seg: flo
 					pts[i] -= d * diff * 0.5
 					pts[i - 1] += d * diff * 0.5
 		pts[0] = anchor
+
+func _hide_extras() -> void:   # model kendi atkısı ve saçıyla geldi: kodla eklenenleri gizle
+	scarf_knot.visible = false
+	for c in get_children():
+		if c is MeshInstance3D and (c as MeshInstance3D).mesh is ImmediateMesh:
+			(c as MeshInstance3D).visible = false
+	for b in braid_balls:
+		b.visible = false

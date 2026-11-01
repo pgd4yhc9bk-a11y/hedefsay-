@@ -1381,6 +1381,17 @@ func _run_test() -> void:
 		while phase == "intro":
 			await _wait(0.1)
 		await _play_bot(false)
+	elif test == "protoreach":
+		bot = {"on": true}
+		chase = "done"
+		await _place(RIBBON_X - 0.35, 0.8)
+		player.state = "cut"
+		player.reach = 1.0
+		await _wait(1.0)
+		var mc: NehirMocap = player.mocap
+		var sh := mc.skel.global_transform * mc.skel.get_bone_global_pose(mc.skel.find_bone("upperarm_l")).origin
+		var hd := mc.skel.global_transform * mc.skel.get_bone_global_pose(mc.skel.find_bone("hand_l")).origin
+		print("UZAN reach=%.2f hedef=%s yuz=%d omuz=%s el=%s face_isaret=%.2f" % [mc.reach, str(mc.reach_target), player.face, str(sh), str(hd), mc.global_transform.basis.x.x])
 	elif test == "protofloor":
 		bot = {"on": true}
 		var sp := get_world_3d().direct_space_state
