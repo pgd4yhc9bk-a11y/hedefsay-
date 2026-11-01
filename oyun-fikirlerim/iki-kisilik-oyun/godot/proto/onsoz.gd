@@ -557,6 +557,8 @@ func _input(ev: InputEvent) -> void:   # dokun / tuşa bas: önsözü geç
 func _process(dt: float) -> void:
 	dt = minf(dt, 0.05 if test == "" else 0.1)
 	t += dt
+	if pl.state == "ground":   # yere değince oyuncu kodu "ground"a döner: önsöz boyunca kontrol sahnede
+		pl.state = "cut"
 	cine.step(dt)
 	_camera()
 	snow.global_position = cam.global_position + Vector3(0, 4.0, -4.0)
@@ -599,9 +601,17 @@ func _update_pofuk(dt: float) -> void:
 		var hand := cinar.bone_world("hand.L")
 		pofuk.global_transform = Transform3D(Basis(Vector3.UP, cinar_turn.rotation.y + PI / 2.0).scaled(Vector3.ONE * 0.2), hand + Vector3(0, -0.24, 0))
 		return
-	# rüzgârda uçar, karda seker ve yuvarlanır; rüzgâr onu ormana doğru sürükler
-	pof_v += Vector3(-6.5 * wind, -9.8, -0.9 * wind) * dt
-	var p := pofuk.global_position + pof_v * dt
+	# rüzgârda uçar, karda seker ve yuvarlanır; rüzgâr onu orman kenarına kadar sürükler, orada takılır
+	var p := pofuk.global_position
+	if p.x < -11.5:   # orman kenarında bir köke takıldı
+		pof_v = pof_v.lerp(Vector3.ZERO, 1.0 - exp(-dt * 3.0))
+		pof_spin = lerpf(pof_spin, 0.0, 1.0 - exp(-dt * 3.0))
+	else:
+		pof_v.x += -4.0 * wind * dt
+	pof_v.y -= 9.8 * dt
+	pof_v.z = lerpf(pof_v.z, -0.25 * wind, 1.0 - exp(-dt * 2.0))
+	pof_v.x = maxf(pof_v.x, -3.6)
+	p += pof_v * dt
 	var gy := ground_y(p.x) + pof_half
 	if p.y < gy:
 		p.y = gy
@@ -610,8 +620,8 @@ func _update_pofuk(dt: float) -> void:
 			pof_v.x *= 0.7
 		else:
 			pof_v.y = 0.0
-			pof_v.x = move_toward(pof_v.x, -1.3 * wind, dt * 1.5)
-		pof_spin = lerpf(pof_spin, pof_v.x * -3.0, 1.0 - exp(-dt * 4.0))
+			pof_v.x = move_toward(pof_v.x, -1.6 * wind if p.x > -11.5 else 0.0, dt * 3.0)
+		pof_spin = lerpf(pof_spin, pof_v.x * 3.0, 1.0 - exp(-dt * 4.0))
 	var b := pofuk.global_transform.basis.orthonormalized().rotated(Vector3.BACK, pof_spin * dt)
 	pofuk.global_transform = Transform3D(b.scaled(Vector3.ONE * 0.2), p)
 
@@ -631,6 +641,13 @@ func surface_at(_p: Node3D) -> String:
 # ================================================================ test: kareler
 func _run_test() -> void:
 	audio.muted = true
+	if test == "dbg":   # görüntüsüz hızlı kontrol (headless)
+		while t < 50.0:
+			await get_tree().process_frame
+			if absf(t - roundf(t)) < 0.026:
+				print("DBG t=%.1f n=%s v=%s hedef=%.1f zemin=%s durum=%s c=%s p=%s" % [t, pl.position.snapped(Vector3.ONE * 0.01), pl.velocity.snapped(Vector3.ONE * 0.01), pl.cut_target_x, pl.is_on_floor(), pl.state, cinar_root.position.snapped(Vector3.ONE * 0.1), pofuk.global_position.snapped(Vector3.ONE * 0.1)])
+		get_tree().quit()
+		return
 	var times := [3.0, 8.5, 10.2, 11.6, 14.5, 17.5, 21.5, 24.6, 25.6, 30.0, 34.0, 39.0, 42.8, 44.2, 46.0, 48.8]
 	var k := 0
 	for tt: float in times:
