@@ -11,7 +11,7 @@ var run_nat := 3.55            # koşu karışımının ölçülen doğal hızı
 var head_fix := 0.0            # Meshy modelinde baş öne eğik duruyor: yukarı düzeltme (radyan)
 var push_back := 0.17          # iterken gövdenin geri alınacağı mesafe (eller kasa yüzeyinde)
 var anim_lib := "res://proto/mocap/anim.res"
-const STATES := ["loco", "air", "land", "roll", "push", "climb", "wake", "death", "reach", "crouch", "torch", "any"]
+const STATES := ["loco", "air", "land", "roll", "push", "climb", "wake", "death", "reach", "crouch", "torch", "any", "pickup"]
 var who := "nehir"              # nehir | cinar
 var height := 1.45
 var bone_aliases := {}          # UAL adı -> bu modeldeki kemik adı (kol, baş, ayak)
@@ -28,6 +28,8 @@ var reach := 0.0               # 0..1: sol kol yukarı uzanır
 var reach_target := Vector3.INF
 var hold := 0.0                # 0..1: fener kolunu öne-aşağı tut (bacağa çarpmasın)
 var hold_target := Vector3.INF
+var grip_r := 1.9               # sağ el kapanma açısı (radyan): fener sapını kavrar
+var grip_l := 0.45
 signal footstep(strength: float)   # ayak yere bastığında (animasyondan)
 var _foot_down := {}
 var _bi := {}
@@ -77,6 +79,22 @@ func _ready() -> void:
 	if not meshy:
 		_style()
 		_hair()
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		(mi as MeshInstance3D).layers = 2   # karakter katmanı: fenerin güçlü ışığı vurmaz, yumuşak gövde ışığı vurur
+		if meshy:   # Meshy dokusunun parlaklık haritası elleri/yüzü ayna gibi yapıyor: mat kumaş ve ten
+			var m3 := mi as MeshInstance3D
+			for si in m3.mesh.get_surface_count():
+				var base := m3.get_active_material(si)
+				if base is StandardMaterial3D:
+					var mt := (base as StandardMaterial3D).duplicate() as StandardMaterial3D
+					mt.metallic = 0.0
+					mt.metallic_texture = null
+					mt.roughness = 0.92
+					mt.roughness_texture = null
+					mt.metallic_specular = 0.15
+					mt.albedo_color = Color(0.8, 0.77, 0.75)
+					mt.vertex_color_use_as_albedo = true   # eller köşe rengiyle koyulaştırıldı
+					m3.set_surface_override_material(si, mt)
 	_build_tree()
 
 func _first_mesh(n: Node) -> MeshInstance3D:
@@ -151,7 +169,7 @@ func _build_tree() -> void:
 	bt.connect_node("loco", 0, "loco_bs")
 	var nodes := {
 		"air": _anim("Jump"), "land": _anim("Jump_Land"), "roll": _anim("Roll"), "push": _anim("Push"),
-		"any": _anim("Idle"), "climb": _anim("ClimbUp_1m"), "wake": _anim("LayToIdle"), "death": _anim("Death01"), "reach": _anim("Idle_Lantern"), "crouch": _anim("Crouch_Idle"), "torch": _anim("Idle_Torch"),
+		"any": _anim("Idle"), "climb": _anim("ClimbUp_1m"), "wake": _anim("LayToIdle"), "death": _anim("Death01"), "reach": _anim("Idle_Lantern"), "crouch": _anim("Crouch_Idle"), "torch": _anim("Idle_Torch"), "pickup": _anim("M_Pick_Up" if who == "nehir" and ResourceLoader.exists(anim_lib) and (load(anim_lib) as AnimationLibrary).has_animation("M_Pick_Up") else "Crouch_Idle"),
 	}
 	for k: String in nodes:
 		bt.add_node(k + "_a", nodes[k])
@@ -243,10 +261,24 @@ func _post() -> void:
 		_aim("upperarm_r", "lowerarm_r", hold_target, hold * 0.65)
 		_aim("lowerarm_r", "hand_r", hold_target, hold * 0.8)
 	# kurdeleye uzanma: sol kolu hedefe doğru çevir
+	# eller: eklenen parmak kemiği avuca doğru kıvrılır (sağ el feneri kavrar, sol el yarı açık)
+	_curl("fingers_r", "hand_r", "RightHand_End", Vector3(1, 0, 0), grip_r)
+	_curl("fingers_l", "hand_l", "LeftHand_End", Vector3(-1, 0, 0), grip_l * (1.0 - reach))
 	var front := reach_target != Vector3.INF and (reach_target.x - global_position.x) * signf(global_transform.basis.x.x) > 0.2
 	if reach > 0.001 and front:
 		_aim("upperarm_l", "lowerarm_l", reach_target, reach)
 		_aim("lowerarm_l", "hand_l", reach_target, reach)
+
+## Parmak kemiğini avuca doğru kıvır. Eksen dinlenme pozundan (el yönü x avuç yönü) hesaplanır, el ile birlikte döner.
+func _curl(fb: String, hb: String, eb: String, palm: Vector3, ang: float) -> void:
+	if not _bi.has(fb) or not _bi.has(hb) or not _bi.has(eb) or absf(ang) < 0.01:
+		return
+	var hr := skel.get_bone_global_rest(_bi[hb])
+	var d := (skel.get_bone_global_rest(_bi[eb]).origin - hr.origin).normalized()
+	var axis_rest := d.cross(palm).normalized()
+	var local_axis := hr.basis.orthonormalized().inverse() * axis_rest
+	var hp := skel.get_bone_global_pose(_bi[hb]).basis.orthonormalized()
+	_rot_global(fb, (hp * local_axis).normalized(), ang)
 
 func _rot_global(bn: String, axis: Vector3, ang: float) -> void:
 	var i: int = _bi[bn]

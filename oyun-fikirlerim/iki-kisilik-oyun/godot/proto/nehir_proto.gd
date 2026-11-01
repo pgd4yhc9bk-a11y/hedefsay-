@@ -25,7 +25,9 @@ var wake_t := 0.0               # açılışta yerden kalkma
 var caught := false             # Sisli yakaladı (ölüm animasyonu)
 var force_anim := ""
 var wake_hold := false           # açılış: yerde yatarken animasyon durur
-var lamp_on := 1.0               # fener parlaklığı (açılışta titreyerek yanar)              # ara sahne: zorla oynatılacak animasyon (crouch, torch)
+var lamp_on := 1.0               # fener parlaklığı (açılışta titreyerek yanar)
+var lantern_ground := Vector3.INF   # fener yerdeyse konumu
+var cut_speed := 0.45            # ara sahnede hedefe giderken girdi gücü (0.45 yürür, 1 koşar)              # ara sahne: zorla oynatılacak animasyon (crouch, torch)
 var turn: Node3D                # yön dönüşü (Y ekseni)
 var face := 1
 var yaw := 0.0
@@ -78,6 +80,7 @@ var lamp_light: OmniLight3D
 var glass_mat: StandardMaterial3D
 var halo: MeshInstance3D
 var halo_mat: ShaderMaterial
+var body_light: OmniLight3D
 var lan_th := 0.0
 var lan_w := 0.0
 var _piv_prev := Vector3.ZERO
@@ -145,7 +148,7 @@ func _physics_process(dt: float) -> void:
 		ix = 0.0
 		if cut_target_x != INF:
 			var d := cut_target_x - position.x
-			ix = clampf(d * 1.2, -0.45, 0.45) if absf(d) > 0.04 else 0.0
+			ix = clampf(d * 1.2, -cut_speed, cut_speed) if absf(d) > 0.04 else 0.0
 	# hedef hız: analog girdi (küçük = yürü, büyük = koş)
 	var a := absf(ix)
 	var target := 0.0
@@ -773,7 +776,7 @@ func _build_lantern() -> void:
 	# sisin içinde fenerin etrafında yumuşak hale (kameraya dönük)
 	halo = MeshInstance3D.new()
 	var hq := QuadMesh.new()
-	hq.size = Vector2(1.1, 1.1)
+	hq.size = Vector2(0.75, 0.75)
 	halo.mesh = hq
 	var hs := Shader.new()
 	hs.code = """shader_type spatial;
@@ -785,23 +788,32 @@ void vertex() {
 void fragment() {
 	float r = length(UV - 0.5) * 2.0;
 	float g = pow(max(0.0, 1.0 - r), 2.4);
-	ALBEDO = vec3(1.0, 0.6, 0.28) * g * 0.32 * k;
+	ALBEDO = vec3(1.0, 0.6, 0.28) * g * 0.16 * k;
 }"""
 	halo_mat = ShaderMaterial.new()
 	halo_mat.shader = hs
 	halo.material_override = halo_mat
 	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	halo.position = Vector3(0, -0.145, 0)
+	halo.position = Vector3(0, -0.145, -0.45)   # fenerin arkasında: eli/yüzü örtüp beyazlatmasın
 	lantern.add_child(halo)
 	lamp_light = OmniLight3D.new()
 	lamp_light.light_color = Color(1.0, 0.63, 0.32)
 	lamp_light.light_energy = 1.7
 	lamp_light.omni_range = 7.5
-	lamp_light.omni_attenuation = 1.9
+	lamp_light.omni_attenuation = 2.3
 	lamp_light.shadow_enabled = true
 	lamp_light.shadow_bias = 0.08
-	lamp_light.position = Vector3(0, -0.12, 0.14)   # biraz kameraya doğru: vücudu yakmadan önünü aydınlatır
+	lamp_light.position = Vector3(0, -0.12, 0.3)   # kameraya doğru: vücudu yakmadan önünü aydınlatır
 	lantern.add_child(lamp_light)
+	lamp_light.light_cull_mask = 0xFFFFF & ~2   # güçlü fener ışığı karakterleri yakmasın
+	body_light = OmniLight3D.new()              # karakterlere yumuşak, sıcak fener ışığı
+	body_light.light_color = Color(1.0, 0.66, 0.38)
+	body_light.light_energy = 0.4
+	body_light.omni_range = 3.0
+	body_light.omni_attenuation = 1.0
+	body_light.light_cull_mask = 2
+	body_light.position = Vector3(0, 0.25, 0.9)   # kameraya doğru uzakta: ele/yüze yakın patlamasın, bedene düzgün yayılsın
+	lantern.add_child(body_light)
 
 func _build_scarf() -> void:
 	var knot := MeshInstance3D.new()
@@ -876,11 +888,18 @@ func _accessories(dt: float) -> void:
 	var aa := -(9.8 / L) * sin(lan_th) - (clampf(acc.x, -40.0, 40.0) / L) * cos(lan_th) * 0.6 - lan_w * 3.2
 	lan_w += aa * dt
 	lan_th = clampf(lan_th + lan_w * dt, -1.2, 1.2)
-	lantern.global_position = piv
-	lantern.rotation = Vector3(0, 0, lan_th)
+	if lantern_ground != Vector3.INF:   # fener yerde yatıyor (açılış)
+		lantern.global_position = lantern_ground
+		lantern.rotation = Vector3(0.0, 0.3, PI / 2.0 - 0.15)
+		lan_w = 0.0
+		lan_th = 0.0
+	else:
+		lantern.global_position = piv
+		lantern.rotation = Vector3(0, 0, lan_th)
 	var fl := 1.0 + 0.05 * sin(t * 13.0) + 0.04 * sin(t * 7.3 + 1.0) + 0.03 * sin(t * 23.0)
 	fl *= lamp_on
-	lamp_light.light_energy = 1.7 * fl
+	lamp_light.light_energy = 1.4 * fl
+	body_light.light_energy = 0.3 * fl
 	glass_mat.emission_energy_multiplier = 3.0 * fl
 	halo_mat.set_shader_parameter("k", fl)
 	# --- atkı: boyuna bağlı, rüzgârda arkaya uçuşan zincir

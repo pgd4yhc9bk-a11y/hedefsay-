@@ -79,6 +79,7 @@ var cinar_anim := "M_Sit_Shout_Hands_on_Mouth"   # başta: oturmuş, ellerini a�
 var cinar_anim_scale := 1.0
 var cinar_face := -1
 var cinar_spd := 0.0
+var pofuk: Node3D = null
 var bars: Array = []             # sinema bantları (üst, alt)
 var bar_k := 0.0
 var hq := false                  # gelişmiş görüntü motoru (Vulkan: telefon uygulaması / masaüstü)
@@ -642,20 +643,31 @@ void fragment() {
 	dust.lifetime = 9.0
 	dust.preprocess = 9.0
 	dust.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	dust.emission_box_extents = Vector3(9, 4, 3)
+	dust.emission_box_extents = Vector3(9, 4, 1.8)   # kameranın dibine gelmesin (beyaz kare gibi görünüyordu)
 	dust.direction = Vector3(1, 0.2, 0)
 	dust.spread = 180.0
 	dust.initial_velocity_min = 0.02
 	dust.initial_velocity_max = 0.12
 	dust.gravity = Vector3(0.03, -0.01, 0)
 	var dq := QuadMesh.new()
-	dq.size = Vector2(0.018, 0.018)
+	dq.size = Vector2(0.03, 0.03)
 	var dm := StandardMaterial3D.new()
 	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	dm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	dm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	dm.albedo_color = Color(1, 0.95, 0.85, 0.5)
+	dm.albedo_color = Color(1, 0.95, 0.85, 0.35)
+	var dg := GradientTexture2D.new()   # yuvarlak, yumuşak zerre
+	dg.fill = GradientTexture2D.FILL_RADIAL
+	dg.fill_from = Vector2(0.5, 0.5)
+	dg.fill_to = Vector2(1.0, 0.5)
+	var dgg := Gradient.new()
+	dgg.set_color(0, Color(1, 1, 1, 1))
+	dgg.set_color(1, Color(1, 1, 1, 0))
+	dg.gradient = dgg
+	dg.width = 32
+	dg.height = 32
+	dm.albedo_texture = dg
 	dq.material = dm
 	dust.mesh = dq
 	dust.local_coords = false
@@ -949,7 +961,7 @@ func _process(dt: float) -> void:
 				_respawn()
 		"play":
 			fade.color.a = maxf(0.0, fade.color.a - dt * 0.8)
-			if player.position.x > RIBBON_X - 1.6 and player.position.y > 1.2 and player.state == "ground":
+			if player.position.x > RIBBON_X - 4.5 and player.position.y > 1.2 and player.state == "ground":
 				phase = "end"
 				end_t = 0.0
 				player.state = "cut"
@@ -973,8 +985,8 @@ func _process(dt: float) -> void:
 		sub.modulate.a = clampf((et - T0 - 5.5) / 1.0, 0.0, 1.0)
 	elif sisli_a > 0.2:
 		player.look_at = sisli.position + Vector3(0, 1.3, 0)
-	elif player.position.x > RIBBON_X - 6.0 and player.position.y > 1.2:
-		player.look_at = Vector3(RIBBON_X, ground_y(RIBBON_X) + 1.6, 0)
+	elif cinar_root != null and player.position.x > RIBBON_X - 8.0 and player.position.y > 1.2:
+		player.look_at = cinar_root.position + Vector3(0, 0.7, 0)   # kurdeleye değil, Çınar'a bakar
 	elif chase != "run":
 		player.look_at = Vector3.INF
 	# rüzgârda sallanan bitkiler (yalnızca kameraya yakın olanlar)
@@ -1006,48 +1018,38 @@ func _end_seq(dt: float) -> void:
 ## feneri kaldırıp sisin içindeki köye bakar. Kamera: orta plan -> el ve kurdele yakın plan -> alçak açı ->
 ## takip -> geri çekilip vadiyi açan geniş plan.
 func _ending_cine() -> Cinematic:
-	# SON: Nehir kurdeleye uzanır. Ağacın dibinde oturup ablasına seslenen Çınar onu görür, sevinçle kalkar,
-	# kollarını kaldırıp sevinir ve ona koşar. Nehir onun boyuna iner; kamera ikisini bırakıp geri çekilir.
+	# SON: Nehir kayanın üstünde Çınar'ı görür görmez ona koşar ve onun boyuna eğilir. Kütükte oturup ablasına
+	# seslenen Çınar da onu görünce kalkar ve ona koşar. Kamera ikisini bırakıp geri çekilir.
 	var R := RIBBON_X
 	var G := ground_y(R)
+	var meet := R + 0.15
 	var c := Cinematic.new()
 	c.cam(0.0, cam.position, cam.position + Vector3(0, 0, -10).rotated(Vector3.RIGHT, cam.rotation.x), 30.0)
-	c.cam(2.4, Vector3(R - 1.6, G + 1.2, 5.6), Vector3(R + 0.2, G + 1.1, -0.2), 29.0)
-	c.cam(4.6, Vector3(R - 1.7, G + 1.15, 3.6), Vector3(R - 0.2, G + 1.4, -0.3), 26.0)
-	c.cam(6.4, Vector3(R + 0.2, G + 0.95, 4.4), Vector3(R + 1.3, G + 0.7, 0.1), 27.0)
-	c.cam(9.0, Vector3(R + 0.4, G + 1.0, 4.6), Vector3(R + 0.9, G + 0.75, 0.1), 28.0)
-	c.cam(11.5, Vector3(R - 0.1, G + 0.75, 3.9), Vector3(R - 0.05, G + 0.6, -0.1), 27.0)
-	c.cam(14.5, Vector3(R - 0.3, G + 1.3, 6.5), Vector3(R - 0.1, G + 0.8, -0.2), 30.0)
-	c.cam(21.0, Vector3(R - 0.8, G + 3.2, 13.0), Vector3(R + 6.0, G - 0.5, -12.0), 34.0)
+	c.cam(1.8, Vector3(R - 0.9, G + 1.2, 6.4), Vector3(R + 0.3, G + 0.8, 0.0), 29.0)
+	c.cam(4.2, Vector3(meet + 0.1, G + 0.95, 4.6), Vector3(meet + 0.25, G + 0.7, 0.0), 27.0)
+	c.cam(7.5, Vector3(meet - 0.1, G + 0.8, 4.0), Vector3(meet + 0.2, G + 0.6, -0.1), 26.0)
+	c.cam(14.0, Vector3(meet - 0.8, G + 3.0, 12.5), Vector3(meet + 5.0, G - 0.5, -12.0), 34.0)
 	var pl := player
 	c.at(0.0, func() -> void:
-		cine_look = Vector3(R, G + 1.6, 0)
-		pl.cut_target_x = R - 0.35)
-	c.at(1.0, func() -> void:
+		cine_look = cinar_root.position + Vector3(0, 0.7, 0)
+		pl.cut_speed = 1.0                               # Çınar'ı görür görmez ona koşar
+		pl.cut_target_x = meet
+		cinar_anim = "M_Stand_Up1"                       # Çınar da onu görür, kalkar
+		cinar_anim_scale = 1.8
+		var tw := create_tween()                         # kalkarken kütükten öne doğru çıkar (içine girmesin)
+		tw.tween_property(cinar_root, "position:x", cinar_root.position.x - 0.3, 1.0).set_delay(0.2)
 		if not music_on:
 			music_on = true
 			audio.final_music())
-	c.at(4.9, func() -> void:
-		pl.force_anim = ""
-		pl.face = 1
-		cine_look = Vector3(R + 1.4, G + 0.8, 0)       # Çınar'ı görür
-		cinar_anim = "M_Stand_Up1"                      # Çınar ablasını görüp kalkar
-		cinar_anim_scale = 1.7)
-	c.at(7.0, func() -> void:
-		cinar_anim = "M_Cheer_with_Both_Hands_Up"       # sevinçle kollarını kaldırır
-		cinar_anim_scale = 1.0)
-	c.at(8.9, func() -> void:
+	c.at(1.6, func() -> void:
 		cinar_anim = ""
-		cinar_target = R + 0.25                         # ablasına koşar
+		cinar_target = meet + 0.55                       # ablasına koşar
 		cinar_speed = 2.2)
-	c.at(9.3, func() -> void:
-		pl.force_anim = "crouch"                        # onun boyuna iner
-		cine_look = Vector3(R + 0.25, G + 0.9, 0)
-		audio.play("kumas", -12.0))
-	c.at(22.0, func() -> void: pass)
-	cine_reach_from = 1.6
-	cine_reach_to = 4.6
-	cine_title_t = 15.0
+	c.at(1.4, func() -> void: pass)
+	c.at(14.5, func() -> void: pass)
+	cine_reach_from = 999.0
+	cine_reach_to = 0.0
+	cine_title_t = 8.0
 	return c
 
 var cine_title_t := 14.5
@@ -1063,7 +1065,7 @@ func _update_camera(dt: float) -> void:
 		cam.position = cpos + Vector3(sin(t * 0.37) * 0.025, sin(t * 0.53) * 0.02, 0.0)
 		cam.look_at(cp["look"], Vector3.UP)
 		cam_pos = cpos
-		dust.position = Vector3(p.x, p.y + 1.5, 0.0)
+		dust.position = Vector3(p.x, p.y + 1.5, -1.4)
 		leaves.position = Vector3(p.x + 2.0, p.y + 5.0, 0.0)
 		return
 	look = lerpf(look, float(player.face) * 1.1 * clampf(absf(player.velocity.x) / 2.0, 0.3, 1.0), 1.0 - exp(-dt * 1.2))
@@ -1097,7 +1099,7 @@ func _update_camera(dt: float) -> void:
 	if phase == "end" or phase == "done":
 		pitch = lerpf(1.5, -5.0, clampf((end_t - 4.5) / 6.0, 0.0, 1.0))
 	cam.rotation = Vector3(deg_to_rad(pitch) + sin(t * 0.29) * 0.002, sin(t * 0.21) * 0.003, 0.0)
-	dust.position = Vector3(cam_pos.x, p.y + 1.5, 0.0)
+	dust.position = Vector3(cam_pos.x, p.y + 1.5, -1.4)
 	leaves.position = Vector3(cam_pos.x + 2.0, p.y + 5.0, 0.0)
 
 func _update_world(dt: float) -> void:
@@ -1371,16 +1373,16 @@ func _run_test() -> void:
 	elif test == "protocine":
 		bot = {"on": true}
 		chase = "done"
-		await _place(RIBBON_X - 3.0, 0.5)
+		await _place(RIBBON_X - 6.0, 0.5)
 		player.input_x = 0.5
 		var k3 := 0
 		while phase != "end":
 			await _wait(0.05)
 		player.input_x = 0.0
 		var ct := 0.0
-		while ct < 24.0:
-			await _wait(1.5)
-			ct += 1.5
+		while ct < 14.0:
+			await _wait(1.0)
+			ct += 1.0
 			k3 += 1
 			print("SINEMA t=%.1f anim=%s x=%.2f" % [cine.t if cine != null else -1.0, player.force_anim, player.position.x])
 			await _shot("cine_%02d" % k3)
@@ -1415,11 +1417,19 @@ func _run_test() -> void:
 		print("UZAN reach=%.2f hedef=%s yuz=%d omuz=%s el=%s face_isaret=%.2f" % [mc.reach, str(mc.reach_target), player.face, str(sh), str(hd), mc.global_transform.basis.x.x])
 	elif test == "protoclose":   # yakın plan: model yüzeyi ve fener tutuşu
 		bot = {"on": true}
+		if OS.get_environment("GLOWOFF") != "":
+			env.glow_enabled = false
+		if OS.get_environment("NOLAMP") != "":
+			player.lamp_on = 0.0
 		chase = "done"
 		close_cam = 2.2
 		await _place(5.0, 1.2)
 		cam_pos = Vector3(player.position.x, player.position.y + 0.75, close_cam)
 		await _wait(0.5)
+		var mc: NehirMocap = player.mocap
+		var fi := mc.skel.find_bone("fingers_r")
+		var tipb := mc.skel.find_bone("RightHand_End")
+		print("PARMAK poz=", mc.skel.get_bone_pose_rotation(fi), " dinlenme=", mc.skel.get_bone_rest(fi).basis.get_rotation_quaternion(), " uc_cocuk_mu=", mc.skel.get_bone_parent(tipb) == fi)
 		await _shot("yakin_1")
 		player.input_x = 0.35
 		await _wait(1.2)
@@ -1460,6 +1470,20 @@ func _run_test() -> void:
 		await _wait(1.5)
 		print("KENAR_ZIPLA x=%.2f y=%.2f durum=%s faz=%s" % [player.position.x, player.position.y, player.state, phase])
 		player.input_x = 0.0
+	elif test == "protopofuk":
+		await _wait(0.5)
+		var hand := cinar.bone_world("hand.L")
+		var mi: MeshInstance3D = pofuk.find_child("*", true, false) as MeshInstance3D
+		var mis := pofuk.find_children("*", "MeshInstance3D", true, false)
+		print("POFUK el=", hand, " pofuk=", pofuk.global_position, " olcek=", pofuk.global_transform.basis.get_scale(), " mesh=", mis.size())
+		for m2 in mis:
+			print("  aabb=", (m2 as MeshInstance3D).get_aabb(), " gorunur=", (m2 as MeshInstance3D).is_visible_in_tree(), " global=", (m2 as MeshInstance3D).global_position)
+		bot = {"on": true}
+		cine = Cinematic.new()
+		cine.cam(0.0, hand + Vector3(0.2, 0.3, 2.2), hand + Vector3(0, -0.1, 0), 35.0)
+		cine.cam(99.0, hand + Vector3(0.2, 0.3, 2.2), hand + Vector3(0, -0.1, 0), 35.0)
+		await _wait(0.4)
+		await _shot("pofuk_yakin")
 	elif test == "protofloor":
 		bot = {"on": true}
 		var sp := get_world_3d().direct_space_state
@@ -1954,28 +1978,38 @@ func _diag() -> void:
 ## AÇILIŞ: sisin içinde yerde yatan Nehir. Kamera yukarıdan yavaşça iner, fener titreyerek yanar,
 ## Nehir doğrulur, kamera oyun açısına yerleşir ve kontrol oyuncuya geçer.
 func _start_opening() -> void:
+	# Nehir yerde yatıyor; feneri yanında yerde, sönmek üzere. Uyanır, kalkar, eğilip feneri alır; fener canlanır.
 	var P := player.position
 	player.wake_t = 99.0
 	player.wake_hold = true
-	player.lamp_on = 0.0
+	player.lamp_on = 0.25
+	player.lantern_ground = Vector3(P.x + 0.42, ground_y(P.x + 0.42) + 0.07, 0.18)
 	var c := Cinematic.new()
 	c.cam(0.0, Vector3(P.x + 5.5, P.y + 6.0, 21.0), Vector3(P.x + 0.6, P.y + 0.2, 0.0), 34.0)
-	c.cam(4.6, Vector3(P.x + 1.4, P.y + 1.9, 4.6), Vector3(P.x + 0.1, P.y + 0.25, 0.0), 30.0)
-	c.cam(7.4, Vector3(P.x + 1.3, P.y + 1.5, 6.4), Vector3(P.x + 0.3, P.y + 0.8, 0.0), 29.0)
+	c.cam(4.4, Vector3(P.x + 1.5, P.y + 1.8, 4.6), Vector3(P.x + 0.2, P.y + 0.25, 0.0), 30.0)
+	c.cam(8.0, Vector3(P.x + 1.6, P.y + 1.2, 5.2), Vector3(P.x + 0.3, P.y + 0.6, 0.0), 29.0)
 	var gp := Vector3(P.x, P.y + 1.0, cam_dist)
-	c.cam(9.4, gp, gp + Vector3(0, tan(deg_to_rad(1.5)) * 10.0, -10.0), 30.0)
+	c.cam(10.6, gp, gp + Vector3(0, tan(deg_to_rad(1.5)) * 10.0, -10.0), 30.0)
 	var pl := player
-	c.at(3.0, func() -> void:   # fener titreyerek yanar
-		var tw := create_tween()
-		for v in [0.35, 0.05, 0.6, 0.15, 0.8, 0.5, 1.0]:
-			tw.tween_property(pl, "lamp_on", v, 0.12)
-		audio.play("kumas", -16.0))
-	c.at(4.4, func() -> void:
+	c.at(3.0, func() -> void:
 		pl.wake_hold = false
 		pl.wake_t = 2.9
 		audio.play("nefes_al", -14.0))
-	c.at(6.0, func() -> void: audio.play("nefes_ver", -16.0))
-	c.at(9.4, func() -> void:
+	c.at(4.5, func() -> void: audio.play("nefes_ver", -16.0))
+	c.at(5.9, func() -> void:   # fenere eğilir
+		pl.state = "cut"
+		pl.cut_target_x = INF
+		pl.force_anim = "pickup" if pl.mocap != null and pl.mocap.has_anim("M_Pick_Up") else "crouch"
+		audio.play("kumas", -14.0))
+	c.at(6.9, func() -> void:   # feneri alır, fener titreyerek canlanır
+		pl.lantern_ground = Vector3.INF
+		audio.play("kumas", -12.0)
+		var tw := create_tween()
+		for v in [0.5, 0.15, 0.7, 0.35, 0.9, 0.6, 1.0]:
+			tw.tween_property(pl, "lamp_on", v, 0.12))
+	c.at(7.8, func() -> void: pl.force_anim = "")
+	c.at(10.6, func() -> void:
+		pl.state = "ground"
 		cam_pos = gp
 		look = 0.0)
 	cine = c
@@ -2018,22 +2052,21 @@ func _build_cinar() -> void:
 	cinar.who = "cinar"
 	cinar.height = 1.15
 	cinar_turn.add_child(cinar)
-	if ResourceLoader.exists("res://proto/mocap/pofuk.glb"):   # sol elinde tavşanı
-		var ba := BoneAttachment3D.new()
-		ba.bone_name = "mixamorig_LeftHand"
-		cinar.skel.add_child(ba)
-		var bunny: Node3D = (load("res://proto/mocap/pofuk.glb") as PackedScene).instantiate()
-		var bap := bunny.find_child("AnimationPlayer", true, false)
+	if ResourceLoader.exists("res://proto/mocap/pofuk.glb"):   # sol elinde tavşanı, dik tutar
+		pofuk = (load("res://proto/mocap/pofuk.glb") as PackedScene).instantiate()
+		var bap := pofuk.find_child("AnimationPlayer", true, false)
 		if bap != null:
 			bap.queue_free()
-		bunny.scale = Vector3.ONE * (0.4 / 1.7) / cinar.SCALE
-		bunny.position = Vector3(0, 0.1, 0.02) / cinar.SCALE
-		bunny.rotation = Vector3(PI, 0, 0)       # kulaklarından tutulmuş, aşağı sarkar
-		ba.add_child(bunny)
+		pofuk.top_level = true
+		add_child(pofuk)
 
 func _update_cinar(dt: float) -> void:
 	if cinar == null:
 		return
+	if phase in ["end", "done"] and player.state == "cut" and absf(player.position.x - player.cut_target_x) < 0.08 and player.force_anim == "":
+		player.force_anim = "crouch"                     # ona ulaşınca onun boyuna eğilir
+		player.face = 1
+		audio.play("kumas", -12.0)
 	var v := 0.0
 	if cinar_target != INF:
 		var d := cinar_target - cinar_root.position.x
@@ -2043,6 +2076,11 @@ func _update_cinar(dt: float) -> void:
 			cinar_root.position.x += signf(d) * v * dt
 			cinar_root.position.y = ground_y(cinar_root.position.x)
 	cinar_spd = lerpf(cinar_spd, v, 1.0 - exp(-dt * 8.0))
+	if pofuk != null:   # elinin altında, dik, yüzü öne
+		var hand := cinar.bone_world("hand.L")
+		var sc := 0.34 / 1.7
+		var yaw := cinar_turn.rotation.y
+		pofuk.global_transform = Transform3D(Basis(Vector3.UP, yaw + PI / 2.0).scaled(Vector3.ONE * sc), hand + Vector3(0, -0.24, 0.0))
 	var ty := 0.0 if cinar_face > 0 else -PI
 	cinar_turn.rotation.y = move_toward(cinar_turn.rotation.y, ty, dt * 7.0)
 	if cinar_anim != "" and cinar_spd < 0.1 and cinar.has_anim(cinar_anim):
