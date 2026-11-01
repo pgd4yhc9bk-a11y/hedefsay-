@@ -510,11 +510,7 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 	elif wake_t > 0.0:
 		st = "wake"
 		sc = 0.0 if wake_hold else 0.55
-		if wake_hold and mocap.has_anim("M_Toss_and_Turn"):   # açılış: yerde huzursuzca dönerek yatıyor
-			st = "any"
-			sc = 1.0
-			mocap.set_any("M_Toss_and_Turn")
-			xf = 0.6
+
 	elif state == "dead":
 		st = "air"
 		if mocap.has_anim("M_falling_down"):   # uçuruma düşüş

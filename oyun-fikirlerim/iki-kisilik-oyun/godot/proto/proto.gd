@@ -1006,18 +1006,19 @@ func _end_seq(dt: float) -> void:
 ## feneri kaldırıp sisin içindeki köye bakar. Kamera: orta plan -> el ve kurdele yakın plan -> alçak açı ->
 ## takip -> geri çekilip vadiyi açan geniş plan.
 func _ending_cine() -> Cinematic:
+	# SON: Nehir kurdeleye uzanır. Ağacın dibinde oturup ablasına seslenen Çınar onu görür, sevinçle kalkar,
+	# kollarını kaldırıp sevinir ve ona koşar. Nehir onun boyuna iner; kamera ikisini bırakıp geri çekilir.
 	var R := RIBBON_X
 	var G := ground_y(R)
-	var edge := 66.3
 	var c := Cinematic.new()
 	c.cam(0.0, cam.position, cam.position + Vector3(0, 0, -10).rotated(Vector3.RIGHT, cam.rotation.x), 30.0)
 	c.cam(2.4, Vector3(R - 1.6, G + 1.2, 5.6), Vector3(R + 0.2, G + 1.1, -0.2), 29.0)
 	c.cam(4.6, Vector3(R - 1.7, G + 1.15, 3.6), Vector3(R - 0.2, G + 1.4, -0.3), 26.0)
-	c.cam(6.6, Vector3(R - 0.2, G + 1.0, 4.8), Vector3(R + 0.9, G + 0.7, 0.0), 28.0)
-	c.cam(9.6, Vector3(R - 0.1, G + 0.7, 3.9), Vector3(R - 0.05, G + 0.6, -0.1), 27.0)
-	c.cam(13.0, Vector3(R + 1.6, G + 1.3, 7.0), Vector3(R + 4.0, G + 1.0, -1.5), 30.0)
-	c.cam(17.5, Vector3(R + 0.2, G + 3.6, 13.5), Vector3(edge + 14.0, G - 3.5, -24.0), 34.0)
-	c.cam(23.5, Vector3(R + 0.8, G + 4.6, 16.0), Vector3(edge + 15.0, G - 4.0, -26.0), 35.0)
+	c.cam(6.4, Vector3(R + 0.2, G + 0.95, 4.4), Vector3(R + 1.3, G + 0.7, 0.1), 27.0)
+	c.cam(9.0, Vector3(R + 0.4, G + 1.0, 4.6), Vector3(R + 0.9, G + 0.75, 0.1), 28.0)
+	c.cam(11.5, Vector3(R - 0.1, G + 0.75, 3.9), Vector3(R - 0.05, G + 0.6, -0.1), 27.0)
+	c.cam(14.5, Vector3(R - 0.3, G + 1.3, 6.5), Vector3(R - 0.1, G + 0.8, -0.2), 30.0)
+	c.cam(21.0, Vector3(R - 0.8, G + 3.2, 13.0), Vector3(R + 6.0, G - 0.5, -12.0), 34.0)
 	var pl := player
 	c.at(0.0, func() -> void:
 		cine_look = Vector3(R, G + 1.6, 0)
@@ -1028,30 +1029,25 @@ func _ending_cine() -> Cinematic:
 			audio.final_music())
 	c.at(4.9, func() -> void:
 		pl.force_anim = ""
-		cine_look = Vector3(R + 1.4, G + 0.8, 0)      # Çınar'ı görür
-		cinar_anim = "M_Stand_Up1"                     # Çınar kalkar
-		cinar_anim_scale = 1.6)
-	c.at(7.0, func() -> void:
-		cinar_anim = ""
-		cinar_target = R + 0.25                        # ablasına koşar
-		cinar_speed = 1.6)
-	c.at(7.6, func() -> void:
-		pl.force_anim = "crouch"                       # onun boyuna iner
-		audio.play("kumas", -12.0))
-	c.at(10.6, func() -> void:
-		pl.force_anim = ""
 		pl.face = 1
-		pl.cut_target_x = edge
-		cinar_target = edge - 0.7
-		cinar_speed = 1.0
-		cine_look = Vector3(edge + 14.0, G - 3.5, -24.0))
-	c.at(15.0, func() -> void:
-		pl.force_anim = "torch"     # feneri kaldırıp vadiye bakar
-		audio.play("nefes_ver", -16.0))
-	c.at(24.0, func() -> void: pass)
+		cine_look = Vector3(R + 1.4, G + 0.8, 0)       # Çınar'ı görür
+		cinar_anim = "M_Stand_Up1"                      # Çınar ablasını görüp kalkar
+		cinar_anim_scale = 1.7)
+	c.at(7.0, func() -> void:
+		cinar_anim = "M_Cheer_with_Both_Hands_Up"       # sevinçle kollarını kaldırır
+		cinar_anim_scale = 1.0)
+	c.at(8.9, func() -> void:
+		cinar_anim = ""
+		cinar_target = R + 0.25                         # ablasına koşar
+		cinar_speed = 2.2)
+	c.at(9.3, func() -> void:
+		pl.force_anim = "crouch"                        # onun boyuna iner
+		cine_look = Vector3(R + 0.25, G + 0.9, 0)
+		audio.play("kumas", -12.0))
+	c.at(22.0, func() -> void: pass)
 	cine_reach_from = 1.6
 	cine_reach_to = 4.6
-	cine_title_t = 17.5
+	cine_title_t = 15.0
 	return c
 
 var cine_title_t := 14.5
@@ -1417,6 +1413,18 @@ func _run_test() -> void:
 		var sh := mc.skel.global_transform * mc.skel.get_bone_global_pose(mc.skel.find_bone("upperarm_l")).origin
 		var hd := mc.skel.global_transform * mc.skel.get_bone_global_pose(mc.skel.find_bone("hand_l")).origin
 		print("UZAN reach=%.2f hedef=%s yuz=%d omuz=%s el=%s face_isaret=%.2f" % [mc.reach, str(mc.reach_target), player.face, str(sh), str(hd), mc.global_transform.basis.x.x])
+	elif test == "protoclose":   # yakın plan: model yüzeyi ve fener tutuşu
+		bot = {"on": true}
+		chase = "done"
+		close_cam = 2.2
+		await _place(5.0, 1.2)
+		cam_pos = Vector3(player.position.x, player.position.y + 0.75, close_cam)
+		await _wait(0.5)
+		await _shot("yakin_1")
+		player.input_x = 0.35
+		await _wait(1.2)
+		await _shot("yakin_2")
+		player.input_x = 0.0
 	elif test == "protofloor":
 		bot = {"on": true}
 		var sp := get_world_3d().direct_space_state

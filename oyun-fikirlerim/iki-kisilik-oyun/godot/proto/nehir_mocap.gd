@@ -273,8 +273,18 @@ func _aim(bn: String, child: String, target_world: Vector3, wgt: float) -> void:
 	skel.set_bone_pose_rotation(i, (pb.inverse() * ng).get_rotation_quaternion())
 	skel.force_update_bone_child_transform(i)
 
+const GRIP := {"hand.R": ["RightHand_End", "mixamorig_RightHandMiddle1"], "hand.L": ["LeftHand_End", "mixamorig_LeftHandMiddle1"]}
+
 func bone_world(n: String, local_off := Vector3.ZERO) -> Vector3:
 	var bn: String = MAP.get(n, n)
+	if meshy and GRIP.has(n):   # avucun ortası (fener sapı burada tutulur)
+		var hw := skel.global_transform * skel.get_bone_global_pose(_bi[bn]).origin
+		for e: String in GRIP[n]:
+			if _bi.has(e):
+				var ew := skel.global_transform * skel.get_bone_global_pose(_bi[e]).origin
+				var k := 0.55 if e.ends_with("_End") else 0.85
+				return hw.lerp(ew, k) + Vector3(0, -0.015, 0)
+		return hw
 	return (skel.global_transform * skel.get_bone_global_pose(_bi[bn])) * (local_off / SCALE)
 
 func bone_xform(n: String) -> Transform3D:
