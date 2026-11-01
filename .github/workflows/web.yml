@@ -39,9 +39,12 @@ jobs:
             KS="$PWD/debug.keystore"
             keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore "$KS" -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
           fi
+          JAVA="${JAVA_HOME:-}"
+          if [ -z "$JAVA" ]; then J=$(command -v javac || command -v java); JAVA=$(dirname "$(dirname "$(readlink -f "$J")")"); fi
+          echo "java: $JAVA"; ls "$JAVA/bin" | head -5
           mkdir -p ~/.config/godot
           for f in editor_settings-4.tres editor_settings-4.3.tres; do
-            printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/debug_keystore = "%s"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "$SDK" "$KS" > ~/.config/godot/$f
+            printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\nexport/android/debug_keystore = "%s"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "$SDK" "$JAVA" "$KS" > ~/.config/godot/$f
           done
           export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$KS" GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
           mkdir -p build/android
