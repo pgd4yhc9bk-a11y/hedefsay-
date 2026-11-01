@@ -23,6 +23,7 @@ var land_t := 0.0
 var roll_t := 0.0
 var wake_t := 0.0               # açılışta yerden kalkma
 var caught := false             # Sisli yakaladı (ölüm animasyonu)
+var force_anim := ""              # ara sahne: zorla oynatılacak animasyon (crouch, torch)
 var turn: Node3D                # yön dönüşü (Y ekseni)
 var face := 1
 var yaw := 0.0
@@ -497,6 +498,9 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 	if caught:
 		st = "death"
 		xf = 0.15
+	elif force_anim != "" and state == "cut" and absf(velocity.x) < 0.15:
+		st = force_anim
+		xf = 0.45
 	elif wake_t > 0.0:
 		st = "wake"
 		sc = 0.55

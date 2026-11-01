@@ -67,6 +67,10 @@ var chase_t := 0.0
 var chase_x := 0.0
 var caught := false
 var music_on := false
+var cine: Cinematic = null       # oynayan ara sahne
+var cine_look := Vector3.INF
+var bars: Array = []             # sinema bantları (üst, alt)
+var bar_k := 0.0
 var hq := false                  # gelişmiş görüntü motoru (Vulkan: telefon uygulaması / masaüstü)
 var smoke: Array = []
 var fog_vol: FogVolume = null
@@ -928,7 +932,16 @@ func _process(dt: float) -> void:
 	_update_world(dt)
 	_update_chase(dt)
 	# bakış hedefi: izleyen Sisli, sonra kurdele
-	if sisli_a > 0.2:
+	if cine != null:
+		player.look_at = cine_look
+		var et := cine.t
+		var rw := clampf((et - cine_reach_from) / 1.2, 0.0, 1.0) * clampf((cine_reach_to - et) / 0.8, 0.0, 1.0)
+		player.reach = rw
+		# yazı, kararma
+		title.modulate.a = clampf((et - 14.5) / 2.0, 0.0, 1.0) * clampf((19.5 - et) / 1.5, 0.0, 1.0)
+		fade.color.a = clampf((et - 17.5) / 3.0, 0.0, 1.0)
+		sub.modulate.a = clampf((et - 20.0) / 1.0, 0.0, 1.0)
+	elif sisli_a > 0.2:
 		player.look_at = sisli.position + Vector3(0, 1.3, 0)
 	elif player.position.x > RIBBON_X - 6.0 and player.position.y > 1.2:
 		player.look_at = Vector3(RIBBON_X, ground_y(RIBBON_X) + 1.6, 0)
@@ -943,31 +956,77 @@ func _process(dt: float) -> void:
 	# ipucu metni: ilk saniyelerde görünür, hareket edince söner
 	hint_t += dt
 	var ha := clampf((hint_t - 2.0) / 1.0, 0.0, 1.0) * clampf((9.0 - hint_t) / 1.5, 0.0, 1.0)
-	hint.modulate.a = ha * 0.8
+	hint.modulate.a = ha * 0.8 * (1.0 - bar_k)
 	post.set_shader_parameter("t", fmod(t, 100.0))
+	bar_k = move_toward(bar_k, 1.0 if cine != null else 0.0, dt * 1.2)
+	var bh := 78.0 * (bar_k * bar_k * (3.0 - 2.0 * bar_k))
+	(bars[0] as ColorRect).size = Vector2(1280, bh)
+	(bars[1] as ColorRect).position = Vector2(0, 720 - bh)
+	(bars[1] as ColorRect).size = Vector2(1280, bh)
 
 func _end_seq(dt: float) -> void:
 	end_t += dt
-	if end_t > 1.0 and not music_on:
-		music_on = true
-		audio.final_music()
-	if end_t > 1.6 and end_t <= 4.2:
-		player.reach = minf(1.0, player.reach + dt * 0.9)
-	elif end_t > 4.2:
-		player.reach = maxf(0.0, player.reach - dt * 1.2)   # kol iner, sonra yürür
-	if end_t > 5.6:
-		player.face = 1
-		player.cut_target_x = RIBBON_X + 2.6
-	var ta := clampf((end_t - 5.0) / 2.0, 0.0, 1.0)
-	title.modulate.a = ta * clampf((13.0 - end_t) / 1.5, 0.0, 1.0)
-	if end_t > 9.0:
-		fade.color.a = clampf((end_t - 9.0) / 3.0, 0.0, 1.0)
-	sub.modulate.a = clampf((end_t - 12.5) / 1.5, 0.0, 1.0)
-	if end_t > 12.0 and phase == "end":
+	if cine == null:
+		cine = _ending_cine()
+	cine.step(dt)
+	if cine.done() and phase == "end":
 		phase = "done"
+
+## SON SAHNE: kurdele. Nehir kurdeleye uzanır, diz çöker, kalkar, uçurumun kenarına yürür,
+## feneri kaldırıp sisin içindeki köye bakar. Kamera: orta plan -> el ve kurdele yakın plan -> alçak açı ->
+## takip -> geri çekilip vadiyi açan geniş plan.
+func _ending_cine() -> Cinematic:
+	var R := RIBBON_X
+	var G := ground_y(R)
+	var edge := 66.3
+	var c := Cinematic.new()
+	c.cam(0.0, cam.position, cam.position + Vector3(0, 0, -10).rotated(Vector3.RIGHT, cam.rotation.x), 30.0)
+	c.cam(2.4, Vector3(R - 1.9, G + 1.25, 5.2), Vector3(R - 0.25, G + 1.3, -0.2), 28.0)
+	c.cam(4.6, Vector3(R - 1.7, G + 1.15, 3.6), Vector3(R - 0.2, G + 1.4, -0.3), 26.0)
+	c.cam(7.4, Vector3(R - 2.3, G + 0.75, 4.3), Vector3(R - 0.4, G + 0.6, -0.1), 28.0)
+	c.cam(10.6, Vector3(R + 0.6, G + 1.3, 6.8), Vector3(R + 3.6, G + 1.0, -1.5), 30.0)
+	c.cam(14.5, Vector3(R + 0.2, G + 3.6, 13.5), Vector3(edge + 14.0, G - 3.5, -24.0), 34.0)
+	c.cam(20.0, Vector3(R + 0.8, G + 4.6, 16.0), Vector3(edge + 15.0, G - 4.0, -26.0), 35.0)
+	var pl := player
+	c.at(0.0, func() -> void:
+		cine_look = Vector3(R, G + 1.6, 0)
+		pl.cut_target_x = R - 0.35)
+	c.at(1.0, func() -> void:
+		if not music_on:
+			music_on = true
+			audio.final_music())
+	c.at(4.9, func() -> void: pl.force_anim = "")
+	c.at(5.6, func() -> void:
+		pl.force_anim = "crouch"   # kurdelenin dibinde diz çöker
+		audio.play("kumas", -12.0))
+	c.at(8.6, func() -> void:
+		pl.force_anim = ""
+		pl.face = 1
+		pl.cut_target_x = edge
+		cine_look = Vector3(edge + 14.0, G - 3.5, -24.0))
+	c.at(12.6, func() -> void:
+		pl.force_anim = "torch"     # feneri kaldırıp vadiye bakar
+		audio.play("nefes_ver", -16.0))
+	c.at(20.5, func() -> void: pass)
+	cine_reach_from = 1.6
+	cine_reach_to = 4.6
+	return c
+
+var cine_reach_from := 0.0
+var cine_reach_to := 0.0
 
 func _update_camera(dt: float) -> void:
 	var p := player.position
+	if cine != null:
+		var cp := cine.pose()
+		cam.fov = cp["fov"]
+		var cpos: Vector3 = cp["pos"]
+		cam.position = cpos + Vector3(sin(t * 0.37) * 0.025, sin(t * 0.53) * 0.02, 0.0)
+		cam.look_at(cp["look"], Vector3.UP)
+		cam_pos = cpos
+		dust.position = Vector3(p.x, p.y + 1.5, 0.0)
+		leaves.position = Vector3(p.x + 2.0, p.y + 5.0, 0.0)
+		return
 	look = lerpf(look, float(player.face) * 1.1 * clampf(absf(player.velocity.x) / 2.0, 0.3, 1.0), 1.0 - exp(-dt * 1.2))
 	var dist := cam_dist
 	var up := 1.0
@@ -1087,6 +1146,13 @@ void fragment() {
 }""")
 	pr.material = post
 	cl.add_child(pr)
+	for _i in 2:
+		var b := ColorRect.new()
+		b.color = Color(0, 0, 0, 1)
+		b.size = Vector2(1280, 0)
+		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cl.add_child(b)
+		bars.append(b)
 	fade = ColorRect.new()
 	fade.size = Vector2(1280, 720)
 	fade.color = Color(0, 0, 0, 1)
@@ -1095,10 +1161,10 @@ void fragment() {
 	hint = _label("← →  /  parmağını kaydır : yürü, koş        ↑  /  yukarı kaydır : zıpla", 20, Vector2(0, 640))
 	hint.modulate.a = 0.0
 	cl.add_child(hint)
-	title = _label("Kurdeleleri takip et.", 40, Vector2(0, 150))
+	title = _label("Kurdeleleri takip et.", 40, Vector2(0, 520))
 	title.modulate.a = 0.0
 	cl.add_child(title)
-	sub = _label("SİS  ·  prototip bölüm\n\ndokun ya da bir tuşa bas", 22, Vector2(0, 230))
+	sub = _label("SİS  ·  prototip bölüm\n\ndokun ya da bir tuşa bas", 22, Vector2(0, 300))
 	sub.modulate.a = 0.0
 	cl.add_child(sub)
 	var mb := Button.new()
@@ -1261,6 +1327,22 @@ func _run_test() -> void:
 				print("SON end_t=%.1f reach=%.2f x=%.2f" % [end_t, player.reach, player.position.x])
 				k2 += 1
 				await _shot("log_%02d" % k2)
+	elif test == "protocine":
+		bot = {"on": true}
+		chase = "done"
+		await _place(RIBBON_X - 3.0, 0.5)
+		player.input_x = 0.5
+		var k3 := 0
+		while phase != "end":
+			await _wait(0.05)
+		player.input_x = 0.0
+		var ct := 0.0
+		while ct < 21.0:
+			await _wait(1.5)
+			ct += 1.5
+			k3 += 1
+			print("SINEMA t=%.1f anim=%s x=%.2f" % [cine.t if cine != null else -1.0, player.force_anim, player.position.x])
+			await _shot("cine_%02d" % k3)
 	elif test == "protofloor":
 		bot = {"on": true}
 		var sp := get_world_3d().direct_space_state

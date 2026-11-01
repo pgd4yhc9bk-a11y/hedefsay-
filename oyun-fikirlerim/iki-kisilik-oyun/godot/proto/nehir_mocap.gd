@@ -5,7 +5,7 @@ class_name NehirMocap extends Node3D
 ## Boy: 1.45 m (manken 1.75 m -> 0.83).
 
 const SCALE := 0.83
-const STATES := ["loco", "air", "land", "roll", "push", "climb", "wake", "death", "reach"]
+const STATES := ["loco", "air", "land", "roll", "push", "climb", "wake", "death", "reach", "crouch", "torch"]
 # isimsiz arayüz adları -> manken kemikleri (fener, atkı, örgü bağlantısı için)
 const MAP := {"neck": "neck_01", "head": "Head", "hand.R": "middle_01_r", "hand.L": "middle_01_l"}
 
@@ -98,7 +98,7 @@ func _build_tree() -> void:
 	bt.add_node("loco", loco)
 	var nodes := {
 		"air": _anim("Jump"), "land": _anim("Jump_Land"), "roll": _anim("Roll"), "push": _anim("Push"),
-		"climb": _anim("ClimbUp_1m"), "wake": _anim("LayToIdle"), "death": _anim("Death01"), "reach": _anim("Idle_Lantern"),
+		"climb": _anim("ClimbUp_1m"), "wake": _anim("LayToIdle"), "death": _anim("Death01"), "reach": _anim("Idle_Lantern"), "crouch": _anim("Crouch_Idle"), "torch": _anim("Idle_Torch"),
 	}
 	for k: String in nodes:
 		bt.add_node(k + "_a", nodes[k])
