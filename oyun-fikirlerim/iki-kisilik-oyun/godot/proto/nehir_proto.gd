@@ -8,7 +8,7 @@ signal died
 
 const GRAV := 21.0
 const WALK := 1.2
-const RUN := 2.7
+const RUN := 3.0
 const JUMP_V := 6.7
 const PUSH_V := 1.15
 const PULL_V := 0.95
@@ -23,7 +23,9 @@ var land_t := 0.0
 var roll_t := 0.0
 var wake_t := 0.0               # açılışta yerden kalkma
 var caught := false             # Sisli yakaladı (ölüm animasyonu)
-var force_anim := ""              # ara sahne: zorla oynatılacak animasyon (crouch, torch)
+var force_anim := ""
+var wake_hold := false           # açılış: yerde yatarken animasyon durur
+var lamp_on := 1.0               # fener parlaklığı (açılışta titreyerek yanar)              # ara sahne: zorla oynatılacak animasyon (crouch, torch)
 var turn: Node3D                # yön dönüşü (Y ekseni)
 var face := 1
 var yaw := 0.0
@@ -161,7 +163,7 @@ func _physics_process(dt: float) -> void:
 				pulling = true
 				crate = cb
 	if pushing:
-		target = signf(target) * minf(absf(target), PUSH_V if mocap == null else 0.8)
+		target = signf(target) * minf(absf(target), PUSH_V if mocap == null else 0.55)
 	elif pulling:
 		target = signf(target) * minf(absf(target), PULL_V)
 	# yön
@@ -503,7 +505,7 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 		xf = 0.45
 	elif wake_t > 0.0:
 		st = "wake"
-		sc = 0.55
+		sc = 0.0 if wake_hold else 0.55
 	elif state == "dead":
 		st = "air"
 	elif state == "climb":
@@ -523,7 +525,7 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 		xf = 0.08
 	elif pushing or pulling:
 		st = "push"
-		sc = clampf(absf(velocity.x) / 0.23, 0.35, 3.2) * (-1.0 if pulling else 1.0)
+		sc = clampf(absf(velocity.x) / 0.27, 0.35, 2.4) * (-1.0 if pulling else 1.0)
 	# bakış ve uzanma
 	var want_look := 0.0
 	if look_at != Vector3.INF and state != "climb":
@@ -540,6 +542,7 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 		hw = clampf(spd / 0.8, 0.0, 1.0) * lerpf(0.8, 0.35, clampf((spd - 3.4) / 2.0, 0.0, 1.0))
 	mocap.hold = lerpf(mocap.hold, hw, 1.0 - exp(-dt * 6.0))
 	mocap.hold_target = global_position + Vector3(face * 0.6, 0.72, 0.16)
+	mocap.position.x = lerpf(mocap.position.x, -0.17 if st == "push" else 0.0, 1.0 - exp(-dt * 6.0))
 	mocap.drive(st, spd, sc, dt, xf)
 
 func _blank() -> Dictionary:
@@ -829,6 +832,7 @@ func _accessories(dt: float) -> void:
 	lantern.global_position = piv
 	lantern.rotation = Vector3(0, 0, lan_th)
 	var fl := 1.0 + 0.05 * sin(t * 13.0) + 0.04 * sin(t * 7.3 + 1.0) + 0.03 * sin(t * 23.0)
+	fl *= lamp_on
 	lamp_light.light_energy = 1.7 * fl
 	glass_mat.emission_energy_multiplier = 3.0 * fl
 	halo_mat.set_shader_parameter("k", fl)

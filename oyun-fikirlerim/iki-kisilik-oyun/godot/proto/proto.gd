@@ -120,7 +120,7 @@ func _ready() -> void:
 		_low_quality()
 	if test == "":
 		audio.start()
-		player.wake_t = 2.8   # açılış: yerde yatarken uyanır
+		_start_opening()
 	else:
 		audio.muted = true
 		_run_test()
@@ -423,6 +423,8 @@ func _build_vegetation() -> void:
 		if _in_gap(x):
 			continue
 		var z := rng.randf_range(-6.0, 3.2)
+		if absf(x - CHECKPOINTS[0].x) < 3.0 and z > -0.6:
+			continue
 		if absf(z) < 0.55 and rng.randf() < 0.75:
 			z = -0.9 if z < 0.0 else 0.9          # yolun üstü biraz açık kalsın
 		var k: Array = kinds[rng.randi() % kinds.size()]
@@ -856,7 +858,7 @@ func _update_chase(dt: float) -> void:
 				chase_t = 0.0
 		"run":
 			chase_t += dt
-			var v := lerpf(0.42, 0.72, clampf(chase_t / 5.0, 0.0, 1.0))
+			var v := lerpf(0.3, 0.52, clampf(chase_t / 5.0, 0.0, 1.0))
 			if px - chase_x > 7.0:
 				v += 0.4   # çok geride kalırsa biraz hızlanır
 			chase_x = minf(chase_x + v * dt, PLAT_A - 0.45)
@@ -912,7 +914,14 @@ func _process(dt: float) -> void:
 	match phase:
 		"intro":
 			fade.color.a = maxf(0.0, 1.0 - t / 3.0)
-			if t > 1.2:
+			if cine != null:
+				cine.step(dt)
+				if cine.done():
+					cine = null
+					cine_look = Vector3.INF
+					hint_t = 0.0
+					phase = "play"
+			elif t > 1.2:
 				phase = "play"
 		"dead":
 			dead_t += dt
@@ -1343,6 +1352,17 @@ func _run_test() -> void:
 			k3 += 1
 			print("SINEMA t=%.1f anim=%s x=%.2f" % [cine.t if cine != null else -1.0, player.force_anim, player.position.x])
 			await _shot("cine_%02d" % k3)
+	elif test == "protodiag":
+		await _diag()
+	elif test == "protoopen":
+		Sfx.set_muted(true)
+		phase = "intro"
+		t = 0.0
+		_start_opening()
+		for k4 in 9:
+			await _wait(1.1)
+			print("ACILIS t=%.1f wake=%.2f lamba=%.2f faz=%s" % [cine.t if cine != null else -1.0, player.wake_t, player.lamp_on, phase])
+			await _shot("open_%02d" % k4)
 	elif test == "protofloor":
 		bot = {"on": true}
 		var sp := get_world_3d().direct_space_state
@@ -1691,6 +1711,8 @@ func _build_grass() -> void:
 			var z := rng.randf_range(-2.6, 2.4)
 			if absf(z) < 0.35 and rng.randf() < 0.85:
 				continue
+			if absf(x - CHECKPOINTS[0].x) < 2.5 and z > 0.2:
+				continue
 			var h := rng.randf_range(0.18, 0.5) * (1.3 if absf(z) > 1.2 else 1.0)
 			var bs := Basis(Vector3.UP, rng.randf_range(-0.6, 0.6)) * Basis(Vector3(0, 0, 1), rng.randf_range(-0.25, 0.25)) * Basis.from_scale(Vector3(rng.randf_range(0.8, 1.4), h, 1.0))
 			xf.append(Transform3D(bs, Vector3(x + rng.randf_range(-0.03, 0.03), gy_at(x, z) - 0.02, z)))
@@ -1778,3 +1800,85 @@ func _build_smoke() -> void:
 		p.emitting = false
 		target.add_child(p)
 		smoke.append(p)
+
+## Ölçümlü karakter teşhisi: ayak-zemin teması, basan ayağın kayması, kasada el mesafesi
+func _foot(n: String) -> Vector3:
+	var mc: NehirMocap = player.mocap
+	return mc.skel.global_transform * mc.skel.get_bone_global_pose(mc.skel.find_bone(n)).origin
+
+func _diag() -> void:
+	bot = {"on": true}
+	chase = "done"
+	for spec in [["yavas", 0.3, 6.0], ["yuru", 0.45, 6.0], ["hizli", 0.6, 6.0], ["kos", 1.0, 6.0], ["egim", 1.0, 24.5]]:
+		await _place(spec[2], 0.6)
+		player.input_x = spec[1]
+		await _wait(1.2)
+		var pen := []
+		var slide := []
+		var prev := {}
+		for i in 90:
+			await get_tree().physics_frame
+			var fl := _foot("ball_l")
+			var fr := _foot("ball_r")
+			pen.append(fl.y - ground_y(fl.x))
+			pen.append(fr.y - ground_y(fr.x))
+			var low := "l" if fl.y < fr.y else "r"
+			var f: Vector3 = fl if low == "l" else fr
+			if prev.has(low) and prev.get("last", "") == low and f.y - ground_y(f.x) < 0.035:
+				slide.append((f.x - (prev[low] as Vector3).x) / (1.0 / 120.0))
+			prev[low] = f
+			prev["last"] = low
+		pen.sort()
+		slide.sort()
+		print("TESHIS %s hiz=%.2f  ayak_min=%.3f ayak_p10=%.3f  basan_ayak_kayma_medyan=%.2f m/s p90=%.2f" % [spec[0], absf(player.velocity.x), pen[0], pen[pen.size() / 10], slide[slide.size() / 2] if slide.size() > 0 else -1.0, slide[slide.size() * 9 / 10] if slide.size() > 0 else -1.0])
+		player.input_x = 0.0
+	# bekleme: ayak yüksekliği
+	await _place(6.0, 1.5)
+	print("TESHIS bekle ayak_l=%.3f ayak_r=%.3f" % [_foot("ball_l").y - ground_y(_foot("ball_l").x), _foot("ball_r").y - ground_y(_foot("ball_r").x)])
+	# kasa itme: el ile kasa yüzü
+	crate.position = Vector3(42.0, ground_y(42.0), 0)
+	await _place(40.8, 0.5)
+	player.input_x = 0.6
+	await _wait(2.0)
+	var hl := _foot("hand_l")
+	var hr := _foot("hand_r")
+	print("TESHIS itme el_l_x=%.2f el_r_x=%.2f kasa_yuzu=%.2f (fark %.2f, %.2f) el_y=%.2f" % [hl.x, hr.x, crate.position.x - 0.5, crate.position.x - 0.5 - hl.x, crate.position.x - 0.5 - hr.x, hl.y - crate.position.y])
+	player.input_x = 0.0
+	# dönüş
+	await _place(6.0, 0.8)
+	player.input_x = 1.0
+	await _wait(0.8)
+	player.input_x = -1.0
+	for i in 6:
+		await _wait(0.05)
+		print("TESHIS donus t=%.2f yaw=%.2f vx=%.2f" % [i * 0.05, player.yaw, player.velocity.x])
+	player.input_x = 0.0
+
+## AÇILIŞ: sisin içinde yerde yatan Nehir. Kamera yukarıdan yavaşça iner, fener titreyerek yanar,
+## Nehir doğrulur, kamera oyun açısına yerleşir ve kontrol oyuncuya geçer.
+func _start_opening() -> void:
+	var P := player.position
+	player.wake_t = 99.0
+	player.wake_hold = true
+	player.lamp_on = 0.0
+	var c := Cinematic.new()
+	c.cam(0.0, Vector3(P.x + 5.5, P.y + 6.0, 21.0), Vector3(P.x + 0.6, P.y + 0.2, 0.0), 34.0)
+	c.cam(4.6, Vector3(P.x + 1.4, P.y + 1.9, 4.6), Vector3(P.x + 0.1, P.y + 0.25, 0.0), 30.0)
+	c.cam(7.4, Vector3(P.x + 1.3, P.y + 1.5, 6.4), Vector3(P.x + 0.3, P.y + 0.8, 0.0), 29.0)
+	var gp := Vector3(P.x, P.y + 1.0, cam_dist)
+	c.cam(9.4, gp, gp + Vector3(0, tan(deg_to_rad(1.5)) * 10.0, -10.0), 30.0)
+	var pl := player
+	c.at(3.0, func() -> void:   # fener titreyerek yanar
+		var tw := create_tween()
+		for v in [0.35, 0.05, 0.6, 0.15, 0.8, 0.5, 1.0]:
+			tw.tween_property(pl, "lamp_on", v, 0.12)
+		audio.play("kumas", -16.0))
+	c.at(4.4, func() -> void:
+		pl.wake_hold = false
+		pl.wake_t = 2.9
+		audio.play("nefes_al", -14.0))
+	c.at(6.0, func() -> void: audio.play("nefes_ver", -16.0))
+	c.at(9.4, func() -> void:
+		cam_pos = gp
+		look = 0.0)
+	cine = c

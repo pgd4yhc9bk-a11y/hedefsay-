@@ -89,13 +89,17 @@ func _build_tree() -> void:
 	var bt := AnimationNodeBlendTree.new()
 	var loco := AnimationNodeBlendSpace1D.new()
 	loco.min_space = 0.0
-	loco.max_space = 6.0
+	loco.max_space = 8.0
 	loco.sync = true
+	# noktalar animasyonların ölçülen doğal hızında (1.45 m boyda): ayak kaymaz
 	loco.add_blend_point(_anim("Idle_Lantern"), 0.0)
-	loco.add_blend_point(_anim("Walk"), 0.9)
-	loco.add_blend_point(_anim("Jog_Fwd"), 3.4)
-	loco.add_blend_point(_anim("Sprint"), 5.6)
-	bt.add_node("loco", loco)
+	loco.add_blend_point(_anim("Walk"), 0.77)
+	loco.add_blend_point(_anim("Jog_Fwd"), 4.9)
+	loco.add_blend_point(_anim("Sprint"), 7.3)
+	bt.add_node("loco_bs", loco)
+	var lts := AnimationNodeTimeScale.new()
+	bt.add_node("loco", lts)
+	bt.connect_node("loco", 0, "loco_bs")
 	var nodes := {
 		"air": _anim("Jump"), "land": _anim("Jump_Land"), "roll": _anim("Roll"), "push": _anim("Push"),
 		"climb": _anim("ClimbUp_1m"), "wake": _anim("LayToIdle"), "death": _anim("Death01"), "reach": _anim("Idle_Lantern"), "crouch": _anim("Crouch_Idle"), "torch": _anim("Idle_Torch"),
@@ -119,6 +123,7 @@ func _build_tree() -> void:
 	tree.active = true
 	for k: String in nodes:
 		tree.set("parameters/%s/scale" % k, 1.0)
+	tree.set("parameters/loco/scale", 1.0)
 
 ## Her kare: durum, hız ve zaman ölçeği; sonra animasyonu ilerlet ve kodla eklemeleri uygula.
 func drive(st: String, speed: float, scale: float, dt: float, xfade := 0.2) -> void:
@@ -127,7 +132,23 @@ func drive(st: String, speed: float, scale: float, dt: float, xfade := 0.2) -> v
 		(tree.tree_root as AnimationNodeBlendTree).get_node("state").xfade_time = xfade
 		tree.set("parameters/state/transition_request", st)
 	if st == "loco":
-		tree.set("parameters/loco/blend_position", speed)
+		# koşu: yürüme ile karışık koşu pozu (daha kısa adım) + tam hıza göre yavaşlatılmış oynatma
+		# yürüme ve koşu farklı adım ritminde: karıştırmak ayakları kaydırır. Bunun yerine yürüme hızlandırılır,
+		# 1.3-1.7 m/s arasında kısa bir geçişle koşuya (koşu + %22 yürüme karışık poz, ölçülen doğal hız 3.55) geçilir.
+		var p := speed
+		var sc := 1.0
+		if speed > 0.77 and speed <= 1.3:
+			p = 0.77
+			sc = speed / 0.77
+		elif speed > 1.3 and speed < 1.7:
+			var k := (speed - 1.3) / 0.4
+			p = lerpf(0.77, 4.0, k)
+			sc = lerpf(1.3 / 0.77, 1.7 / 3.55, k)
+		elif speed >= 1.7:
+			p = 4.0
+			sc = speed / 3.55
+		tree.set("parameters/loco_bs/blend_position", p)
+		tree.set("parameters/loco/scale", sc)
 	else:
 		tree.set("parameters/%s/scale" % st, scale)
 	tree.advance(dt)
