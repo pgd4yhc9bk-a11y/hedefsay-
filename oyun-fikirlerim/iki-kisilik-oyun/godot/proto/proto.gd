@@ -67,6 +67,7 @@ var chase_t := 0.0
 var chase_x := 0.0
 var caught := false
 var music_on := false
+var built := false               # bölüm kurulumu bitti mi
 var cine: Cinematic = null       # oynayan ara sahne
 var cine_look := Vector3.INF
 var bars: Array = []             # sinema bantları (üst, alt)
@@ -79,19 +80,23 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--test="):
 			test = a.substr(7)
-	_build_env()
-	_build_terrain()
-	_build_log()
-	_build_vegetation()
-	_build_trees()
-	_build_sky()
-	_build_fx()
-	_build_sisli()
-	_build_ribbon()
-	_build_valley()
-	_build_chaser()
-	_build_grass()
-	_build_smoke()
+	# yükleme ekranı: bölüm adım adım kurulur, ekran donmaz
+	var ld := CanvasLayer.new()
+	ld.layer = 20
+	add_child(ld)
+	var lbg := ColorRect.new()
+	lbg.size = Vector2(1280, 720)
+	lbg.color = Color(0, 0, 0, 1)
+	ld.add_child(lbg)
+	var lbl := _label("yükleniyor", 22, Vector2(0, 330))
+	lbl.modulate.a = 0.6
+	ld.add_child(lbl)
+	var steps := [_build_env, _build_terrain, _build_log, _build_vegetation, _build_trees, _build_sky, _build_fx,
+		_build_sisli, _build_ribbon, _build_valley, _build_chaser, _build_grass, _build_smoke]
+	for i in steps.size():
+		(steps[i] as Callable).call()
+		lbl.text = "yükleniyor" + ".".repeat(i % 4)
+		await get_tree().process_frame
 	audio = ProtoAudio.new()
 	add_child(audio)
 	Sfx.set_ambient(false)
@@ -118,6 +123,8 @@ func _ready() -> void:
 		_high_quality()
 	elif DisplayServer.is_touchscreen_available() or OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios"):
 		_low_quality()
+	ld.queue_free()
+	built = true
 	if test == "":
 		audio.start()
 		_start_opening()
@@ -904,6 +911,8 @@ func _respawn() -> void:
 		chaser.modulate.a = 0.0
 
 func _process(dt: float) -> void:
+	if not built:
+		return
 	t += dt
 	_read_input()
 	# kontrol noktaları
@@ -1221,6 +1230,8 @@ func _read_input() -> void:
 	player.grab_held = Input.is_action_pressed("grab") or _touch.size() >= 2
 
 func _input(ev: InputEvent) -> void:
+	if not built:
+		return
 	if phase == "done" and ((ev is InputEventKey and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed) or (ev is InputEventMouseButton and ev.pressed)):
 		_back_to_menu()
 		return

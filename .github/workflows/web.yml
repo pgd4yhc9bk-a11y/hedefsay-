@@ -61,8 +61,10 @@ jobs:
             printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\nexport/android/debug_keystore = "%s"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "$SDK" "$JAVA" "$KS" > ~/.config/godot/$f
           done
           export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$KS" GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
+          # hızlı (release) derleme; test anahtarıyla imzalanır (Play Store için gerçek anahtar gerekir)
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$KS" GODOT_ANDROID_KEYSTORE_RELEASE_USER=androiddebugkey GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=android
           mkdir -p build/android
-          godot --headless --export-debug "Android" build/android/sis.apk
+          godot --headless --export-release "Android" build/android/sis.apk
           ls -la build/android
           cp build/android/sis.apk build/web/sis.apk
       - name: APK'yı sakla
