@@ -44,7 +44,7 @@ var brass: StandardMaterial3D
 var snow: StandardMaterial3D
 
 func _ready() -> void:
-	test_mode = "--test=birlikte" in OS.get_cmdline_user_args() or "--test=birlikteplay" in OS.get_cmdline_user_args()
+	test_mode = "--test=birlikteanim" in OS.get_cmdline_user_args() or "--test=birlikte" in OS.get_cmdline_user_args() or "--test=birlikteplay" in OS.get_cmdline_user_args()
 	wood = material(Color(0.17, 0.11, 0.075))
 	stone = material(Color(0.18, 0.22, 0.23))
 	brass = material(Color(0.65, 0.42, 0.12))
@@ -60,6 +60,7 @@ func _ready() -> void:
 	player.world = self
 	player.position = Vector3(4, 0.08, 0)
 	add_child(player)
+	player.mocap.tree.add_animation_library("cooperate", preload("res://proto/mocap/birlikte_nehir.res"))
 	player.died.connect(restore_checkpoint)
 	cinar = Companion.new()
 	cinar.level = self
@@ -77,7 +78,9 @@ func _ready() -> void:
 	if not test_mode:
 		load_progress()
 	else:
-		if "--test=birlikteplay" in OS.get_cmdline_user_args():
+		if "--test=birlikteanim" in OS.get_cmdline_user_args():
+			run_animation_tests()
+		elif "--test=birlikteplay" in OS.get_cmdline_user_args():
 			run_walkthrough()
 		else:
 			run_tests()
@@ -122,10 +125,10 @@ func plate(x: float, width := 1.4) -> void:
 	markers.append(node.get_child(0) as MeshInstance3D)
 
 func lever(x: float) -> void:
-	box(Vector3(x, 0.45, -0.7), Vector3(0.45, 0.9, 0.4), stone)
-	var arm := box(Vector3(x, 1.05, -0.7), Vector3(0.12, 0.8, 0.12), brass)
+	box(Vector3(x + 0.35, 0.3, 0), Vector3(0.25, 0.6, 0.35), stone)
+	var arm := box(Vector3(x + 0.35, 0.75, 0), Vector3(0.08, 0.5, 0.08), brass)
 	arm.rotation.z = -0.45
-	box(Vector3(x + 0.18, 1.4, -0.7), Vector3(0.4, 0.12, 0.15), wood)
+	box(Vector3(x + 0.46, 0.98, 0), Vector3(0.12, 0.1, 0.45), wood)
 
 func build_world() -> void:
 	var we := WorldEnvironment.new()
@@ -234,6 +237,7 @@ func action(kind: String) -> void:
 		paused = not paused
 		phase = "paused" if paused else "play"
 		player.set_physics_process(not paused)
+		player.set_process(not paused)
 		touches.clear()
 		finger = null
 		return
@@ -255,6 +259,7 @@ func action(kind: String) -> void:
 		phase = "play"
 		paused = false
 		player.set_physics_process(true)
+		player.set_process(true)
 		restore_checkpoint()
 		save_progress()
 		return
@@ -288,13 +293,19 @@ func send_to(x: float) -> void:
 func occupied(x: float, who: Node3D, radius := 0.85) -> bool:
 	return absf(who.position.x - x) < radius and absf(who.position.y) < 0.3
 
+func companion_lever() -> bool:
+	return (not solved[2] and occupied(240, cinar)) or (not solved[5] and occupied(568, cinar))
+
 func interact() -> void:
 	if phase != "play": return
 	if not solved[0] and occupied(68, player, 1.5):
-		if occupied(60, cinar): complete(0)
+		if occupied(60, cinar):
+			player.play_interaction("cooperate/LeverPull")
+			complete(0)
 		else: hint.text = "Öteki plakanın üzerinde biri beklemeli."
 	elif not solved[2] and occupied(245, player, 1.5):
 		if occupied(240, cinar):
+			player.play_interaction("cooperate/LeverPull")
 			set_bridge(true)
 			hint.text = "Çınar çarkı tutsun. Karşı kıyıdaki kilidi Nehir açacak."
 	elif not solved[3] and player.position.x > 346 and player.position.x < 356:
@@ -303,6 +314,7 @@ func interact() -> void:
 			return
 		var symbol := int(round((player.position.x - 348) / 3.0))
 		if symbol < 0 or symbol > 2: return
+		player.play_interaction("cooperate/SymbolTouch", PI / 2.0)
 		var order := [2, 0, 1]
 		if symbol == order[sequence.size()]:
 			sequence.append(symbol)
@@ -312,10 +324,14 @@ func interact() -> void:
 			sequence.clear()
 			hint.text = "Taşlar sustu. Fenerin sırasına yeniden bak."
 	elif not solved[4] and occupied(453, player, 1.5):
-		if occupied(440, crate, 0.7) and occupied(448, cinar): complete(4)
+		if occupied(440, crate, 0.7) and occupied(448, cinar):
+			player.play_interaction("cooperate/LeverPull")
+			complete(4)
 		else: hint.text = "Büyük plaka ağır bir yük, küçük plaka bir yardımcı istiyor."
 	elif not solved[5] and occupied(578, player, 1.5):
-		if solved[0] and solved[2] and solved[3] and occupied(568, cinar): complete(5)
+		if solved[0] and solved[2] and solved[3] and occupied(568, cinar):
+			player.play_interaction("cooperate/LeverPull")
+			complete(5)
 		else: hint.text = "Üç bakır parça ve öteki kolu tutan Çınar gerekli."
 
 func complete(i: int) -> void:
@@ -431,7 +447,9 @@ func restore_checkpoint() -> void:
 	player.state = "ground"
 	cinar.position = Vector3(x - 1.2, 0.1, 0)
 	cinar.velocity = Vector3.ZERO
+	cinar.reset_interaction()
 	cinar.command("follow")
+	player.interaction_left = 0
 	selected = false
 	player.input_x = 0.0
 	player.jump_pressed = false
@@ -611,4 +629,66 @@ func run_walkthrough() -> void:
 	await get_tree().create_timer(3).timeout
 	check(solved.count(true) == 6 and phase == "done", "Fizik güzergâhı bitmeli")
 	print("BIRLIKTE OYNANIS hata=", failures, " oyun_saniye=", elapsed)
+	get_tree().quit(1 if failures else 0)
+
+## Yeni kliplerin kaynaklarını ve oynanıştaki geçişlerini denetle.
+func run_animation_tests() -> void:
+	await get_tree().create_timer(1).timeout
+	for body in [player.mocap, cinar.model]:
+		var lib: AnimationLibrary = body.tree.get_animation_library("cooperate")
+		for name in lib.get_animation_list():
+			var a: Animation = lib.get_animation(name)
+			check(a.length > 0 and a.get_track_count() >= 20, "Animasyon verisi: " + name)
+			check(a.loop_mode == (Animation.LOOP_LINEAR if name in ["LeverHold", "CrouchWalk"] else Animation.LOOP_NONE), "Döngü: " + name)
+			for t in a.get_track_count():
+				var path := a.track_get_path(t)
+				check(body.model.get_node_or_null(NodePath(str(path).split(":")[0])) == body.skel, "İskelet yolu: " + name)
+				check(body.skel.find_bone(path.get_subname(0)) >= 0, "Kemik yolu: " + name)
+				if a.loop_mode == Animation.LOOP_LINEAR:
+					var first = a.track_get_key_value(t, 0)
+					var last = a.track_get_key_value(t, a.track_get_key_count(t) - 1)
+					check(first.is_equal_approx(last), "Döngü dikişi: " + name)
+	player.play_interaction("cooperate/LeverPull")
+	await get_tree().create_timer(0.2).timeout
+	check(player.mocap.any_name == "cooperate/LeverPull", "Nehir kol çekmeli")
+	action("pause")
+	var remaining := player.interaction_left
+	await get_tree().create_timer(0.2).timeout
+	check(player.interaction_left == remaining, "Duraklat animasyonu dondurmalı")
+	action("pause")
+	bot_axis = 1.0
+	await get_tree().create_timer(0.2).timeout
+	check(player.interaction_left == 0, "Yürüyüş etkileşimi iptal etmeli")
+	bot_axis = 0.0
+	await get_tree().create_timer(0.4).timeout
+	player.play_interaction("cooperate/SymbolTouch", PI / 2)
+	await get_tree().create_timer(0.2).timeout
+	check(player.mocap.any_name == "cooperate/SymbolTouch", "Nehir sembole dokunmalı")
+	cinar.command("stay")
+	await get_tree().create_timer(0.2).timeout
+	check(cinar.model.any_name == "cooperate/Nod", "Çınar onay vermeli")
+	cinar.position = Vector3(240, 0, 0)
+	cinar.command("stay", 0, false)
+	await get_tree().create_timer(0.2).timeout
+	check(cinar.lever_stage == "pull", "Çınar önce kolu çekmeli")
+	await get_tree().create_timer(2.1).timeout
+	check(cinar.model.any_name == "cooperate/LeverHold", "Çınar kolu tutmalı")
+	cinar.command("follow")
+	await get_tree().create_timer(0.2).timeout
+	check(cinar.model.any_name == "cooperate/LeverRelease", "Yeni komutta kolu bırakmalı")
+	await get_tree().create_timer(2.1).timeout
+	check(cinar.lever_stage == "" and cinar.velocity.x < 0, "Bırakınca takibe dönmeli")
+	cinar.reset_interaction()
+	cinar.position = Vector3(152, 0, 0)
+	cinar.command("go", 154)
+	await get_tree().create_timer(0.2).timeout
+	check(cinar.model.any_name == "cooperate/CrouchWalk", "Tünelde eğilmeli")
+	cinar.position = Vector3(431, 0, 0)
+	cinar.velocity = Vector3.ZERO
+	cinar.command("go", 435)
+	await get_tree().create_timer(0.2).timeout
+	check(cinar.model.any_name == "cooperate/Hop", "Kasayı aşarken sıçrama klibi")
+	action("restart")
+	check(cinar.lever_stage == "" and player.interaction_left == 0, "Baştan eski animasyonu temizlemeli")
+	print("BIRLIKTE ANIMASYON hata=", failures)
 	get_tree().quit(1 if failures else 0)
