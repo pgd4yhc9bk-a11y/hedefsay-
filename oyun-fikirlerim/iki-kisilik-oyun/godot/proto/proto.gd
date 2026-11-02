@@ -58,6 +58,7 @@ var end_t := 0.0
 var dead_t := 0.0
 var hint_t := 0.0
 var test := ""
+var test_failures := 0
 var close_cam := 0.0
 var bot := {}
 var _touch := {}                 # parmak indeksi -> {start, pos, t}
@@ -1714,7 +1715,7 @@ func _run_test() -> void:
 		ev.index = 0
 		ev.pressed = true
 		ev.position = c + Vector2(0, -r)
-		get_viewport().push_input(ev)
+		get_viewport().push_input(ev, true)
 		var last := ev.position
 		var ymax := player.position.y
 		var xs := player.position.x
@@ -1726,7 +1727,7 @@ func _run_test() -> void:
 			dv.position = c + Vector2(cos(a), sin(a)) * r
 			dv.relative = dv.position - last
 			last = dv.position
-			get_viewport().push_input(dv)
+			get_viewport().push_input(dv, true)
 			await get_tree().process_frame
 			ymax = maxf(ymax, player.position.y)
 			air = air or player.state == "air"
@@ -1734,8 +1735,9 @@ func _run_test() -> void:
 		up.index = 0
 		up.pressed = false
 		up.position = last
-		get_viewport().push_input(up)
+		get_viewport().push_input(up, true)
 		await _wait(0.5)
+		_test_check(zones.gate_open and not air, "Çark açılmalı; çevirirken zıplanmamalı")
 		print("DAIRE tur=%.2f kapi=%s havada=%s y_artis=%.3f x_kayma=%.3f" % [zones.turns, zones.gate_open, air, ymax - (-0.42), player.position.x - xs])
 	elif test == "protolift":   # asansör: iki parmak zıt yönde -> yükselir, zıplamaz
 		await _place(ProtoZones.ELEV_X - 0.2, 1.0)
@@ -1751,7 +1753,7 @@ func _run_test() -> void:
 			e.index = i
 			e.pressed = true
 			e.position = pa if i == 0 else pb
-			get_viewport().push_input(e)
+			get_viewport().push_input(e, true)
 		var air := false
 		for k in 720:
 			var ph := 1.0 if (k / 20) % 2 == 0 else -1.0   # 20 karede bir yön değiştirir
@@ -1766,8 +1768,8 @@ func _run_test() -> void:
 				else:
 					pb += d.relative
 					d.position = pb
-				get_viewport().push_input(d)
-			await get_tree().process_frame
+				get_viewport().push_input(d, true)
+			await _wait(1.0 / 60.0)
 			air = air or player.state == "air"
 			if k == 5:
 				close_cam = 5.5
@@ -1778,8 +1780,9 @@ func _run_test() -> void:
 			var e2 := InputEventScreenTouch.new()
 			e2.index = i
 			e2.pressed = false
-			get_viewport().push_input(e2)
+			get_viewport().push_input(e2, true)
 		await _wait(0.6)
+		_test_check(zones.lift_y >= ProtoZones.ELEV_TOP - 0.01 and not air, "İki parmak asansörü tepeye çıkarmalı; zıplatmamalı")
 		print("ASANSOR y=%.2f oyuncu_y=%.2f havada=%s" % [zones.lift_y, player.position.y, air])
 		await _shot("asansor_3")
 	elif test == "protoswipe":   # gerçek akış: açılış, sonra parmakla sağa kaydır -> yürümeli
@@ -1797,50 +1800,53 @@ func _run_test() -> void:
 		e.index = -762507645   # iPhone Safari gibi eksi numara
 		e.pressed = true
 		e.position = Vector2(300, 400)
-		get_viewport().push_input(e)
+		get_viewport().push_input(e, true)
 		for k in 30:
 			var d := InputEventScreenDrag.new()
 			d.index = -762507645
 			d.position = Vector2(300 + minf(k * 8.0, 160.0), 400)
 			d.relative = Vector2(8, 0) if k < 20 else Vector2.ZERO
-			get_viewport().push_input(d)
+			get_viewport().push_input(d, true)
 			await get_tree().process_frame
 		await _wait(1.5)
+		_test_check(phase == "play" and player.position.x - x0 > 1.0, "Negatif numaralı parmak yürütmeli")
 		print("KAYDIR girdi=%.2f x_degisim=%.2f durum=%s _first=%d dokunus=%d" % [player.input_x, player.position.x - x0, player.state, _first, _touch.size()])
 		# 1) hayalet parmak: bırakılmamış dokunuş (kalkışı kaçırılmış), sonra yeni parmakla kaydır
 		var up0 := InputEventScreenTouch.new()
 		up0.index = -762507645
 		up0.pressed = false
 		up0.position = Vector2(460, 400)
-		get_viewport().push_input(up0)
+		get_viewport().push_input(up0, true)
 		var ghost := InputEventScreenTouch.new()
 		ghost.index = 7
 		ghost.pressed = true
 		ghost.position = Vector2(900, 300)
-		get_viewport().push_input(ghost)
+		get_viewport().push_input(ghost, true)
 		await _wait(1.0)
 		x0 = player.position.x
 		var e2 := InputEventScreenTouch.new()
 		e2.index = 1
 		e2.pressed = true
 		e2.position = Vector2(300, 450)
-		get_viewport().push_input(e2)
+		get_viewport().push_input(e2, true)
 		for k in 20:
 			var d2 := InputEventScreenDrag.new()
 			d2.index = 1
 			d2.position = Vector2(300 + minf(k * 10.0, 160.0), 450)
 			d2.relative = Vector2(10, 0)
-			get_viewport().push_input(d2)
+			get_viewport().push_input(d2, true)
 			await get_tree().process_frame
 		await _wait(1.0)
+		_test_check(player.position.x - x0 > 1.0 and _first == 1, "Yeni parmak hayalet dokunuştan kontrolü devralmalı")
 		print("HAYALET x_degisim=%.2f _first=%d (yurumeli)" % [player.position.x - x0, _first])
 		# 2) yanlış numarayla kalkış: parmak 1, numara 9 ile kalkar -> en yakın kaldırılır
 		var upw := InputEventScreenTouch.new()
 		upw.index = 9
 		upw.pressed = false
 		upw.position = Vector2(460, 450)
-		get_viewport().push_input(upw)
+		get_viewport().push_input(upw, true)
 		await get_tree().process_frame
+		_test_check(not _touch.has(1), "Yanlış numaralı kalkış en yakın parmağı kaldırmalı")
 		print("YANLIS_NUMARA kalan=%s _first=%d" % [str(_touch.keys()), _first])
 		# 3) sağ parmak yürürken sol parmakla yukarı kaydır: zıplamalı ve yürümeye devam etmeli
 		_touch.clear()
@@ -1849,30 +1855,31 @@ func _run_test() -> void:
 		r.index = -5
 		r.pressed = true
 		r.position = Vector2(800, 450)
-		get_viewport().push_input(r)
+		get_viewport().push_input(r, true)
 		for k in 12:
 			var d3 := InputEventScreenDrag.new()
 			d3.index = -5
 			d3.position = Vector2(800 + k * 12.0, 450)
 			d3.relative = Vector2(12, 0)
-			get_viewport().push_input(d3)
+			get_viewport().push_input(d3, true)
 			await get_tree().process_frame
 		var l := InputEventScreenTouch.new()
 		l.index = -6
 		l.pressed = true
 		l.position = Vector2(250, 500)
-		get_viewport().push_input(l)
+		get_viewport().push_input(l, true)
 		var jumped := false
 		for k in 6:
 			var d4 := InputEventScreenDrag.new()
 			d4.index = -6
 			d4.position = Vector2(250, 500 - (k + 1) * 20.0)
 			d4.relative = Vector2(0, -20)
-			get_viewport().push_input(d4)
+			get_viewport().push_input(d4, true)
 			await get_tree().process_frame
 			jumped = jumped or player.state == "air" or player.jump_pressed
 		await _wait(0.3)
 		jumped = jumped or player.state == "air"
+		_test_check(jumped and player.input_x > 0.0, "İkinci parmak zıplatırken yürüyüş sürmeli")
 		print("IKI_PARMAK zipladi=%s girdi=%.2f (yurumeye devam: >0) ilk=%d parmaklar=%s" % [jumped, player.input_x, _first, str(_touch)])
 	elif test == "protofall":   # asansör yarı yoldayken atlayıp düşerse ölmeli, asansör aşağıda yeniden başlamalı
 		bot = {"on": true}
@@ -1898,6 +1905,7 @@ func _run_test() -> void:
 		while phase == "dead" and tw2 < 10.0:
 			await _wait(0.1)
 			tw2 += 0.1
+		_test_check(died and phase == "play" and is_equal_approx(zones.lift_y, ProtoZones.ELEV_BOT), "Düşünce ölmeli ve asansör aşağı sıfırlanmalı")
 		printerr("DUSME oldu=%s yeniden x=%.2f asansor_y=%.2f" % [died, player.position.x, zones.lift_y])
 		# 2) tepeye çık, kayalığın üstünden asansörün dibine atla: ölmeli
 		await _place(ProtoZones.ELEV_X - 0.2, 0.8)
@@ -1906,6 +1914,7 @@ func _run_test() -> void:
 			zones.add_lift(0.03)
 			await _wait(0.05)
 			t0 += 0.05
+		_test_check(zones.lift_y >= ProtoZones.ELEV_TOP - 0.01 and t0 > 8.0, "Asansör tepeye hız sınırıyla ulaşmalı")
 		printerr("TEPE sure=%.1fs (hiz sinirli olmali: >8s)" % t0)
 		await _wait(1.5)
 		player.input_x = -1.0   # kenara yürür (sendeler), sonra boşluğa atlar
@@ -1921,6 +1930,7 @@ func _run_test() -> void:
 		while phase == "dead" and tw3 < 10.0:
 			await _wait(0.1)
 			tw3 += 0.1
+		_test_check(died and phase == "play" and is_equal_approx(zones.lift_y, ProtoZones.ELEV_BOT), "Tepeden düşünce ölmeli ve asansör sıfırlanmalı")
 		printerr("TEPEDEN_DUSME oldu=%s yeniden x=%.2f asansor_y=%.2f" % [died, player.position.x, zones.lift_y])
 	elif test == "protoend":   # bütün bölüm botla, final görüntülü
 		await _play_bot(true)
@@ -2039,12 +2049,23 @@ func _run_test() -> void:
 			print("ZEMIN x=%.2f -> %s (beklenen %.2f)" % [xx, str(r.get("position", "YOK")), ground_y(xx)])
 	elif test == "protopose":
 		await _pose_shots()
-	get_tree().quit()
+	else:
+		_test_check(false, "Bilinmeyen test: " + test)
+	print("TEST SONUC %s hata=%d" % [test, test_failures])
+	get_tree().quit(1 if test_failures > 0 else 0)
+
+func _test_check(ok: bool, message: String) -> void:
+	if not ok:
+		test_failures += 1
+		printerr("TEST BASARISIZ: ", message)
 
 func _wait(s: float) -> void:
 	await get_tree().create_timer(s).timeout
 
 func _shot(n: String) -> void:
+	if DisplayServer.get_name() == "headless":
+		print("SHOT ATLANDI (ekransız): ", n)
+		return
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("res://../%s.png" % n)
 	print("SHOT ", n)
@@ -2105,6 +2126,7 @@ func _play_bot(shots: bool) -> void:
 			shot_i += 1
 			await _shot("bot_%d" % shot_i)
 		if not ok:
+			_test_check(false, "Bot adımı tamamlanamadı: " + str(s))
 			print("BOT BASARISIZ")
 			return
 	var tt := 0.0
@@ -2114,6 +2136,7 @@ func _play_bot(shots: bool) -> void:
 		if shots and int(tt * 4.0) % 4 == 0 and tt <= 12.0:
 			await _shot("bot_end_%02d" % int(tt))
 			print("BOT son t=%.1f faz=%s x=%.2f y=%.2f durum=%s anim=%s cinar=%s fener_serbest=%s kancada=%s" % [tt, phase, player.position.x, player.position.y, player.state, player.force_anim, cinar_anim, player.lan_free, zones.lantern_on_hook])
+	_test_check(phase == "done", "Bot finali süre içinde tamamlamadı")
 	print("BOT BITIS phase=%s sure=%.1fs" % [phase, (Time.get_ticks_msec() - t0) / 1000.0])
 
 func _bot_step(s: Array) -> bool:
@@ -2147,7 +2170,7 @@ func _bot_step(s: Array) -> bool:
 			player.input_x = 0.3
 			await _wait(0.06)
 			player.input_x = 0.0
-			return true
+			return tt < 10.0 and player.position.x <= tx2
 		"jump_at":
 			var jx: float = s[1]
 			while player.position.x < jx and tt < 20.0:
@@ -2231,7 +2254,7 @@ func _bot_step(s: Array) -> bool:
 			while player.state != "ground" and tt < 6.0:
 				await _wait(0.02)
 				tt += 0.02
-			return true
+			return player.state == "ground"
 		"wait":
 			await _wait(s[1])
 			return true
