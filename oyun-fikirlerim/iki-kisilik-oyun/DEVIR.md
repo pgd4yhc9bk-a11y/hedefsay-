@@ -9,8 +9,8 @@
 - **Proje klasörü:** `oyun-fikirlerim/iki-kisilik-oyun/godot/`
 - **Üzerinde çalışılan bölüm:** 3D prototip "Kurdele", `godot/proto/` klasöründe. Eski 2D oyun `godot/scripts/` klasöründe; ona dokunma.
 - **Depo ve dal:** `pgd4yhc9bk-a11y/hedefsay-`, dal `claude/intelligent-edison-7fygf8`.
-- **Güvenli dönüş noktası:** `prototip-v1` etiketi. Her şey bozulursa buna dönülür:
-  `git checkout prototip-v1`
+- **Güvenli dönüş noktası:** commit `587576b` (prototip bölümün çalışan, test edilmiş hâli). Her şey bozulursa:
+  `git checkout 587576b` (ya da GitHub'da bu commit'e bakılır)
 - **Web sürümü:** https://pgd4yhc9bk-a11y.github.io/hedefsay-/ (her push'ta GitHub Actions ile kendiliğinden yayınlanır)
 - **APK:** https://pgd4yhc9bk-a11y.github.io/hedefsay-/sis.apk. Yalnızca commit mesajında `[apk]` geçerse ya da workflow elle çalıştırılırsa derlenir.
 
