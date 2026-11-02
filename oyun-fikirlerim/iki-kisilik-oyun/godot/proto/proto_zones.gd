@@ -279,8 +279,7 @@ void fragment() {
 		river_snd.stream = st
 	river_snd.volume_db = -60.0
 	add_child(river_snd)
-	if not audio.muted and river_snd.stream != null:
-		river_snd.play()
+	# Nehir sesi yalnız kıyıya yaklaşınca başlatılır.
 	splash = _ring_particles(0.35, 0.9, 10)
 	splash.one_shot = true
 	splash.emitting = false
@@ -312,6 +311,7 @@ func _ring_particles(spread_r: float, life: float, amount: int) -> CPUParticles3
 	q.size = Vector2(0.5, 0.5)
 	q.material = m
 	var p := CPUParticles3D.new()
+	p.emitting = false   # Ağaca eklenmeden kapat; başlangıçta dünya merkezinde halka üretmesin.
 	p.mesh = q
 	p.amount = amount
 	p.lifetime = life
@@ -466,11 +466,14 @@ func docked() -> bool:
 
 # ---------------------------------------------------------------- çark
 func _update_wheel(dt: float) -> void:
+	_turn_t = maxf(0.0, _turn_t - dt)
+	if forced == "M_TurnWheel" and (_turn_t <= 0 or absf(pl.input_x) > 0.1):
+		_release_wheel()
 	var px := pl.position.x
 	var near: bool = not gate_open and lv.phase == "play" and absf(px - STAND_X) < 0.9 and pl.is_on_floor() and pl.state in ["ground", "cut"]
 	if near != wheel_active:
 		wheel_active = near
-		if not near and pl.yaw_override != INF:
+		if not near and forced == "M_TurnWheel":
 			_release_wheel()
 		if not near:
 			pl.reach = 0.0
@@ -480,7 +483,6 @@ func _update_wheel(dt: float) -> void:
 		if Input.is_key_pressed(KEY_E) or Input.is_action_pressed("grab"):
 			add_turn(dt * 0.55)
 		# Meshy'den çark çevirme animasyonu geldiyse: çevirirken onu oynatır, yerinde durur
-		_turn_t = maxf(0.0, _turn_t - dt)
 		if _has_turn_anim():
 			if _turn_t > 0.0 and pl.state == "ground":
 				pl.state = "cut"
@@ -522,6 +524,7 @@ func _has_turn_anim() -> bool:
 	return pl.mocap != null and pl.mocap.has_anim("M_TurnWheel")
 
 func _release_wheel() -> void:   # çevirme bitti: yeniden yana döner, kontrol oyuncuda
+	_turn_t = 0.0
 	if forced != "":
 		pl.force_anim = ""
 		forced = ""
@@ -596,10 +599,14 @@ func lift_drag(index: int, rel: Vector2, touches: int) -> void:
 			break
 
 func touch_released(index: int) -> void:
+	var turning := _vlast.has(index)
 	_vlast.erase(index)
+	if turning and _vlast.is_empty() and forced == "M_TurnWheel":
+		_release_wheel()
 	_fdy.clear()   # parmak çifti değişti; iki taraftan da yeni hareket bekle
 
 func reset_touch_gestures() -> void:
+	if forced == "M_TurnWheel": _release_wheel()
 	_vlast.clear()
 	_fdy.clear()
 
@@ -662,7 +669,12 @@ func _update_river(dt: float) -> void:
 	elif px > LAKE_B:
 		d = px - LAKE_B
 	if river_snd != null:
-		river_snd.volume_db = lerpf(-12.0, -40.0, clampf(d / 14.0, 0.0, 1.0))
+		if d >= 14.0 or audio.muted:
+			river_snd.stop()
+		else:
+			river_snd.volume_db = lerpf(-12.0, -60.0, clampf(d / 14.0, 0.0, 1.0))
+			if not river_snd.playing and river_snd.stream != null:
+				river_snd.play()
 	# sandalda mı
 	var was := on_boat
 	on_boat = lv.phase == "play" and absf(px - boat_x) < BOAT_HALF and py > WATER_Y - 0.1 and py < WATER_Y + 0.5 and pl.state != "climb"
