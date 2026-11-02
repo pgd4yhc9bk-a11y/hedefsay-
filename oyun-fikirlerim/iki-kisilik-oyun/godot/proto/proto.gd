@@ -1403,6 +1403,8 @@ func _input(ev: InputEvent) -> void:
 						best = k
 				ev = ev.duplicate()
 				ev.index = best
+			if zones != null:
+				zones.touch_released(ev.index)
 			_touch.erase(ev.index)
 			if ev.index == _first:   # yürüten parmak kalktı: ekranda kalan başka parmak varsa yürütmeyi o devralır
 				_first = NO_TOUCH
@@ -1444,6 +1446,8 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:   # odak kaybı: parmaklar sıfırlanır
 		_touch.clear()
 		_first = NO_TOUCH
+		if zones != null:
+			zones.reset_touch_gestures()
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		_back_to_menu()
 
@@ -1739,6 +1743,37 @@ func _run_test() -> void:
 		await _wait(0.5)
 		_test_check(zones.gate_open and not air, "Çark açılmalı; çevirirken zıplanmamalı")
 		print("DAIRE tur=%.2f kapi=%s havada=%s y_artis=%.3f x_kayma=%.3f" % [zones.turns, zones.gate_open, air, ymax - (-0.42), player.position.x - xs])
+	elif test == "protoliftinput":
+		bot = {"on": true}
+		await _place(ProtoZones.ELEV_X - 0.2, 1.0)
+		_test_check(zones.lift_active, "Asansör çekişe hazır olmalı")
+		var g: float = zones._lift_goal
+		zones.lift_drag(-5, Vector2(0, 20), 2)
+		_test_check(is_equal_approx(zones._lift_goal, g), "Tek hareket yükseltmemeli")
+		zones.lift_drag(-6, Vector2(0, -20), 2)
+		_test_check(zones._lift_goal > g, "Zıt yönlü yeni hareketler yükseltmeli")
+		g = zones._lift_goal
+		for i in 4:
+			zones.lift_drag(-6, Vector2(0, -20), 2)
+		_test_check(is_equal_approx(zones._lift_goal, g), "Sabit parmağın eski hareketi tekrar sayılmamalı")
+		zones.reset_touch_gestures()
+		zones.lift_drag(-5, Vector2(0, 20), 2)
+		zones._fdy[-5]["time"] = Time.get_ticks_msec() - 151
+		zones.lift_drag(-6, Vector2(0, -20), 2)
+		_test_check(is_equal_approx(zones._lift_goal, g), "Eski hareket eşleşmemeli")
+		zones.reset_touch_gestures()
+		zones.lift_drag(-5, Vector2(0, 20), 2)
+		var up := InputEventScreenTouch.new()
+		up.index = -5
+		up.pressed = false
+		_input(up)
+		zones.lift_drag(-6, Vector2(0, -20), 2)
+		_test_check(is_equal_approx(zones._lift_goal, g), "Bırakılan parmağın hareketi kullanılmamalı")
+		_notification(NOTIFICATION_APPLICATION_FOCUS_OUT)
+		_test_check(zones._fdy.is_empty(), "Odak kaybı hareketleri temizlemeli")
+		zones.lift_drag(-5, Vector2(0, 20), 2)
+		zones.release_all()
+		_test_check(zones._fdy.is_empty(), "Yeniden doğma ve final hareketleri temizlemeli")
 	elif test == "protolift":   # asansör: iki parmak zıt yönde -> yükselir, zıplamaz
 		await _place(ProtoZones.ELEV_X - 0.2, 1.0)
 		hint_t = 5.0
