@@ -676,6 +676,22 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 	mocap.position.x = lerpf(mocap.position.x, -mocap.push_back if st == "push" else 0.0, 1.0 - exp(-dt * 6.0))
 	force_t = force_t + dt * absf(sc) if force_anim != "" and st == force_anim else 0.0
 	mocap.drive(st, spd, sc, dt, xf)
+	# Finalde diz üstüne çökülen pozun destek noktalarını zemine oturt.
+	# Kemik merkezi yüzeyin içinde kalır: diz için 4.5 cm, ayak ucu için 2 cm pay.
+	var support_gap := INF
+	if st == "hug" and world != null and world.phase in ["end", "done"]:
+		for bone_name in ["calf_l", "calf_r", "ball_l", "ball_r"]:
+			var bi := mocap.skel.find_bone(bone_name)
+			if bi < 0:
+				continue
+			var bp: Vector3 = mocap.skel.global_transform * mocap.skel.get_bone_global_pose(bi).origin
+			var clearance := 0.045 if bone_name.begins_with("calf") else 0.02
+			support_gap = minf(support_gap, bp.y - world.ground_y(bp.x) - clearance)
+	if support_gap != INF:
+		mocap.position.y = move_toward(mocap.position.y, mocap.position.y - support_gap, dt * 0.25)
+	else:
+		mocap.position.y = move_toward(mocap.position.y, 0.0, dt * 0.25)
+
 
 func _blank() -> Dictionary:
 	var p := {}
