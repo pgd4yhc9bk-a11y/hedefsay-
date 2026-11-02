@@ -93,7 +93,10 @@ var hq := false                  # gelişmiş görüntü motoru (Vulkan: telefon
 var smoke: Array = []
 var fog_vol: FogVolume = null
 
+var mobile := false               # telefon/tablet: hafif ayarlar
+
 func _ready() -> void:
+	mobile = OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("web_android") or OS.has_feature("web_ios") or OS.get_environment("MOBIL") != ""
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--test="):
 			test = a.substr(7)
@@ -141,7 +144,7 @@ func _ready() -> void:
 	hq = RenderingServer.get_rendering_device() != null   # Vulkan (Forward+) varsa
 	if hq:
 		_high_quality()
-	elif DisplayServer.is_touchscreen_available() or OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios"):
+	elif mobile or DisplayServer.is_touchscreen_available():
 		_low_quality()
 	ld.queue_free()
 	built = true
@@ -206,8 +209,8 @@ func _build_env() -> void:
 	env.fog_light_color = FOG
 	env.fog_light_energy = 1.0
 	env.fog_mode = Environment.FOG_MODE_DEPTH   # yakın plan net, uzak katmanlar sise gömülür
-	env.fog_depth_begin = 9.0
-	env.fog_depth_end = 75.0
+	env.fog_depth_begin = 11.0   # yakın plan net (sis çok yoğundu)
+	env.fog_depth_end = 85.0
 	env.fog_depth_curve = 0.55
 	env.fog_density = 1.0
 	env.fog_sky_affect = 1.0
@@ -2046,6 +2049,10 @@ func _low_quality() -> void:   # telefon: fener gölgesi kapalı, güneş gölge
 	sun.directional_shadow_max_distance = 22.0
 	env.glow_enabled = false
 	dust.amount = 60
+	if mobile:   # telefon: biraz düşük iç çözünürlük, kare hızı sabit 60
+		get_viewport().scaling_3d_scale = 0.8
+		Engine.max_fps = 60
+		sun.directional_shadow_max_distance = 18.0
 
 ## Gelişmiş motor (Forward+): gerçek hacimsel sis ve ışık huzmeleri, ortam gölgesi (SSAO), uzak plan bulanıklığı
 func _high_quality() -> void:
@@ -2134,7 +2141,7 @@ func _build_grass() -> void:
 		x += rng.randf_range(0.02, 0.06)
 		if _in_gap(x):
 			continue
-		for _k in 2:
+		for _k in (1 if mobile else 2):   # telefonda yarı yoğunluk
 			var z := rng.randf_range(-2.6, 2.4)
 			if absf(z) < 0.35 and rng.randf() < 0.85:
 				continue
@@ -2178,6 +2185,8 @@ void fragment() {
 ## Sisli'lerin etrafında yavaşça kopan duman
 ## Uçurum (x 32.6..33.9): düz kesik duvarlar yerine kayalık, karla örtülü kenarlar, sarkan kökler, arkada
 ## dolgu kayalarla kapanan karanlık bir yarık ve dipten yükselen ince sis.
+var _rock_mat: StandardMaterial3D = null
+
 func _rock(pos: Vector3, size: Vector3, seed: int, snow := true) -> MeshInstance3D:
 	var sm := SphereMesh.new()
 	sm.radius = 0.5
@@ -2206,12 +2215,13 @@ func _rock(pos: Vector3, size: Vector3, seed: int, snow := true) -> MeshInstance
 	st.generate_normals()
 	var mi := MeshInstance3D.new()
 	mi.mesh = st.commit()
-	var m := _mat(Color(1, 1, 1))
-	m.vertex_color_use_as_albedo = true
-	m.albedo_texture = _noise_tex(0.08)
-	m.uv1_triplanar = true
-	m.uv1_scale = Vector3(1.5, 1.5, 1.5)
-	mi.material_override = m
+	if _rock_mat == null:   # tüm kayalar tek malzeme
+		_rock_mat = _mat(Color(1, 1, 1))
+		_rock_mat.vertex_color_use_as_albedo = true
+		_rock_mat.albedo_texture = _noise_tex(0.08)
+		_rock_mat.uv1_triplanar = true
+		_rock_mat.uv1_scale = Vector3(1.5, 1.5, 1.5)
+	mi.material_override = _rock_mat
 	mi.position = pos
 	mi.rotation.y = float(seed % 7) * 0.9
 	add_child(mi)

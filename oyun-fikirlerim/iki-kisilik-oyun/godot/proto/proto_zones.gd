@@ -92,8 +92,13 @@ func _cyl(r: float, h: float, seg := 10) -> CylinderMesh:
 	c.radial_segments = seg
 	return c
 
-func _wood() -> StandardMaterial3D:
+var _wood_mat: StandardMaterial3D = null
+
+func _wood() -> StandardMaterial3D:   # tek ortak tahta malzemesi
+	if _wood_mat != null:
+		return _wood_mat
 	var m := _mat(Color(0.12, 0.09, 0.07), 0.95)
+	_wood_mat = m
 	m.albedo_texture = lv._noise_tex(0.09)
 	m.uv1_triplanar = true
 	m.uv1_scale = Vector3(0.4, 2.5, 0.4)
@@ -337,7 +342,7 @@ func _hull_mesh() -> ArrayMesh:
 func _build_boat() -> void:
 	boat = Node3D.new()
 	add_child(boat)
-	var w := _wood()
+	var w := _wood().duplicate() as StandardMaterial3D
 	w.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_mesh(_hull_mesh(), w, Vector3.ZERO, boat)
 	var dark := _mat(Color(0.08, 0.06, 0.05), 0.95)
