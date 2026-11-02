@@ -61,7 +61,8 @@ var test := ""
 var close_cam := 0.0
 var bot := {}
 var _touch := {}                 # parmak indeksi -> {start, pos, t}
-var _first := -1
+const NO_TOUCH := -9223372036854775807   # "yürüten parmak yok" (iPhone Safari parmak numaraları eksi olabilir: -1 kullanılamaz)
+var _first := NO_TOUCH
 var _jumped_swipe := false
 var _grab_fingers := 0
 var _tex := {}
@@ -1341,9 +1342,9 @@ func _read_input() -> void:
 		return
 	var kx := Input.get_action_strength("right") - Input.get_action_strength("left")
 	var tx := 0.0
-	if _first >= 0 and not _touch.has(_first):
-		_first = _touch.keys()[0] if not _touch.is_empty() else -1
-	if _first >= 0 and _touch.has(_first):
+	if _first != NO_TOUCH and not _touch.has(_first):
+		_first = _touch.keys()[0] if not _touch.is_empty() else NO_TOUCH
+	if _first != NO_TOUCH and _touch.has(_first):
 		var f: Dictionary = _touch[_first]
 		var dx: float = (f["pos"] as Vector2).x - (f["start"] as Vector2).x
 		tx = clampf(dx / 120.0, -1.0, 1.0) if absf(dx) > 12.0 else 0.0
@@ -1384,12 +1385,12 @@ func _input(ev: InputEvent) -> void:
 		if ev.pressed:
 			_touch[ev.index] = {"start": ev.position, "pos": ev.position, "t": t, "ly": ev.position.y, "lt": t, "jumped": false, "seen": t}
 			# yürüten parmak yoksa ya da "takılı" ise (tarayıcı kalkışını kaçırmış: hiç kıpırdamadan duruyor) yeni parmak devralır
-			if _first < 0 or not _touch.has(_first) or _first == ev.index or _stale(_first):
+			if _first == NO_TOUCH or not _touch.has(_first) or _first == ev.index or _stale(_first):
 				_first = ev.index
 		else:
 			if not _touch.has(ev.index) and not _touch.is_empty():
 				# bilinmeyen numarayla kalkış (mobil tarayıcıda numaralar karışabiliyor): o konuma en yakın parmağı kaldır
-				var best := -1
+				var best := NO_TOUCH
 				var bd := INF
 				for k in _touch:
 					var dd: float = ((_touch[k] as Dictionary)["pos"] as Vector2).distance_to(ev.position)
@@ -1400,7 +1401,7 @@ func _input(ev: InputEvent) -> void:
 				ev.index = best
 			_touch.erase(ev.index)
 			if ev.index == _first:   # yürüten parmak kalktı: ekranda kalan başka parmak varsa yürütmeyi o devralır
-				_first = -1
+				_first = NO_TOUCH
 				for k in _touch:
 					_first = k
 					(_touch[k] as Dictionary)["start"] = (_touch[k] as Dictionary)["pos"]
@@ -1438,7 +1439,7 @@ func _stale(k: int) -> bool:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:   # odak kaybı: parmaklar sıfırlanır
 		_touch.clear()
-		_first = -1
+		_first = NO_TOUCH
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		_back_to_menu()
 
@@ -1787,13 +1788,13 @@ func _run_test() -> void:
 		print("KAYDIR faz=%s durum=%s force=%s pick=%d" % [phase, player.state, player.force_anim, pick_step])
 		var x0 := player.position.x
 		var e := InputEventScreenTouch.new()
-		e.index = 0
+		e.index = -762507645   # iPhone Safari gibi eksi numara
 		e.pressed = true
 		e.position = Vector2(300, 400)
 		get_viewport().push_input(e)
 		for k in 30:
 			var d := InputEventScreenDrag.new()
-			d.index = 0
+			d.index = -762507645
 			d.position = Vector2(300 + minf(k * 8.0, 160.0), 400)
 			d.relative = Vector2(8, 0) if k < 20 else Vector2.ZERO
 			get_viewport().push_input(d)
@@ -1802,7 +1803,7 @@ func _run_test() -> void:
 		print("KAYDIR girdi=%.2f x_degisim=%.2f durum=%s _first=%d dokunus=%d" % [player.input_x, player.position.x - x0, player.state, _first, _touch.size()])
 		# 1) hayalet parmak: bırakılmamış dokunuş (kalkışı kaçırılmış), sonra yeni parmakla kaydır
 		var up0 := InputEventScreenTouch.new()
-		up0.index = 0
+		up0.index = -762507645
 		up0.pressed = false
 		up0.position = Vector2(460, 400)
 		get_viewport().push_input(up0)
@@ -1837,28 +1838,28 @@ func _run_test() -> void:
 		print("YANLIS_NUMARA kalan=%s _first=%d" % [str(_touch.keys()), _first])
 		# 3) sağ parmak yürürken sol parmakla yukarı kaydır: zıplamalı ve yürümeye devam etmeli
 		_touch.clear()
-		_first = -1
+		_first = NO_TOUCH
 		var r := InputEventScreenTouch.new()
-		r.index = 2
+		r.index = -5
 		r.pressed = true
 		r.position = Vector2(800, 450)
 		get_viewport().push_input(r)
 		for k in 12:
 			var d3 := InputEventScreenDrag.new()
-			d3.index = 2
+			d3.index = -5
 			d3.position = Vector2(800 + k * 12.0, 450)
 			d3.relative = Vector2(12, 0)
 			get_viewport().push_input(d3)
 			await get_tree().process_frame
 		var l := InputEventScreenTouch.new()
-		l.index = 3
+		l.index = -6
 		l.pressed = true
 		l.position = Vector2(250, 500)
 		get_viewport().push_input(l)
 		var jumped := false
 		for k in 6:
 			var d4 := InputEventScreenDrag.new()
-			d4.index = 3
+			d4.index = -6
 			d4.position = Vector2(250, 500 - (k + 1) * 20.0)
 			d4.relative = Vector2(0, -20)
 			get_viewport().push_input(d4)
@@ -1866,7 +1867,7 @@ func _run_test() -> void:
 			jumped = jumped or player.state == "air" or player.jump_pressed
 		await _wait(0.3)
 		jumped = jumped or player.state == "air"
-		print("IKI_PARMAK zipladi=%s girdi=%.2f (yurumeye devam: >0)" % [jumped, player.input_x])
+		print("IKI_PARMAK zipladi=%s girdi=%.2f (yurumeye devam: >0) ilk=%d parmaklar=%s" % [jumped, player.input_x, _first, str(_touch)])
 	elif test == "prototut":   # öğretici: her adımda bir kare
 		bot = {"on": true}
 		chase = "done"
