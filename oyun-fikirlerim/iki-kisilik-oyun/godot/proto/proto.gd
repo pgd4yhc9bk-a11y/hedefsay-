@@ -95,6 +95,8 @@ var smoke: Array = []
 var fog_vol: FogVolume = null
 
 var mobile := false               # telefon/tablet: hafif ayarlar
+var dbg: Label = null             # hata ayıklama satırı (web: adrese ?hata eklenince)
+var _dbg_ev := ""
 
 func _ready() -> void:
 	mobile = OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("web_android") or OS.has_feature("web_ios") or OS.get_environment("MOBIL") != ""
@@ -142,6 +144,21 @@ func _ready() -> void:
 	cam_pos = Vector3(player.position.x + 1.0, player.position.y + 1.3, cam_dist)
 	cam.position = cam_pos
 	_build_ui()
+	var want_dbg := OS.get_environment("HATA") != ""
+	if OS.has_feature("web"):
+		var q = JavaScriptBridge.eval("window.location.search", true)
+		want_dbg = want_dbg or (q is String and (q as String).contains("hata"))
+	if want_dbg:
+		var cl2 := CanvasLayer.new()
+		cl2.layer = 30
+		add_child(cl2)
+		dbg = Label.new()
+		dbg.position = Vector2(70, 8)
+		dbg.add_theme_font_size_override("font_size", 18)
+		dbg.add_theme_color_override("font_color", Color(1, 1, 0.4))
+		dbg.add_theme_color_override("font_shadow_color", Color(0, 0, 0))
+		dbg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cl2.add_child(dbg)
 	hq = RenderingServer.get_rendering_device() != null   # Vulkan (Forward+) varsa
 	if hq:
 		_high_quality()
@@ -1335,6 +1352,12 @@ func _read_input() -> void:
 		if zones != null and zones.is_lift_touch() and _touch.size() >= 2:   # iki parmak zinciri çekiyor
 			tx = 0.0
 	player.input_x = kx if absf(kx) > 0.0 else tx
+	if dbg != null:
+		var fs := ""
+		for k in _touch:
+			var g: Dictionary = _touch[k]
+			fs += " [%d: dx=%.0f]" % [k, ((g["pos"] as Vector2) - (g["start"] as Vector2)).x]
+		dbg.text = "faz=%s durum=%s girdi=%.2f kx=%.2f tx=%.2f ilk=%d parmak=%d%s\nson olay: %s" % [phase, player.state, player.input_x, kx, tx, _first, _touch.size(), fs, _dbg_ev]
 	if Input.is_action_just_pressed("jump"):
 		player.jump_pressed = true
 	# ikinci parmak: kısa süre basılı ve sabit tutulursa tutma (kasayı çekme); hızlı kaydırma tutma sayılmaz
@@ -1347,6 +1370,8 @@ func _read_input() -> void:
 	player.grab_held = Input.is_action_pressed("grab") or held
 
 func _input(ev: InputEvent) -> void:
+	if dbg != null and (ev is InputEventScreenTouch or ev is InputEventScreenDrag or ev is InputEventMouseButton):
+		_dbg_ev = "%s #%d %s" % [ev.get_class().replace("InputEvent", ""), ev.get("index") if ev.get("index") != null else -1, str((ev as InputEventFromWindow).position.round()) if ev is InputEventFromWindow else ""]
 	if not built:
 		return
 	if phase == "done" and ((ev is InputEventKey and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed) or (ev is InputEventMouseButton and ev.pressed)):
