@@ -1324,6 +1324,8 @@ func _read_input() -> void:
 		return
 	var kx := Input.get_action_strength("right") - Input.get_action_strength("left")
 	var tx := 0.0
+	if _first >= 0 and not _touch.has(_first):
+		_first = _touch.keys()[0] if not _touch.is_empty() else -1
 	if _first >= 0 and _touch.has(_first):
 		var f: Dictionary = _touch[_first]
 		var dx: float = (f["pos"] as Vector2).x - (f["start"] as Vector2).x
@@ -1355,10 +1357,22 @@ func _input(ev: InputEvent) -> void:
 		return
 	if ev is InputEventScreenTouch:
 		if ev.pressed:
-			_touch[ev.index] = {"start": ev.position, "pos": ev.position, "t": t, "ly": ev.position.y, "lt": t, "jumped": false}
-			if _first < 0:
+			_touch[ev.index] = {"start": ev.position, "pos": ev.position, "t": t, "ly": ev.position.y, "lt": t, "jumped": false, "seen": t}
+			# yürüten parmak yoksa ya da "takılı" ise (tarayıcı kalkışını kaçırmış: hiç kıpırdamadan duruyor) yeni parmak devralır
+			if _first < 0 or not _touch.has(_first) or _first == ev.index or _stale(_first):
 				_first = ev.index
 		else:
+			if not _touch.has(ev.index) and not _touch.is_empty():
+				# bilinmeyen numarayla kalkış (mobil tarayıcıda numaralar karışabiliyor): o konuma en yakın parmağı kaldır
+				var best := -1
+				var bd := INF
+				for k in _touch:
+					var dd: float = ((_touch[k] as Dictionary)["pos"] as Vector2).distance_to(ev.position)
+					if dd < bd:
+						bd = dd
+						best = k
+				ev = ev.duplicate()
+				ev.index = best
 			_touch.erase(ev.index)
 			if ev.index == _first:   # yürüten parmak kalktı: ekranda kalan başka parmak varsa yürütmeyi o devralır
 				_first = -1
@@ -1369,6 +1383,7 @@ func _input(ev: InputEvent) -> void:
 	elif ev is InputEventScreenDrag and _touch.has(ev.index):
 		var f: Dictionary = _touch[ev.index]
 		f["pos"] = ev.position
+		f["seen"] = t
 		if zones != null:
 			zones.touch_drag(ev.index, ev.position, ev.relative)
 			zones.lift_drag(ev.index, ev.relative, _touch.size())
@@ -1389,7 +1404,16 @@ func _input(ev: InputEvent) -> void:
 			f["jumped"] = false
 			f["ly"] = ev.position.y
 
+## Parmak "takılı" mı: yarım saniyeden uzun süredir hiç kıpırdamamış ve başladığı yerden ayrılmamış
+## (yürüyen ya da basılı tutan parmak yer değiştirmiş olur; takılan, kalkışı kaçırılmış bir dokunuştur).
+func _stale(k: int) -> bool:
+	var f: Dictionary = _touch[k]
+	return t - float(f["seen"]) > 0.5 and ((f["pos"] as Vector2) - (f["start"] as Vector2)).length() < 12.0
+
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:   # odak kaybı: parmaklar sıfırlanır
+		_touch.clear()
+		_first = -1
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		_back_to_menu()
 
@@ -1726,6 +1750,98 @@ func _run_test() -> void:
 		await _wait(0.6)
 		print("ASANSOR y=%.2f oyuncu_y=%.2f havada=%s" % [zones.lift_y, player.position.y, air])
 		await _shot("asansor_3")
+	elif test == "protoswipe":   # gerçek akış: açılış, sonra parmakla sağa kaydır -> yürümeli
+		phase = "intro"
+		t = 0.0
+		_start_opening()
+		var tw := 0.0
+		while phase == "intro" and tw < 30.0:
+			await _wait(0.2)
+			tw += 0.2
+		await _wait(0.5)
+		print("KAYDIR faz=%s durum=%s force=%s pick=%d" % [phase, player.state, player.force_anim, pick_step])
+		var x0 := player.position.x
+		var e := InputEventScreenTouch.new()
+		e.index = 0
+		e.pressed = true
+		e.position = Vector2(300, 400)
+		get_viewport().push_input(e)
+		for k in 30:
+			var d := InputEventScreenDrag.new()
+			d.index = 0
+			d.position = Vector2(300 + minf(k * 8.0, 160.0), 400)
+			d.relative = Vector2(8, 0) if k < 20 else Vector2.ZERO
+			get_viewport().push_input(d)
+			await get_tree().process_frame
+		await _wait(1.5)
+		print("KAYDIR girdi=%.2f x_degisim=%.2f durum=%s _first=%d dokunus=%d" % [player.input_x, player.position.x - x0, player.state, _first, _touch.size()])
+		# 1) hayalet parmak: bırakılmamış dokunuş (kalkışı kaçırılmış), sonra yeni parmakla kaydır
+		var up0 := InputEventScreenTouch.new()
+		up0.index = 0
+		up0.pressed = false
+		up0.position = Vector2(460, 400)
+		get_viewport().push_input(up0)
+		var ghost := InputEventScreenTouch.new()
+		ghost.index = 7
+		ghost.pressed = true
+		ghost.position = Vector2(900, 300)
+		get_viewport().push_input(ghost)
+		await _wait(1.0)
+		x0 = player.position.x
+		var e2 := InputEventScreenTouch.new()
+		e2.index = 1
+		e2.pressed = true
+		e2.position = Vector2(300, 450)
+		get_viewport().push_input(e2)
+		for k in 20:
+			var d2 := InputEventScreenDrag.new()
+			d2.index = 1
+			d2.position = Vector2(300 + minf(k * 10.0, 160.0), 450)
+			d2.relative = Vector2(10, 0)
+			get_viewport().push_input(d2)
+			await get_tree().process_frame
+		await _wait(1.0)
+		print("HAYALET x_degisim=%.2f _first=%d (yurumeli)" % [player.position.x - x0, _first])
+		# 2) yanlış numarayla kalkış: parmak 1, numara 9 ile kalkar -> en yakın kaldırılır
+		var upw := InputEventScreenTouch.new()
+		upw.index = 9
+		upw.pressed = false
+		upw.position = Vector2(460, 450)
+		get_viewport().push_input(upw)
+		await get_tree().process_frame
+		print("YANLIS_NUMARA kalan=%s _first=%d" % [str(_touch.keys()), _first])
+		# 3) sağ parmak yürürken sol parmakla yukarı kaydır: zıplamalı ve yürümeye devam etmeli
+		_touch.clear()
+		_first = -1
+		var r := InputEventScreenTouch.new()
+		r.index = 2
+		r.pressed = true
+		r.position = Vector2(800, 450)
+		get_viewport().push_input(r)
+		for k in 12:
+			var d3 := InputEventScreenDrag.new()
+			d3.index = 2
+			d3.position = Vector2(800 + k * 12.0, 450)
+			d3.relative = Vector2(12, 0)
+			get_viewport().push_input(d3)
+			await get_tree().process_frame
+		var l := InputEventScreenTouch.new()
+		l.index = 3
+		l.pressed = true
+		l.position = Vector2(250, 500)
+		get_viewport().push_input(l)
+		var jumped := false
+		for k in 6:
+			var d4 := InputEventScreenDrag.new()
+			d4.index = 3
+			d4.position = Vector2(250, 500 - (k + 1) * 20.0)
+			d4.relative = Vector2(0, -20)
+			get_viewport().push_input(d4)
+			await get_tree().process_frame
+			jumped = jumped or player.state == "air" or player.jump_pressed
+		await _wait(0.3)
+		jumped = jumped or player.state == "air"
+		print("IKI_PARMAK zipladi=%s girdi=%.2f (yurumeye devam: >0)" % [jumped, player.input_x])
 	elif test == "prototut":   # öğretici: her adımda bir kare
 		bot = {"on": true}
 		chase = "done"
