@@ -53,3 +53,32 @@ Godot_v4.3-stable_linux.x86_64 --headless --path godot res://proto/proto.tscn --
 ```
 
 `birlikte` olumlu/olumsuz bulmaca durumlarını ve komutları kontrol eder. `birlikteplay` gerçek fizik ve komutlarla tüm yeni güzergâhı yürür; zamanı altı kat hızlandırır. Bu testte yeni güzergâh 253 oyun saniyesinde tamamlandı; önceki sahne protoplay testinde 79,4 saniyede tamamlandı. Toplam yaklaşık 5 dakika 33 saniyelik çözümü bilen bot süresi, minimum 10 dakika şartının karşılandığını göstermez. Bu test insan oynanış süresi ölçümü değildir. Görüntü, gerçek telefon dokunuşları ve insan oynanış süresi ayrıca doğrulanmalıdır.
+
+
+## Yüklenen Meshy animasyonları · 2 Kasım 2026
+
+İki yeni `All Animations (2).glb` dosyası kemik pozları ve süreleri üzerinden incelendi. Eski yürüyüş, koşu ve final animasyonları değiştirilmedi. Yalnız aşağıdaki sekiz hareket, `mocap/birlikte_nehir.res` ve `mocap/birlikte_cinar.res` kütüphanelerine aktarıldı. Bunlar yalnız Birlikte sahnesinde `cooperate` adıyla yüklenir; 92 MB kaynak modeller tekrar oyuna eklenmez.
+
+| Karakter | Kaynak kodu | Oyundaki ad | Süre | Kullanım |
+|---|---|---|---:|---|
+| Çınar | `_01a19db3_2aa6_7768_bb33_8b2064c0e0dc` | LeverPull | 1,97 sn | Köprü ve son kapı koluna varınca |
+| Çınar | `_01a19db5_2d86_73ac_b5d5_b82dd39a1b09` | LeverHold | 2,97 sn | Kolu çekince döngülü bekleme |
+| Çınar | `_01a19db6_88e1_7486_b3be_e01d446ecd17` | LeverRelease | 1,97 sn | Yeni komut veya düzenek tamamlanınca bırakma |
+| Çınar | `_01a19dc0_e77b_7282_8362_b79d07a5eeca` | CrouchWalk | 1,97 sn | Dar geçitte eğilerek yürüme; hıza göre oynatılır |
+| Çınar | `_01a19dc4_c8d6_7701_a136_48fb5a66bde5` | Nod | 1,97 sn | Bekle/seç komutunu onaylama |
+| Çınar | `_01a19dc7_7fa5_7335_94aa_e09a3d80c766` | Hop | 1,97 sn | Kasa üzerinden fiziksel sıçrama; fizik süresine hızlandırılır |
+| Nehir | `_01a19dc2_390c_7256_a048_9746316251a3` | LeverPull | 3,97 sn | Başarılı kol etkileşimlerinde |
+| Nehir | `_01a19dc5_e967_7417_a982_513d82e99313` | SymbolTouch | 2,47 sn | Sembol taşını kullanırken |
+
+Nehir'in görsel etkileşimi yürüyüş/zıplama ile kesilir; bulmaca sonucu animasyon bitişine bağlı değildir. Çınar kolu bırakırken kısa süre yerinde kalır, ardından son verilen hareket komutunu uygular. Duraklatma animasyon saatlerini de dondurur. Yeniden başlatma ve kontrol noktasına dönüş eski animasyon durumlarını temizler.
+
+Çınar'ın kaynak iskeleti UE adlarından oyundaki Mixamo adlarına eşleştirildi (53 kemik); Nehir'de 28 kemik eşleşti. Yatay kök hareketi çıkarıldı. Sıçramadaki ek dikey yükselme çıkarılarak fizik yükselişinin iki kez uygulanması önlendi. Döngüler yalnız LeverHold ve CrouchWalk; son 0,15 saniye ilk poza bağlanır. Kol görselleri karakterlerin erişim yüksekliğine yaklaştırıldı, Nehir sembol taşına doğru döner. Nihai el–kol temasının gerçek görüntüde kontrolü hâlâ gerekir.
+
+Yeniden üretim:
+
+```sh
+Godot_v4.3-stable_linux.x86_64 --headless --path godot --script res://proto/tools/retarget_birlikte.gd -- '/tam/yol/Meshy_AI_Winter_Braid_Characte_All_Animations (2).glb' '/tam/yol/Meshy_AI_Winter_Wanderer_All_Animations (2).glb'
+Godot_v4.3-stable_linux.x86_64 --headless --path godot res://proto/birlikte.tscn -- --test=birlikteanim
+```
+
+`birlikteanim`: animasyon/kemik yolları, döngü sınırları, Nehir etkileşimleri, hareketle iptal, duraklatma, Çınar çek/tut/bırak geçişi, onay, dar geçit, sıçrama ve yeniden başlatma. Ayrıca `birlikte`, `birlikteplay` ve `protoplay` regresyonları kullanılır. Kaynak hareketler iskelet kareleri üzerinden incelendi; bu, oyunun render edilmiş görüntüsü veya gerçek telefon testi değildir.

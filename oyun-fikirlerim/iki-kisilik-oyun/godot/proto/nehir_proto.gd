@@ -23,6 +23,9 @@ var land_t := 0.0
 var roll_t := 0.0
 var wake_t := 0.0               # açılışta yerden kalkma
 var caught := false             # Sisli yakaladı (ölüm animasyonu)
+var interaction_anim := ""     # Birlikte sahnesi: yürüyüşte iptal edilen kısa etkileşim.
+var interaction_left := 0.0
+var interaction_yaw := 0.0
 var force_anim := ""
 var force_t := 0.0             # zorla oynatılan animasyonun kendi zamanı (sahne saatinden bağımsız: yavaş cihazda kaymasın)
 var wake_hold := false           # açılış: yerde yatarken animasyon durur
@@ -446,6 +449,8 @@ func _process(dt: float) -> void:
 	dt = minf(dt, 0.05)
 	# dönüş: kameraya doğru dönerek (Inside gibi)
 	var ty := 0.0 if face > 0 else -PI
+	if interaction_left > 0:
+		ty = interaction_yaw
 	if yaw_override != INF:
 		ty = yaw_override
 	yaw = move_toward(yaw, ty, dt * 8.5)
@@ -586,6 +591,14 @@ func _process(dt: float) -> void:
 	body.apply(p)
 	_accessories(dt)
 
+func play_interaction(anim_name: String, facing := 0.0) -> void:
+	if mocap == null or not mocap.has_anim(anim_name): return
+	interaction_yaw = facing
+	interaction_anim = anim_name
+	interaction_left = mocap.tree.get_animation(anim_name).length
+	mocap.any_name = ""
+	velocity.x = 0.0
+
 func _mocap_anim(dt: float, _run_b: float) -> void:
 	var on_floor := is_on_floor() or state == "climb"
 	var st := "loco"
@@ -624,6 +637,13 @@ func _mocap_anim(dt: float, _run_b: float) -> void:
 	elif pushing or pulling:
 		st = "push"
 		sc = clampf(absf(velocity.x) / mocap.push_nat, 0.35, 2.4) * (-1.0 if pulling else 1.0)
+	if interaction_left > 0:
+		if st == "loco" and absf(input_x) < 0.05 and absf(velocity.x) < 0.15:
+			st = "any"
+			mocap.set_any(interaction_anim)
+			interaction_left = maxf(0, interaction_left - dt)
+		else:
+			interaction_left = 0
 	# durgunken: nefes nefese, kenarda denge, uzun beklemede başka bekleme hareketi (Meshy animasyonları)
 	breath_t = maxf(0.0, breath_t - dt)
 	if st == "loco" and state == "ground" and (edge_hold or teeter > 0.3) and mocap.has_anim("M_Stand_on_Pole_and_Balance"):
