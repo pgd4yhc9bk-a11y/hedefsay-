@@ -1720,6 +1720,20 @@ func _run_test() -> void:
 			for n in hidden:
 				(n as Node3D).visible = true
 		close_cam = 0.0
+	elif test == "protorelease":
+		_test_check(not zones.splash.emitting and not zones.wake.emitting and not zones.river_snd.playing, "Açılışta su efekti ve sesi kapalı olmalı")
+		await _place(ProtoZones.STAND_X, 0.8)
+		bot = {}
+		zones.add_turn(0.1)
+		await _wait(0.1)
+		_test_check(zones.forced == "M_TurnWheel", "Çark animasyonu başlamalı")
+		await _wait(0.5)
+		_test_check(zones.forced == "" and player.force_anim == "" and player.cut_target_x == INF, "Hareket kesilince çark bırakılmalı")
+		zones.add_turn(0.1)
+		await _wait(0.1)
+		zones._vlast[-5] = Vector2.ONE
+		zones.touch_released(-5)
+		_test_check(zones.forced == "" and player.yaw_override == INF, "Parmak kalkınca çark bırakılmalı")
 	elif test == "protocircle":   # çarkta sağ yarıda parmakla daire: çark dönmeli, Nehir zıplamamalı/yürümemeli
 		await _place(ProtoZones.STAND_X, 0.8)
 		bot = {}
