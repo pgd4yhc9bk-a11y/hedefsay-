@@ -74,8 +74,10 @@ var _grip_pt := Vector3.INF      # çekerken ellerin ortası: zincir buradan ge�
 var _pull_k := 0.0               # son çekişin etkisi (animasyon, ses)
 var _fdy := {}                   # parmak -> son düşey hareket (iki parmak zıt yönde mi)
 var _lift_click := 0.0
+var _lift_goal := ELEV_BOT       # çekişlerle varılacak yükseklik; platform buna sınırlı hızla gider
+var _last_floor_y := 0.0
+var _was_floor := true
 var _chain_pull := false
-var _fell := false               # yükselmiş asansörden atladı/düştü: yere çarpınca ölür (geri çıkamaz)
 
 func setup(level: Node) -> void:
 	lv = level
@@ -400,8 +402,10 @@ func _place_boat() -> void:
 
 # ================================================================ her kare
 func reset_for_checkpoint(cp_x: float) -> void:
+	_last_floor_y = -99.0
 	if cp_x < ELEV_X:   # asansörün berisinden yeniden: asansör aşağıda
 		lift_y = ELEV_BOT
+		_lift_goal = ELEV_BOT
 		lift_v = 0.0
 		on_lift = false
 	if cp_x < LAKE_A:   # nehrin berisinden yeniden: sandal iskelede bekler
@@ -448,7 +452,7 @@ func _lift_physics(dt: float) -> void:
 	lift.position = Vector3(ELEV_X, lift_y, 0.0)
 	# havadayken platformdan yürüyerek düşmesin (aşağıda ya da yukarıda inebilir)
 	var aloft := lift_y > ELEV_BOT + 0.15 and lift_y < ELEV_TOP - 0.05
-	if on_lift and aloft:
+	if on_lift and aloft and pl.is_on_floor():   # yalnız platformda dururken (atlarsa serbest: düşer)
 		var lo := ELEV_X - ELEV_HALF + 0.22
 		var hi := ELEV_X + ELEV_HALF - 0.22
 		if pl.position.x < lo or pl.position.x > hi:
@@ -588,18 +592,10 @@ func is_lift_touch() -> bool:   # asansörde parmaklar zıplatmaz/yürütmez
 func add_lift(dy: float) -> void:
 	if not lift_active:
 		return
-	var before := lift_y
-	lift_y = minf(ELEV_TOP, lift_y + dy)
+	_lift_goal = minf(ELEV_TOP, maxf(_lift_goal, lift_y) + dy)
+	_lift_goal = minf(_lift_goal, lift_y + 0.6)   # bir çekiş platformu en çok 60 cm ileri taşır
 	_pull_k = 0.35
-	_lift_click += lift_y - before
-	if _lift_click > 0.25:   # zincir halkası takılır: tık ve titreşim
-		_lift_click = 0.0
-		audio.play("cark", -10.0, 0.15)
-		audio.play("halat", -18.0, 0.2)
-		buzz(22)
-	if lift_y >= ELEV_TOP:
-		audio.play("kapi_kalk", -10.0, 0.0)
-		buzz(160)
+
 
 func _hands_free() -> void:
 	pl.reach = 0.0
@@ -780,20 +776,33 @@ func _place_lift_chains() -> void:
 func _update_lift(dt: float) -> void:
 	var px := pl.position.x
 	var py := pl.position.y
-	var was_on := on_lift
 	on_lift = lv.phase == "play" and absf(px - ELEV_X) < ELEV_HALF and absf(py - lift_y) < 0.25 and pl.state != "climb"
-	# asansör yukarıdayken platformdan atlarsa ve aşağı düşerse ölür: asansör yukarıda kaldı, geri çıkamaz
-	if was_on and not on_lift and lift_y > ELEV_BOT + 1.0 and lift_y < ELEV_TOP - 0.01:
-		_fell = true
-	if on_lift or lv.phase != "play":
-		_fell = false
-	if _fell and pl.is_on_floor() and py < lift_y - 0.8 and px < ELEV_X + ELEV_HALF:
-		_fell = false
+	# platform çekişlerin hedefine sınırlı hızla yükselir (animasyon görünsün)
+	if lift_y < _lift_goal:
+		var before := lift_y
+		lift_y = minf(_lift_goal, lift_y + 0.5 * dt)
+		_lift_click += lift_y - before
+		if _lift_click > 0.22:   # zincir halkası takılır: tık ve titreşim
+			_lift_click = 0.0
+			audio.play("cark", -10.0, 0.15)
+			audio.play("halat", -18.0, 0.2)
+			buzz(22)
+		if lift_y >= ELEV_TOP - 0.001:
+			audio.play("kapi_kalk", -10.0, 0.0)
+			buzz(160)
+	# yüksekten (asansör ya da kayalığın tepesi) asansörün dibine düşen ölür: asansör yukarıda kaldı, geri çıkılamaz
+	var fl := pl.is_on_floor()
+	if fl and not _was_floor and lv.phase == "play" and _last_floor_y - py > 2.0 and px > LAKE_B and px < ELEV_X + ELEV_HALF + 0.2:
 		_fall_death()
+	if fl:
+		_last_floor_y = py
+	_was_floor = fl
 	lift_active = on_lift and lift_y < ELEV_TOP - 0.01
 	if lift_active and (Input.is_key_pressed(KEY_E) or Input.is_action_pressed("grab")):
 		add_lift(dt * 0.55)
 	_pull_k = maxf(0.0, _pull_k - dt)
+	if lift_y < _lift_goal - 0.02:
+		_pull_k = maxf(_pull_k, 0.1)   # platform yükselirken çekiş animasyonu sürer
 	if lift_active and _pull_k > 0.0:
 		# zinciri çekerken: zincirin önünde durur, eller zincirde sırayla yukarıdan aşağı çeker
 		_chain_pull = true

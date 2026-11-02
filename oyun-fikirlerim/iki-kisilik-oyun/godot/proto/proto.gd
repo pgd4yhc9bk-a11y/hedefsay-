@@ -1750,7 +1750,7 @@ func _run_test() -> void:
 			e.position = pa if i == 0 else pb
 			get_viewport().push_input(e)
 		var air := false
-		for k in 240:
+		for k in 720:
 			var ph := 1.0 if (k / 20) % 2 == 0 else -1.0   # 20 karede bir yön değiştirir
 			for i in 2:
 				var d := InputEventScreenDrag.new()
@@ -1874,23 +1874,51 @@ func _run_test() -> void:
 	elif test == "protofall":   # asansör yarı yoldayken atlayıp düşerse ölmeli, asansör aşağıda yeniden başlamalı
 		bot = {"on": true}
 		await _place(ProtoZones.ELEV_X - 0.2, 1.0)
-		while zones.lift_y < 2.2:
+		var tq := 0.0
+		while zones.lift_y < 2.2 and tq < 15.0:
 			zones.add_lift(0.03)
 			await _wait(0.02)
-		await _wait(0.5)
+			tq += 0.02
+		await _wait(2.0)   # platform son çekişin hedefine varsın, çekme animasyonu bitsin
+		printerr("YARI y=%.2f aktif=%s asansorde=%s oy=%.2f durum=%s" % [zones.lift_y, zones.lift_active, zones.on_lift, player.position.y, player.state])
 		player.input_x = -1.0
 		player.jump_pressed = true
 		var died := false
-		print("DUSME once durum=%s x=%.2f y=%.2f zemin=%s" % [player.state, player.position.x, player.position.y, player.is_on_floor()])
+		printerr("DUSME once durum=%s x=%.2f y=%.2f zemin=%s" % [player.state, player.position.x, player.position.y, player.is_on_floor()])
 		for i in 120:
 			await _wait(0.03)
 			died = died or phase == "dead"
 			if i % 10 == 0:
-				print("  dus x=%.2f y=%.2f durum=%s asansorde=%s dustu=%s" % [player.position.x, player.position.y, player.state, zones.on_lift, zones._fell])
+				printerr("  dus x=%.2f y=%.2f durum=%s asansorde=%s dustu=%s" % [player.position.x, player.position.y, player.state, zones.on_lift, zones._last_floor_y])
 		player.input_x = 0.0
-		while phase == "dead":
+		var tw2 := 0.0
+		while phase == "dead" and tw2 < 10.0:
 			await _wait(0.1)
-		print("DUSME oldu=%s yeniden x=%.2f asansor_y=%.2f" % [died, player.position.x, zones.lift_y])
+			tw2 += 0.1
+		printerr("DUSME oldu=%s yeniden x=%.2f asansor_y=%.2f" % [died, player.position.x, zones.lift_y])
+		# 2) tepeye çık, kayalığın üstünden asansörün dibine atla: ölmeli
+		await _place(ProtoZones.ELEV_X - 0.2, 0.8)
+		var t0 := 0.0
+		while zones.lift_y < ProtoZones.ELEV_TOP - 0.01 and t0 < 20.0:
+			zones.add_lift(0.03)
+			await _wait(0.05)
+			t0 += 0.05
+		printerr("TEPE sure=%.1fs (hiz sinirli olmali: >8s)" % t0)
+		await _wait(1.5)
+		player.input_x = -1.0   # kenara yürür (sendeler), sonra boşluğa atlar
+		await _wait(1.0)
+		printerr("KENAR x=%.2f tutuldu=%s" % [player.position.x, player.edge_hold])
+		player.jump_pressed = true
+		died = false
+		for i in 120:
+			await _wait(0.03)
+			died = died or phase == "dead"
+		player.input_x = 0.0
+		var tw3 := 0.0
+		while phase == "dead" and tw3 < 10.0:
+			await _wait(0.1)
+			tw3 += 0.1
+		printerr("TEPEDEN_DUSME oldu=%s yeniden x=%.2f asansor_y=%.2f" % [died, player.position.x, zones.lift_y])
 	elif test == "prototut":   # öğretici: her adımda bir kare
 		bot = {"on": true}
 		chase = "done"
