@@ -70,7 +70,8 @@ var lift_active := false         # üstünde ve yukarı çıkılabilir
 var lift_chains: Array[MeshInstance3D] = []
 var lift_hook: Node3D
 var _hook_node: Node3D = null    # fenerin asılı olduğu kanca (sandal ya da asansör)
-var _grip_pt := Vector3.INF      # çekerken ellerin ortası: zincir buradan geçer
+var _grip_pt := Vector3.INF
+var forced := ""                 # bu betiğin zorladığı animasyon (bırakırken kendi kaydına bakar)      # çekerken ellerin ortası: zincir buradan geçer
 var _pull_k := 0.0               # son çekişin etkisi (animasyon, ses)
 var _fdy := {}                   # parmak -> son düşey hareket (iki parmak zıt yönde mi)
 var _lift_click := 0.0
@@ -402,6 +403,7 @@ func _place_boat() -> void:
 
 # ================================================================ her kare
 func reset_for_checkpoint(cp_x: float) -> void:
+	release_all()
 	_last_floor_y = -99.0
 	if cp_x < ELEV_X:   # asansörün berisinden yeniden: asansör aşağıda
 		lift_y = ELEV_BOT
@@ -485,9 +487,10 @@ func _update_wheel(dt: float) -> void:
 				pl.cut_target_x = WHEEL_X   # çarkın tam önüne geçer
 				pl.cut_speed = 0.3
 				pl.mocap.set_any("M_TurnWheel")
+				forced = "M_TurnWheel"
 				pl.force_anim = "any"
 				pl.yaw_override = PI / 2.0 if pl.yaw > -PI / 2.0 else -1.5 * PI   # çarka döner (sırtı kameraya)
-			elif _turn_t <= 0.0 and pl.force_anim == "any" and pl.mocap.any_name == "M_TurnWheel":
+			elif _turn_t <= 0.0 and forced == "M_TurnWheel":
 				_release_wheel()
 		# eller tutamakta: sol el tutamağı izler, sağ el (fener) çarkın kenarında
 		if not _has_turn_anim():   # animasyon yoksa: sol el tutamağa uzanır
@@ -519,7 +522,9 @@ func _has_turn_anim() -> bool:
 	return pl.mocap != null and pl.mocap.has_anim("M_TurnWheel")
 
 func _release_wheel() -> void:   # çevirme bitti: yeniden yana döner, kontrol oyuncuda
-	pl.force_anim = ""
+	if forced != "":
+		pl.force_anim = ""
+		forced = ""
 	pl.yaw_override = INF
 	pl.cut_target_x = INF
 	pl.cut_speed = 0.45
@@ -546,8 +551,7 @@ func add_turn(dtr: float) -> void:
 		turns = TURNS
 		gate_open = true
 		wheel_active = false
-		if pl.force_anim == "any":
-			_release_wheel()
+		_release_wheel()
 		pl.reach = 0.0
 		pl.look_at = Vector3.INF
 		pl.arm_r_target = Vector3.INF
@@ -596,6 +600,17 @@ func add_lift(dy: float) -> void:
 	_lift_goal = minf(_lift_goal, lift_y + 0.6)   # bir çekiş platformu en çok 60 cm ileri taşır
 	_pull_k = 0.35
 
+
+## Her şeyi bırak (final sahnesi başlarken, yeniden doğarken): zorlanmış animasyon, dönüş, kol hedefleri
+func release_all() -> void:
+	if forced != "":
+		pl.force_anim = ""
+		forced = ""
+	pl.yaw_override = INF
+	_chain_pull = false
+	_grip_pt = Vector3.INF
+	pulling = false
+	_hands_free()
 
 func _hands_free() -> void:
 	pl.reach = 0.0
@@ -658,9 +673,11 @@ func _update_river(dt: float) -> void:
 	if rope_anim:   # Meshy'den halat çekme animasyonu geldiyse onu oynatır; eller her karede halata yönelir (kavrar)
 		if pulling and pl.force_anim == "":
 			pl.mocap.set_any("M_PullRope")
+			forced = "M_PullRope"
 			pl.force_anim = "any"
-		elif not pulling and pl.force_anim == "any" and pl.mocap.any_name == "M_PullRope":
+		elif not pulling and forced == "M_PullRope":
 			pl.force_anim = ""
+			forced = ""
 			_hands_free()
 		if pulling:
 			var hl: Vector3 = pl.body.bone_world("hand.L")
@@ -818,6 +835,7 @@ func _update_lift(dt: float) -> void:
 		if pl.mocap != null and pl.mocap.has_anim("M_PullChain"):   # Meshy'den zincir çekme animasyonu geldiyse
 			if pl.force_anim == "":
 				pl.mocap.set_any("M_PullChain")
+				forced = "M_PullChain"
 				pl.force_anim = "any"
 			# animasyon olduğu gibi oynar; serbest sarkan çekme zinciri ellerin arasından geçer (eller zinciri tutar)
 			pl.mocap.grip_l = 1.9
@@ -829,8 +847,9 @@ func _update_lift(dt: float) -> void:
 	elif _chain_pull:
 		_chain_pull = false
 		_grip_pt = Vector3.INF
-		if pl.force_anim == "any" and pl.mocap.any_name == "M_PullChain":
+		if forced == "M_PullChain":
 			pl.force_anim = ""
+			forced = ""
 		pl.mocap.grip_l = 0.45
 		if pl.state == "cut" and lv.phase == "play":
 			pl.state = "ground"

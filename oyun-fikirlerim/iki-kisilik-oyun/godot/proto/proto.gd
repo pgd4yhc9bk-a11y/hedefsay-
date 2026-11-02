@@ -1047,6 +1047,9 @@ func _process(dt: float) -> void:
 			if player.position.x > RIBBON_X - 6.5 and player.position.y > 1.2 and player.state == "ground":   # sahne erken başlar: oyuncu kontrolü sarılmaya karışmasın
 				phase = "end"
 				end_t = 0.0
+				if zones != null:
+					zones.release_all()   # çark/halat/zincir animasyonu ya da kol hedefi kalmışsa bırak
+				player.force_anim = ""
 				player.state = "cut"
 				player.cut_target_x = RIBBON_X - 0.35
 		"end":
@@ -1919,6 +1922,8 @@ func _run_test() -> void:
 			await _wait(0.1)
 			tw3 += 0.1
 		printerr("TEPEDEN_DUSME oldu=%s yeniden x=%.2f asansor_y=%.2f" % [died, player.position.x, zones.lift_y])
+	elif test == "protoend":   # bütün bölüm botla, final görüntülü
+		await _play_bot(true)
 	elif test == "prototut":   # öğretici: her adımda bir kare
 		bot = {"on": true}
 		chase = "done"
@@ -2106,10 +2111,9 @@ func _play_bot(shots: bool) -> void:
 	while phase != "done" and tt < 25.0:
 		await _wait(0.25)
 		tt += 0.25
-		if shots and tt == 5.0:
-			await _shot("bot_end1")
-		if shots and tt == 10.0:
-			await _shot("bot_end2")
+		if shots and int(tt * 4.0) % 4 == 0 and tt <= 12.0:
+			await _shot("bot_end_%02d" % int(tt))
+			print("BOT son t=%.1f faz=%s x=%.2f y=%.2f durum=%s anim=%s cinar=%s fener_serbest=%s kancada=%s" % [tt, phase, player.position.x, player.position.y, player.state, player.force_anim, cinar_anim, player.lan_free, zones.lantern_on_hook])
 	print("BOT BITIS phase=%s sure=%.1fs" % [phase, (Time.get_ticks_msec() - t0) / 1000.0])
 
 func _bot_step(s: Array) -> bool:
