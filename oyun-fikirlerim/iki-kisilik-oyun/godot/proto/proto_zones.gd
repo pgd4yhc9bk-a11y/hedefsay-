@@ -19,6 +19,11 @@ const ROPE_Z := -0.12            # halat göğüs önünde (Meshy çekme animasy
 const ROPE_A := 66.9
 const ROPE_B := 80.1
 
+const ELEV_X := 83.85             # zincirli asansör (kayalığın dibinde)
+const ELEV_HALF := 0.6
+const ELEV_BOT := -0.43
+const ELEV_TOP := 2.6
+
 var lv: Node                     # ProtoLevel
 var pl: NehirProto
 var audio: ProtoAudio
@@ -55,12 +60,26 @@ var river_snd: AudioStreamPlayer
 var _rope_snd := 0.0
 var _phase := 0.0                # el el üstüne çekiş ritmi
 
+# asansör
+var lift: Node3D
+var lift_body: AnimatableBody3D
+var lift_y := ELEV_BOT
+var lift_v := 0.0
+var on_lift := false
+var lift_active := false         # üstünde ve yukarı çıkılabilir
+var lift_chains: Array[MeshInstance3D] = []
+var _pull_k := 0.0               # son çekişin etkisi (animasyon, ses)
+var _fdy := {}                   # parmak -> son düşey hareket (iki parmak zıt yönde mi)
+var _lift_click := 0.0
+var _chain_pull := false
+
 func setup(level: Node) -> void:
 	lv = level
 	pl = lv.player
 	audio = lv.audio
 	_build_wheel()
 	_build_river()
+	_build_lift()
 
 # ================================================================ yapım
 func _mat(c: Color, rough := 0.9, metal := 0.0) -> StandardMaterial3D:
@@ -377,6 +396,10 @@ func _place_boat() -> void:
 
 # ================================================================ her kare
 func reset_for_checkpoint(cp_x: float) -> void:
+	if cp_x < ELEV_X:   # asansörün berisinden yeniden: asansör aşağıda
+		lift_y = ELEV_BOT
+		lift_v = 0.0
+		on_lift = false
 	if cp_x < LAKE_A:   # nehrin berisinden yeniden: sandal iskelede bekler
 		boat_x = DOCK_A
 		boat_v = 0.0
@@ -392,6 +415,7 @@ func reset_for_checkpoint(cp_x: float) -> void:
 func update(dt: float) -> void:
 	_update_wheel(dt)
 	_update_river(dt)
+	_update_lift(dt)
 
 func _physics_process(dt: float) -> void:
 	if boat_body == null:
@@ -405,11 +429,26 @@ func _physics_process(dt: float) -> void:
 	if boat_x <= DOCK_A or boat_x >= DOCK_B:
 		boat_v = 0.0
 	_place_boat()
+	_lift_physics(dt)
 	if on_boat and not docked():   # sandaldan yürüyerek suya düşmesin
 		var lo := boat_x - BOAT_HALF + 0.25
 		var hi := boat_x + BOAT_HALF - 0.25
 		if px < lo or px > hi:
 			pl.position.x = clampf(px, lo, hi)
+			pl.velocity.x = 0.0
+
+func _lift_physics(dt: float) -> void:
+	if lift_body == null:
+		return
+	lift_body.position = Vector3(ELEV_X, lift_y, 0.0)
+	lift.position = Vector3(ELEV_X, lift_y, 0.0)
+	# havadayken platformdan yürüyerek düşmesin (aşağıda ya da yukarıda inebilir)
+	var aloft := lift_y > ELEV_BOT + 0.15 and lift_y < ELEV_TOP - 0.05
+	if on_lift and aloft:
+		var lo := ELEV_X - ELEV_HALF + 0.22
+		var hi := ELEV_X + ELEV_HALF - 0.22
+		if pl.position.x < lo or pl.position.x > hi:
+			pl.position.x = clampf(pl.position.x, lo, hi)
 			pl.velocity.x = 0.0
 
 func docked() -> bool:
@@ -487,8 +526,9 @@ func add_turn(dtr: float) -> void:
 	turns = clampf(turns + dtr, 0.0, TURNS)
 	if dtr > 0.0:
 		_turn_t = 0.3
-	if floor(turns * 4.0) != floor(before * 4.0):   # her çeyrek turda bir tık
+	if floor(turns * 4.0) != floor(before * 4.0):   # her çeyrek turda bir tık (telefonda kısa titreşim)
 		audio.play("cark", -8.0, 0.1)
+		buzz(28)
 		if turns > before:
 			audio.play("halat", -18.0, 0.15)
 	if turns > 0.15 and not _gate_snd:
@@ -505,6 +545,7 @@ func add_turn(dtr: float) -> void:
 		pl.arm_r_target = Vector3.INF
 		audio.play("kapi_kalk", -4.0, 0.0)
 		Game.shake(0.15)
+		buzz(220)
 
 ## Ekranın sağ yarısında çizilen daire: ardışık hareket yönleri arasındaki açı toplanır (ekran y aşağı: + = saat yönü)
 func touch_drag(index: int, pos: Vector2, rel: Vector2) -> void:
@@ -518,6 +559,47 @@ func touch_drag(index: int, pos: Vector2, rel: Vector2) -> void:
 		var ang := atan2(v1.x * rel.y - v1.y * rel.x, v1.dot(rel))
 		add_turn(ang / TAU)
 	_vlast[index] = rel
+
+## Asansör: iki parmak ekranda; biri aşağı, diğeri yukarı kayarken zincir çekilir (el el üstüne).
+func lift_drag(index: int, rel: Vector2, touches: int) -> void:
+	if not lift_active or touches < 2:
+		_fdy.clear()
+		return
+	_fdy[index] = rel.y
+	var down := 0.0
+	var up := 0.0
+	for k in _fdy:
+		var dy: float = _fdy[k]
+		if dy > 0.0:
+			down = maxf(down, dy)
+		else:
+			up = maxf(up, -dy)
+	if down > 0.5 and up > 0.5:   # zıt yönlerde: çekiş
+		add_lift(minf(down, up) * 0.0032)   # ~6-7 çekişte yukarı
+
+func is_lift_touch() -> bool:   # asansörde parmaklar zıplatmaz/yürütmez
+	return lift_active
+
+## Asansörü yükselt (metre). Dokunma, klavye (E) ve test botu buradan.
+func add_lift(dy: float) -> void:
+	if not lift_active:
+		return
+	var before := lift_y
+	lift_y = minf(ELEV_TOP, lift_y + dy)
+	_pull_k = 0.35
+	_lift_click += lift_y - before
+	if _lift_click > 0.25:   # zincir halkası takılır: tık ve titreşim
+		_lift_click = 0.0
+		audio.play("cark", -10.0, 0.15)
+		audio.play("halat", -18.0, 0.2)
+		buzz(22)
+	if lift_y >= ELEV_TOP:
+		audio.play("kapi_kalk", -10.0, 0.0)
+		buzz(160)
+
+func buzz(ms: int) -> void:   # telefonda titreşim (izin: export_presets permissions/vibrate)
+	if lv.test == "":
+		Input.vibrate_handheld(ms)
 
 func is_turn_touch(start: Vector2) -> bool:   # bu parmak çark için mi (yürütmesin)
 	return wheel_active and start.x > lv.get_viewport().get_visible_rect().size.x * 0.5
@@ -614,3 +696,76 @@ func drown() -> void:
 	pl.state = "dead"
 	pl.velocity = Vector3(pl.velocity.x * 0.2, -0.8, 0.0)
 	lv._on_died()
+
+# ---------------------------------------------------------------- zincirli asansör
+func _build_lift() -> void:
+	var w := _wood()
+	var iron := _mat(Color(0.09, 0.075, 0.065), 0.55, 0.6)
+	lift = Node3D.new()
+	add_child(lift)
+	_mesh(_box(Vector3(ELEV_HALF * 2.0, 0.1, 1.1)), w, Vector3(0, -0.05, 0), lift)       # platform
+	for x in [-ELEV_HALF + 0.05, ELEV_HALF - 0.05]:
+		_mesh(_box(Vector3(0.08, 0.12, 1.15)), w, Vector3(x, -0.04, 0), lift)
+	for z in [-0.5, 0.5]:   # kenar korkulukları (dikey direkler)
+		_mesh(_box(Vector3(0.06, 0.9, 0.06)), w, Vector3(-ELEV_HALF + 0.08, 0.45, z), lift)
+	lift_body = AnimatableBody3D.new()
+	lift_body.collision_layer = 1
+	lift_body.sync_to_physics = true
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(ELEV_HALF * 2.0, 0.1, 1.0)
+	cs.shape = bs
+	cs.position = Vector3(0, -0.05, 0)
+	lift_body.add_child(cs)
+	add_child(lift_body)
+	# kayalığın üstünde ağır bir ağaç darağacı ve makara
+	var top := ELEV_TOP + 2.1
+	_mesh(_box(Vector3(0.2, 2.4, 0.2)), w, Vector3(ELEV_X + 0.75, ELEV_TOP + 1.2, -0.75))
+	_mesh(_box(Vector3(1.5, 0.18, 0.2)), w, Vector3(ELEV_X + 0.1, top, -0.75))
+	_mesh(_box(Vector3(0.14, 0.14, 1.6)), w, Vector3(ELEV_X, top, 0.0))
+	_mesh(_cyl(0.16, 0.12, 14), iron, Vector3(ELEV_X - 0.25, top - 0.15, 0.0), null, Vector3(PI / 2.0, 0, 0))
+	for i in 3:   # iki taşıyıcı zincir + çekme zinciri
+		var cm := _mesh(_cyl(0.016, 1.0, 6), iron, Vector3.ZERO)
+		cm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		lift_chains.append(cm)
+	_place_lift_chains()
+
+func _place_lift_chains() -> void:
+	var top := ELEV_TOP + 2.1
+	_seg(lift_chains[0], Vector3(ELEV_X - 0.5, lift_y + 0.9, -0.5), Vector3(ELEV_X - 0.25, top - 0.15, -0.5))
+	_seg(lift_chains[1], Vector3(ELEV_X - 0.5, lift_y + 0.9, 0.5), Vector3(ELEV_X - 0.25, top - 0.15, 0.5))
+	_seg(lift_chains[2], Vector3(ELEV_X - 0.25, top - 0.3, -0.12), Vector3(ELEV_X - 0.25, lift_y + 0.15, -0.12))   # önünden sarkan çekme zinciri
+
+func _update_lift(dt: float) -> void:
+	var px := pl.position.x
+	var py := pl.position.y
+	on_lift = lv.phase == "play" and absf(px - ELEV_X) < ELEV_HALF and absf(py - lift_y) < 0.25 and pl.state != "climb"
+	lift_active = on_lift and lift_y < ELEV_TOP - 0.01
+	if lift_active and (Input.is_key_pressed(KEY_E) or Input.is_action_pressed("grab")):
+		add_lift(dt * 0.55)
+	_pull_k = maxf(0.0, _pull_k - dt)
+	if lift_active and _pull_k > 0.0:
+		# zinciri çekerken: zincirin önünde durur, eller zincirde sırayla yukarıdan aşağı çeker
+		_chain_pull = true
+		_phase += dt * 2.6
+		var cx := ELEV_X - 0.25
+		var a := fmod(_phase, 1.0)
+		var b := fmod(_phase + 0.5, 1.0)
+		if pl.state == "ground":
+			pl.state = "cut"
+		pl.cut_target_x = cx - 0.32
+		pl.cut_speed = 0.3
+		pl.face = 1
+		pl.reach = 1.0
+		pl.look_at = Vector3(cx, lift_y + lerpf(1.75, 1.05, a), -0.12)
+		pl.arm_r_target = Vector3(cx, lift_y + lerpf(1.75, 1.05, b), -0.12)
+	elif _chain_pull:
+		_chain_pull = false
+		if pl.state == "cut" and lv.phase == "play":
+			pl.state = "ground"
+		pl.cut_target_x = INF
+		pl.cut_speed = 0.45
+		pl.reach = 0.0
+		pl.look_at = Vector3.INF
+		pl.arm_r_target = Vector3.INF
+	_place_lift_chains()

@@ -16,14 +16,15 @@ const PROFILE := [
 	Vector2(46.5, 1.6), Vector2(50, 1.7), Vector2(52, 1.75), Vector2(56, -0.45),          # kaya düzlüğü, vadiye iniş
 	Vector2(60, -0.4), Vector2(63, -0.45), Vector2(66, -0.42), Vector2(67.6, -0.55),         # çark ve kapı
 	Vector2(68.6, -1.7), Vector2(78.4, -1.75), Vector2(79.2, -0.72), Vector2(80.4, -0.5), Vector2(81.5, -0.45),   # nehir yatağı ve iskele kıyısı
-	Vector2(84, 0.3), Vector2(88, 1.5), Vector2(92, 1.9), Vector2(96, 2.05), Vector2(99, 2.0), Vector2(102, 1.95), Vector2(104, 1.85),
+	Vector2(84.5, -0.45), Vector2(84.5, 2.6), Vector2(88, 2.45), Vector2(92, 2.1),   # zincirli asansörün kayalığı
+	Vector2(96, 2.05), Vector2(99, 2.0), Vector2(102, 1.95), Vector2(104, 1.85),
 	Vector2(104, -30.0), Vector2(200, -30.0),
 ]
 const LOG_X := 21.0
 const LOG_R := 0.3
 const CRATE_X := 43.0   # duvara (46.5) daha yakın
 const RIBBON_X := 98.4
-const CHECKPOINTS := [Vector2(1.0, 0.0), Vector2(36.0, -0.5), Vector2(48.5, 1.65), Vector2(57.5, -0.42), Vector2(65.8, -0.43), Vector2(81.5, -0.45)]
+const CHECKPOINTS := [Vector2(1.0, 0.0), Vector2(36.0, -0.5), Vector2(48.5, 1.65), Vector2(57.5, -0.42), Vector2(65.8, -0.43), Vector2(81.5, -0.45), Vector2(85.6, 2.55)]
 const FINAL_X := 104.0          # son uçurum
 
 var player: NehirProto
@@ -261,11 +262,12 @@ func _noise_tex(freq: float, size := 256) -> NoiseTexture2D:
 
 const PLAT_A := 46.5
 const PLAT_B := 56.0            # kaya düzlüğünün sonu (vadiye iniş dahil)
+const PLAT2_A := 84.5           # ikinci kaya (asansörle çıkılan): önünde alçak patika sürer, final uçurumunda biter
 const ZF := 1.2          # yüksek kayanın kameraya bakan ön yüzü (önünde alçak patika devam eder)
 const YF := -0.5
 
 func _plat(x: float) -> bool:
-	return x > PLAT_A - 0.001 and x < PLAT_B + 0.001
+	return (x > PLAT_A - 0.001 and x < PLAT_B + 0.001) or (x > PLAT2_A - 0.001 and x < FINAL_X + 0.001)
 
 ## Görsel zemin yüksekliği (tümsekler dahil): bitki ve ağaç yerleştirmek için
 var _brk_cache: Array = []
@@ -298,8 +300,8 @@ func _build_terrain() -> void:
 				var z0: float = zs[zi]
 				var z1: float = zs[zi + 1]
 				var tp := top
-				if z0 >= ZF - 0.001 and (absf(a.x - PLAT_A) < 0.01 or absf(a.x - PLAT_B) < 0.01):
-					if absf(a.x - PLAT_A) < 0.01:
+				if z0 >= ZF - 0.001 and (absf(a.x - PLAT_A) < 0.01 or absf(a.x - PLAT2_A) < 0.01 or absf(a.x - PLAT_B) < 0.01 or absf(a.x - FINAL_X) < 0.01):
+					if absf(a.x - PLAT_A) < 0.01 or absf(a.x - PLAT2_A) < 0.01:
 						continue          # kayanın önünde patika kesintisiz
 					tp = YF               # son uçurum: patika da aşağı düşer
 				_quad(st, Vector3(a.x, tp, z0), Vector3(a.x, tp, z1), Vector3(a.x, bot, z1), Vector3(a.x, bot, z0), nx > 0.0)
@@ -440,7 +442,7 @@ func _sprite(n: String, pos: Vector3, h: float, dark := 1.0, flip := false) -> S
 	return sp
 
 func _in_gap(x: float) -> bool:
-	return (x > 32.3 and x < 34.7) or (x > 46.2 and x < 46.8) or (x > 67.3 and x < 79.7) or x > FINAL_X - 0.4
+	return (x > 32.3 and x < 34.7) or (x > 46.2 and x < 46.8) or (x > 67.3 and x < 79.7) or (x > 82.9 and x < 84.8) or x > FINAL_X - 0.4
 
 func _build_vegetation() -> void:
 	var rng := RandomNumberGenerator.new()
@@ -954,6 +956,8 @@ func _update_tutorial(dt: float) -> void:
 		tut.finish("wheel")
 	if zones != null and zones.boat_x > ProtoZones.DOCK_A + 1.5:
 		tut.finish("boat")
+	if zones != null and zones.lift_y >= ProtoZones.ELEV_TOP - 0.01:
+		tut.finish("lift")
 	tut.extra = ""
 	var want := ""
 	if phase == "play" and cine == null and player.state != "climb":
@@ -970,8 +974,10 @@ func _update_tutorial(dt: float) -> void:
 		elif zones != null and not zones.gate_open and px > ProtoZones.STAND_X - 2.5 and px < ProtoZones.GATE_X:
 			want = "wheel"
 			tut.extra = "   (%d / 3)" % int(floor(zones.turns))
-		elif zones != null and px > ProtoZones.LAKE_A - 1.2 and zones.boat_x < ProtoZones.DOCK_A + 1.5 and py > ProtoZones.WATER_Y - 0.2:
+		elif zones != null and px > ProtoZones.LAKE_A - 1.2 and px < ProtoZones.LAKE_B and zones.boat_x < ProtoZones.DOCK_A + 1.5 and py > ProtoZones.WATER_Y - 0.2:
 			want = "boat"
+		elif zones != null and px > ProtoZones.ELEV_X - 2.6 and px < ProtoZones.ELEV_X + 0.7 and zones.lift_y < ProtoZones.ELEV_TOP - 0.01 and py < ProtoZones.ELEV_TOP - 0.5:
+			want = "lift"
 	tut.show_step(want, dt)
 
 func _respawn() -> void:
@@ -1144,6 +1150,9 @@ func _update_camera(dt: float) -> void:
 	elif p.x > 58.5 and p.x < 81.0:
 		dist = 15.0   # çark-kapı ve nehir birlikte görünsün
 		up = 1.4
+	elif p.x > 81.0 and p.x < 86.5:
+		dist = 14.5   # asansör ve kayalığın üstü birlikte görünsün
+		up = 1.9
 	if phase == "end" or phase == "done":
 		var k := clampf((end_t - 4.5) / 6.0, 0.0, 1.0)
 		k = k * k * (3.0 - 2.0 * k)
@@ -1321,6 +1330,8 @@ func _read_input() -> void:
 		tx = clampf(dx / 120.0, -1.0, 1.0) if absf(dx) > 12.0 else 0.0
 		if zones != null and zones.is_turn_touch(f["start"]):   # sağ yarıda daire çizen parmak çarkı çevirir, yürütmez
 			tx = 0.0
+		if zones != null and zones.is_lift_touch() and _touch.size() >= 2:   # iki parmak zinciri çekiyor
+			tx = 0.0
 	player.input_x = kx if absf(kx) > 0.0 else tx
 	if Input.is_action_just_pressed("jump"):
 		player.jump_pressed = true
@@ -1360,6 +1371,9 @@ func _input(ev: InputEvent) -> void:
 		f["pos"] = ev.position
 		if zones != null:
 			zones.touch_drag(ev.index, ev.position, ev.relative)
+			zones.lift_drag(ev.index, ev.relative, _touch.size())
+			if zones.is_lift_touch() and _touch.size() >= 2:   # asansörde iki parmakla zincir çekilir: zıplama yok
+				return
 		# yukarı hızlı kaydırma = zıpla. HER parmakta çalışır: sağ parmakla yürürken sol parmakla yukarı kaydırmak da zıplatır.
 		# Çarkın başında: ekranın sağ yarısında daire çizen parmak zıplatmaz (daire çizerken parmak yukarı da gider)
 		if zones != null and (zones.is_turn_touch(f["start"]) or (zones.wheel_active and ev.position.x > get_viewport().get_visible_rect().size.x * 0.5)):
@@ -1670,6 +1684,48 @@ func _run_test() -> void:
 		get_viewport().push_input(up)
 		await _wait(0.5)
 		print("DAIRE tur=%.2f kapi=%s havada=%s y_artis=%.3f x_kayma=%.3f" % [zones.turns, zones.gate_open, air, ymax - (-0.42), player.position.x - xs])
+	elif test == "protolift":   # asansör: iki parmak zıt yönde -> yükselir, zıplamaz
+		await _place(ProtoZones.ELEV_X - 0.2, 1.0)
+		hint_t = 5.0
+		bot = {}
+		await _wait(1.0)
+		await _shot("asansor_1")
+		var vs := get_viewport().get_visible_rect().size
+		var pa := Vector2(vs.x * 0.42, vs.y * 0.6)
+		var pb := Vector2(vs.x * 0.58, vs.y * 0.6)
+		for i in 2:
+			var e := InputEventScreenTouch.new()
+			e.index = i
+			e.pressed = true
+			e.position = pa if i == 0 else pb
+			get_viewport().push_input(e)
+		var air := false
+		for k in 240:
+			var ph := 1.0 if (k / 20) % 2 == 0 else -1.0   # 20 karede bir yön değiştirir
+			for i in 2:
+				var d := InputEventScreenDrag.new()
+				d.index = i
+				var dy := 6.0 * ph * (1.0 if i == 0 else -1.0)
+				d.relative = Vector2(0, dy)
+				if i == 0:
+					pa += d.relative
+					d.position = pa
+				else:
+					pb += d.relative
+					d.position = pb
+				get_viewport().push_input(d)
+			await get_tree().process_frame
+			air = air or player.state == "air"
+			if k == 120:
+				await _shot("asansor_2")
+		for i in 2:
+			var e2 := InputEventScreenTouch.new()
+			e2.index = i
+			e2.pressed = false
+			get_viewport().push_input(e2)
+		await _wait(0.6)
+		print("ASANSOR y=%.2f oyuncu_y=%.2f havada=%s" % [zones.lift_y, player.position.y, air])
+		await _shot("asansor_3")
 	elif test == "prototut":   # öğretici: her adımda bir kare
 		bot = {"on": true}
 		chase = "done"
@@ -1838,6 +1894,7 @@ func _play_bot(shots: bool) -> void:
 		["jump_at", LOG_X - 0.9], ["jump_at", 32.3], ["run_to", CRATE_X - 0.8], ["push_stuck"], ["back_to", 44.6],
 		["walk_to", 45.1], ["jump_hold_low"], ["wait_ground"], ["walk_to", 46.2], ["wait", 0.2], ["jump_hold"], ["wait_ground"],
 		["run_to", ProtoZones.STAND_X], ["wheel"], ["run_to", ProtoZones.DOCK_A + 0.2], ["pull"], ["run_to", 82.0],
+		["run_to", ProtoZones.ELEV_X - 0.3], ["lift"], ["run_to", 86.0],
 		["run_to", RIBBON_X - 1.0],
 	]
 	var shot_i := 0
@@ -1917,6 +1974,14 @@ func _bot_step(s: Array) -> bool:
 				tt += 0.02
 			await _wait(0.6)
 			return zones.gate_open
+		"lift":   # asansörde zinciri çek (iki parmak yerine doğrudan)
+			while zones.lift_y < ProtoZones.ELEV_TOP - 0.01 and tt < 30.0:
+				zones.add_lift(0.02 * 0.7)
+				await _wait(0.02)
+				tt += 0.02
+			await _wait(0.5)
+			print("BOT asansor y=%.2f oyuncu_y=%.2f" % [zones.lift_y, player.position.y])
+			return player.position.y > ProtoZones.ELEV_TOP - 0.2
 		"pull":   # sandalda halatı çek, karşı iskelede in
 			while zones.boat_x < ProtoZones.DOCK_B - 0.02 and tt < 40.0:
 				player.input_x = 1.0

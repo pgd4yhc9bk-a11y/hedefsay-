@@ -10,6 +10,8 @@ var done := {}
 var _u := 0.0
 var _a := 0.0                  # görünürlük
 var finger: TextureRect
+var finger2: TextureRect
+var trail2: Line2D
 var ring: TextureRect
 var trail: Line2D
 var label: Label
@@ -23,6 +25,7 @@ const STEPS := {
 	"push": {"g": "push", "t": "Kasaya doğru kaydırıp basılı tut: it", "k": ["→"], "kt": "Kasayı itmek için → tuşunu basılı tut"},
 	"climb": {"g": "up", "t": "Kasanın dibinde yukarı kaydır: çık, sonra duvara tırman", "k": ["↑"], "kt": "Kasaya ve duvara çıkmak için ↑"},
 	"wheel": {"g": "circle", "t": "Çarkın yanında, ekranın sağında saat yönünde 3 tur çevir", "k": ["E"], "kt": "Çarkın yanında E tuşunu basılı tut: çevir"},
+	"lift": {"g": "twofinger", "t": "Asansöre çık; iki parmağını koy, biri aşağı biri yukarı kaydırarak zinciri çek", "k": ["E"], "kt": "Asansörde E tuşunu basılı tut: zinciri çek"},
 	"boat": {"g": "walk", "t": "Sandala bin, sağa kaydırıp basılı tut: halatı çekerek karşıya geç", "k": ["→"], "kt": "Sandalda → basılı tut: halatı çek"},
 }
 
@@ -45,11 +48,15 @@ func _ready() -> void:
 	ring.size = Vector2(96, 96)
 	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(ring)
+	trail2 = trail.duplicate() as Line2D
+	add_child(trail2)
 	finger = TextureRect.new()
 	finger.texture = _disc(80, false)
 	finger.size = Vector2(80, 80)
 	finger.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(finger)
+	finger2 = finger.duplicate() as TextureRect
+	add_child(finger2)
 	for i in 2:
 		var p := Panel.new()
 		var sb := StyleBoxFlat.new()
@@ -120,6 +127,8 @@ func show_step(want: String, dt: float) -> void:
 	finger.visible = touch
 	ring.visible = touch
 	trail.visible = touch
+	finger2.visible = touch and s["g"] == "twofinger"
+	trail2.visible = finger2.visible
 	for i in 2:
 		keys[i].visible = not touch and i < (s["k"] as Array).size()
 	if touch:
@@ -165,6 +174,18 @@ func _gesture(g: String) -> void:
 				var aa := a0 + k * TAU * float(i) / nn
 				pts.append(cc + Vector2(cos(aa), sin(aa)) * r)
 			press = 1.0 - clampf((u - 0.05) / 0.1, 0.0, 1.0) * 0.6
+		"twofinger":   # iki parmak: biri aşağı inerken diğeri yukarı çıkar, sonra yer değiştirir (el el üstüne)
+			var ph := sin(u * TAU)
+			var l := Vector2(560, 470 + ph * 80.0)
+			var r := Vector2(720, 470 - ph * 80.0)
+			p = l
+			pts = PackedVector2Array([Vector2(560, 390), Vector2(560, 550)])
+			finger2.position = r - finger2.size * 0.5
+			finger2.modulate.a = 0.9
+			finger2.scale = Vector2.ONE * 0.85
+			trail2.points = PackedVector2Array([Vector2(720, 390), Vector2(720, 550)])
+			trail2.modulate.a = 0.6
+			press = 0.4
 		"runjump":   # sağa kaydır, sonra yukarı fiske
 			var a := c + Vector2(-170, 40)
 			var m := c + Vector2(40, 40)
@@ -176,6 +197,8 @@ func _gesture(g: String) -> void:
 			if k2 > 0.0:
 				pts.append(p)
 			press = 1.0 - clampf((u - 0.05) / 0.1, 0.0, 1.0) * 0.6
+	if g == "twofinger":   # iki parmak sürekli ekranda (basılı)
+		fa = 0.9
 	finger.position = p - finger.size * 0.5
 	finger.modulate.a = fa
 	finger.scale = Vector2.ONE * (0.85 + 0.15 * (1.0 - press))
