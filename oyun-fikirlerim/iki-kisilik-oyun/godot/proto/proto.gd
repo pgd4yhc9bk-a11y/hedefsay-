@@ -16,7 +16,7 @@ const PROFILE := [
 	Vector2(46.5, 1.6), Vector2(50, 1.7), Vector2(52, 1.75), Vector2(56, -0.45),          # kaya düzlüğü, vadiye iniş
 	Vector2(60, -0.4), Vector2(63, -0.45), Vector2(66, -0.42), Vector2(67.6, -0.55),         # çark ve kapı
 	Vector2(68.6, -1.7), Vector2(78.4, -1.75), Vector2(79.2, -0.72), Vector2(80.4, -0.5), Vector2(81.5, -0.45),   # nehir yatağı ve iskele kıyısı
-	Vector2(84.5, -0.45), Vector2(84.5, 2.6), Vector2(88, 2.45), Vector2(92, 2.1),   # zincirli asansörün kayalığı
+	Vector2(84.5, -0.45), Vector2(84.5, 4.2), Vector2(87, 4.05), Vector2(90, 3.4), Vector2(93, 2.4),   # zincirli asansörün yüksek kayalığı
 	Vector2(96, 2.05), Vector2(99, 2.0), Vector2(102, 1.95), Vector2(104, 1.85),
 	Vector2(104, -30.0), Vector2(200, -30.0),
 ]
@@ -24,7 +24,7 @@ const LOG_X := 21.0
 const LOG_R := 0.3
 const CRATE_X := 43.0   # duvara (46.5) daha yakın
 const RIBBON_X := 98.4
-const CHECKPOINTS := [Vector2(1.0, 0.0), Vector2(36.0, -0.5), Vector2(48.5, 1.65), Vector2(57.5, -0.42), Vector2(65.8, -0.43), Vector2(81.5, -0.45), Vector2(85.6, 2.55)]
+const CHECKPOINTS := [Vector2(1.0, 0.0), Vector2(36.0, -0.5), Vector2(48.5, 1.65), Vector2(57.5, -0.42), Vector2(65.8, -0.43), Vector2(81.5, -0.45), Vector2(85.6, 4.12)]
 const FINAL_X := 104.0          # son uçurum
 
 var player: NehirProto
@@ -1169,7 +1169,7 @@ func _update_camera(dt: float) -> void:
 		dist = 15.0   # çark-kapı ve nehir birlikte görünsün
 		up = 1.4
 	elif p.x > 81.0 and p.x < 86.5:
-		dist = 14.5   # asansör ve kayalığın üstü birlikte görünsün
+		dist = 16.0   # asansör ve yüksek kayalığın üstü birlikte görünsün
 		up = 1.9
 	if phase == "end" or phase == "done":
 		var k := clampf((end_t - 4.5) / 6.0, 0.0, 1.0)
@@ -1868,6 +1868,26 @@ func _run_test() -> void:
 		await _wait(0.3)
 		jumped = jumped or player.state == "air"
 		print("IKI_PARMAK zipladi=%s girdi=%.2f (yurumeye devam: >0) ilk=%d parmaklar=%s" % [jumped, player.input_x, _first, str(_touch)])
+	elif test == "protofall":   # asansör yarı yoldayken atlayıp düşerse ölmeli, asansör aşağıda yeniden başlamalı
+		bot = {"on": true}
+		await _place(ProtoZones.ELEV_X - 0.2, 1.0)
+		while zones.lift_y < 2.2:
+			zones.add_lift(0.03)
+			await _wait(0.02)
+		await _wait(0.5)
+		player.input_x = -1.0
+		player.jump_pressed = true
+		var died := false
+		print("DUSME once durum=%s x=%.2f y=%.2f zemin=%s" % [player.state, player.position.x, player.position.y, player.is_on_floor()])
+		for i in 120:
+			await _wait(0.03)
+			died = died or phase == "dead"
+			if i % 10 == 0:
+				print("  dus x=%.2f y=%.2f durum=%s asansorde=%s dustu=%s" % [player.position.x, player.position.y, player.state, zones.on_lift, zones._fell])
+		player.input_x = 0.0
+		while phase == "dead":
+			await _wait(0.1)
+		print("DUSME oldu=%s yeniden x=%.2f asansor_y=%.2f" % [died, player.position.x, zones.lift_y])
 	elif test == "prototut":   # öğretici: her adımda bir kare
 		bot = {"on": true}
 		chase = "done"

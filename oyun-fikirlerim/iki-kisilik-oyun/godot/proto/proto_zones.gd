@@ -22,7 +22,7 @@ const ROPE_B := 80.1
 const ELEV_X := 83.85             # zincirli asansör (kayalığın dibinde)
 const ELEV_HALF := 0.6
 const ELEV_BOT := -0.43
-const ELEV_TOP := 2.6
+const ELEV_TOP := 4.2
 
 var lv: Node                     # ProtoLevel
 var pl: NehirProto
@@ -72,6 +72,7 @@ var _pull_k := 0.0               # son çekişin etkisi (animasyon, ses)
 var _fdy := {}                   # parmak -> son düşey hareket (iki parmak zıt yönde mi)
 var _lift_click := 0.0
 var _chain_pull := false
+var _fell := false               # yükselmiş asansörden atladı/düştü: yere çarpınca ölür (geri çıkamaz)
 
 func setup(level: Node) -> void:
 	lv = level
@@ -575,7 +576,7 @@ func lift_drag(index: int, rel: Vector2, touches: int) -> void:
 		else:
 			up = maxf(up, -dy)
 	if down > 0.5 and up > 0.5:   # zıt yönlerde: çekiş
-		add_lift(minf(down, up) * 0.0032)   # ~6-7 çekişte yukarı
+		add_lift(minf(down, up) * 0.004)   # ~8-9 çekişte yukarı
 
 func is_lift_touch() -> bool:   # asansörde parmaklar zıplatmaz/yürütmez
 	return lift_active
@@ -596,6 +597,17 @@ func add_lift(dy: float) -> void:
 	if lift_y >= ELEV_TOP:
 		audio.play("kapi_kalk", -10.0, 0.0)
 		buzz(160)
+
+func _fall_death() -> void:   # yüksekten yere çakılma: yığılır, kontrol noktasına döner (asansör aşağı iner)
+	audio.play("inis", 2.0, 0.0)
+	Game.shake(0.5)
+	buzz(300)
+	pl.state = "cut"
+	pl.caught = true
+	pl.cut_target_x = INF
+	pl.velocity = Vector3.ZERO
+	lv.phase = "dead"
+	lv.dead_t = 0.3
 
 func buzz(ms: int) -> void:   # telefonda titreşim (izin: export_presets permissions/vibrate)
 	if lv.test == "":
@@ -739,7 +751,16 @@ func _place_lift_chains() -> void:
 func _update_lift(dt: float) -> void:
 	var px := pl.position.x
 	var py := pl.position.y
+	var was_on := on_lift
 	on_lift = lv.phase == "play" and absf(px - ELEV_X) < ELEV_HALF and absf(py - lift_y) < 0.25 and pl.state != "climb"
+	# asansör yukarıdayken platformdan atlarsa ve aşağı düşerse ölür: asansör yukarıda kaldı, geri çıkamaz
+	if was_on and not on_lift and lift_y > ELEV_BOT + 1.0 and lift_y < ELEV_TOP - 0.01:
+		_fell = true
+	if on_lift or lv.phase != "play":
+		_fell = false
+	if _fell and pl.is_on_floor() and py < lift_y - 0.8 and px < ELEV_X + ELEV_HALF:
+		_fell = false
+		_fall_death()
 	lift_active = on_lift and lift_y < ELEV_TOP - 0.01
 	if lift_active and (Input.is_key_pressed(KEY_E) or Input.is_action_pressed("grab")):
 		add_lift(dt * 0.55)
@@ -756,11 +777,18 @@ func _update_lift(dt: float) -> void:
 		pl.cut_target_x = cx - 0.32
 		pl.cut_speed = 0.3
 		pl.face = 1
-		pl.reach = 1.0
-		pl.look_at = Vector3(cx, lift_y + lerpf(1.75, 1.05, a), -0.12)
-		pl.arm_r_target = Vector3(cx, lift_y + lerpf(1.75, 1.05, b), -0.12)
+		if pl.mocap != null and pl.mocap.has_anim("M_PullChain"):   # Meshy'den zincir çekme animasyonu geldiyse
+			if pl.force_anim == "":
+				pl.mocap.set_any("M_PullChain")
+				pl.force_anim = "any"
+		else:
+			pl.reach = 1.0
+			pl.look_at = Vector3(cx, lift_y + lerpf(1.75, 1.05, a), -0.12)
+			pl.arm_r_target = Vector3(cx, lift_y + lerpf(1.75, 1.05, b), -0.12)
 	elif _chain_pull:
 		_chain_pull = false
+		if pl.force_anim == "any" and pl.mocap.any_name == "M_PullChain":
+			pl.force_anim = ""
 		if pl.state == "cut" and lv.phase == "play":
 			pl.state = "ground"
 		pl.cut_target_x = INF

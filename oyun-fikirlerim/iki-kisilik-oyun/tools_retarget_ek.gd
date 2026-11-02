@@ -8,6 +8,7 @@ const SRC := "res://proto/mocap/ek/nehir_animlar3.glb"
 const DST := "res://proto/mocap/nehir_meshy.glb"
 const LIB := "res://proto/mocap/anim_nehir.res"
 const PICK := {"_01a19aaf_8c20_73a9_a96e_4316fb0a3a47": "M_TurnWheel", "_01a19ab0_b4e4_760b_b2c2_d80d2ffbb596": "M_PullRope"}
+# yeni Meshy animasyonu gelince buraya kod adı -> "M_PullChain" (asansör zinciri) eklenir
 const FPS := 30.0
 const MIXAMO := {"pelvis": "Hips", "spine_01": "Spine", "spine_02": "Spine1", "spine_03": "Spine2", "neck_01": "Neck", "Head": "Head",
 	"clavicle_l": "LeftShoulder", "upperarm_l": "LeftArm", "lowerarm_l": "LeftForeArm", "hand_l": "LeftHand",
