@@ -36,6 +36,7 @@ var lan_p := Vector3.ZERO      # fenerin orta noktası
 var lan_v := Vector3.ZERO
 var lan_ang := 0.0
 var lan_spin := 0.0
+var yaw_override := INF          # ara iş: gövde bu yöne döner (ör. çarka dönük, sırtı kameraya)
 var arm_r_target := Vector3.INF   # ara iş: sağ el buraya uzanır (halat, çark)
 var lantern_left := 0.0   # 0..1: fener sol elde (yerden alma animasyonu sol elle alır, sonra sağa geçer)
 var cut_speed := 0.45            # ara sahnede hedefe giderken girdi gücü (0.45 yürür, 1 koşar)              # ara sahne: zorla oynatılacak animasyon (crouch, torch)
@@ -445,6 +446,8 @@ func _process(dt: float) -> void:
 	dt = minf(dt, 0.05)
 	# dönüş: kameraya doğru dönerek (Inside gibi)
 	var ty := 0.0 if face > 0 else -PI
+	if yaw_override != INF:
+		ty = yaw_override
 	yaw = move_toward(yaw, ty, dt * 8.5)
 	turn.rotation.y = yaw
 	var on_floor := is_on_floor() or state == "climb"

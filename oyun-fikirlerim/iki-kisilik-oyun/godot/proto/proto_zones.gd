@@ -6,7 +6,7 @@ class_name ProtoZones extends Node3D
 ##     kancaya asar, halatı elleriyle çekerek karşıya geçer. Sandalsız suya giren boğulur (kontrol noktasına döner).
 
 const WHEEL_X := 61.6
-const STAND_X := 60.85           # çarkı çevirirken durduğu yer
+const STAND_X := 61.3            # çarka yaklaşınca durduğu yer (çevirirken çarkın tam önüne geçer)
 const GATE_X := 64.6
 const TURNS := 3.0
 const LAKE_A := 67.6             # nehir kıyıları
@@ -15,7 +15,7 @@ const WATER_Y := -0.78
 const DOCK_A := 68.75            # sandalın merkezi: berideki iskele
 const DOCK_B := 78.3             # karşı iskele
 const BOAT_HALF := 1.1
-const ROPE_Z := -0.42
+const ROPE_Z := -0.12            # halat göğüs önünde (Meshy çekme animasyonunda eller önde)
 const ROPE_A := 66.9
 const ROPE_B := 80.1
 
@@ -106,9 +106,9 @@ func _build_wheel() -> void:
 	stone.uv1_triplanar = true
 	var iron := _mat(Color(0.09, 0.075, 0.065), 0.55, 0.6)
 	# taş ayak
-	_mesh(_box(Vector3(0.42, 1.05, 0.42)), stone, Vector3(WHEEL_X, gy + 0.5, -0.95))
+	_mesh(_box(Vector3(0.42, 0.9, 0.42)), stone, Vector3(WHEEL_X, gy + 0.45, -0.85))
 	wheel = Node3D.new()
-	wheel.position = Vector3(WHEEL_X, gy + 1.05, -0.62)
+	wheel.position = Vector3(WHEEL_X, gy + 0.9, -0.5)   # ellerin döndüğü yükseklik ve uzaklık (Meshy animasyonu)
 	add_child(wheel)
 	var tor := TorusMesh.new()
 	tor.inner_radius = 0.36
@@ -220,15 +220,15 @@ void fragment() {
 	var w := _wood()
 	for x in [ROPE_A, ROPE_B]:
 		var gy: float = lv.ground_y(x)
-		_mesh(_cyl(0.07, 1.9, 8), w, Vector3(x, gy + 0.75, ROPE_Z - 0.05))
-	var ry := WATER_Y + 1.3
+		_mesh(_cyl(0.07, 1.9, 8), w, Vector3(x, gy + 0.6, ROPE_Z - 0.12))
+	var ry := WATER_Y + 1.15
 	var a := Vector3(ROPE_A, ry, ROPE_Z)
 	var b := Vector3(ROPE_B, ry, ROPE_Z)
 	var rope_m := _mat(Color(0.32, 0.27, 0.2), 1.0)
 	var n := 28
 	for i in n + 1:
 		var u := float(i) / n
-		var p := a.lerp(b, u) + Vector3(0, -0.22 * sin(PI * u), 0)
+		var p := a.lerp(b, u) + Vector3(0, -0.09 * sin(PI * u), 0)
 		rope_pts.append(p)
 	for i in n:
 		var p0 := rope_pts[i]
@@ -413,9 +413,11 @@ func docked() -> bool:
 # ---------------------------------------------------------------- çark
 func _update_wheel(dt: float) -> void:
 	var px := pl.position.x
-	var near: bool = not gate_open and lv.phase == "play" and absf(px - STAND_X) < 0.75 and pl.is_on_floor() and pl.state in ["ground", "cut"]
+	var near: bool = not gate_open and lv.phase == "play" and absf(px - STAND_X) < 0.9 and pl.is_on_floor() and pl.state in ["ground", "cut"]
 	if near != wheel_active:
 		wheel_active = near
+		if not near and pl.yaw_override != INF:
+			_release_wheel()
 		if not near:
 			pl.reach = 0.0
 			pl.look_at = Vector3.INF
@@ -425,20 +427,21 @@ func _update_wheel(dt: float) -> void:
 			add_turn(dt * 0.55)
 		# Meshy'den çark çevirme animasyonu geldiyse: çevirirken onu oynatır, yerinde durur
 		_turn_t = maxf(0.0, _turn_t - dt)
-		if pl.mocap != null and pl.mocap.has_anim("M_TurnWheel"):
+		if _has_turn_anim():
 			if _turn_t > 0.0 and pl.state == "ground":
 				pl.state = "cut"
-				pl.cut_target_x = INF
-				pl.velocity.x = 0.0
+				pl.cut_target_x = WHEEL_X   # çarkın tam önüne geçer
+				pl.cut_speed = 0.3
 				pl.mocap.set_any("M_TurnWheel")
 				pl.force_anim = "any"
+				pl.yaw_override = PI / 2.0 if pl.yaw > -PI / 2.0 else -1.5 * PI   # çarka döner (sırtı kameraya)
 			elif _turn_t <= 0.0 and pl.force_anim == "any" and pl.mocap.any_name == "M_TurnWheel":
-				pl.force_anim = ""
-				pl.state = "ground"
+				_release_wheel()
 		# eller tutamakta: sol el tutamağı izler, sağ el (fener) çarkın kenarında
-		var hp := wheel.to_global(Vector3(0.4, 0, 0.12))   # tutamak (çarkla döner)
-		pl.reach = 1.0 if absf(pl.velocity.x) < 0.2 else 0.0
-		pl.look_at = hp
+		if not _has_turn_anim():   # animasyon yoksa: sol el tutamağa uzanır
+			var hp := wheel.to_global(Vector3(0.4, 0, 0.12))   # tutamak (çarkla döner)
+			pl.reach = 1.0 if absf(pl.velocity.x) < 0.2 else 0.0
+			pl.look_at = hp
 	wheel.rotation.z = -turns * TAU
 	# kapı zincirle kalkar (cırcır: geri düşmez)
 	var k := clampf(turns / TURNS, 0.0, 1.0)
@@ -460,6 +463,17 @@ func _seg(mi: MeshInstance3D, a: Vector3, b: Vector3) -> void:
 	mi.look_at_from_position((a + b) * 0.5, b, Vector3.FORWARD if absf(d.normalized().dot(Vector3.FORWARD)) < 0.95 else Vector3.UP)
 	mi.rotate_object_local(Vector3.RIGHT, PI / 2.0)
 
+func _has_turn_anim() -> bool:
+	return pl.mocap != null and pl.mocap.has_anim("M_TurnWheel")
+
+func _release_wheel() -> void:   # çevirme bitti: yeniden yana döner, kontrol oyuncuda
+	pl.force_anim = ""
+	pl.yaw_override = INF
+	pl.cut_target_x = INF
+	pl.cut_speed = 0.45
+	if pl.state == "cut" and lv.phase == "play":
+		pl.state = "ground"
+
 ## Çarkı çevir (tur cinsinden; + saat yönü). Dokunma, klavye ve test botu buradan çevirir.
 func add_turn(dtr: float) -> void:
 	if gate_open or not wheel_active:
@@ -480,8 +494,7 @@ func add_turn(dtr: float) -> void:
 		gate_open = true
 		wheel_active = false
 		if pl.force_anim == "any":
-			pl.force_anim = ""
-			pl.state = "ground"
+			_release_wheel()
 		pl.reach = 0.0
 		pl.look_at = Vector3.INF
 		pl.arm_r_target = Vector3.INF
@@ -586,7 +599,7 @@ func _update_river(dt: float) -> void:
 
 func _rope_y(x: float) -> float:
 	var u := clampf((x - ROPE_A) / (ROPE_B - ROPE_A), 0.0, 1.0)
-	return WATER_Y + 1.3 - 0.22 * sin(PI * u)
+	return WATER_Y + 1.15 - 0.09 * sin(PI * u)
 
 func drown() -> void:
 	splash.position = Vector3(pl.position.x, WATER_Y + 0.02, 0.0)
