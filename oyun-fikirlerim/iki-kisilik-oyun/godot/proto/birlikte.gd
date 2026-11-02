@@ -1,5 +1,6 @@
 extends Node3D
 ## Birinci bölümün ikinci kısmı: kurdele ağacından sonra birlikte vadiyi geçiş.
+const Landscape = preload("res://proto/birlikte_cevre.gd")
 const Companion = preload("res://proto/cinar_companion.gd")
 const STATIONS := [65.0, 150.0, 245.0, 345.0, 445.0, 575.0]
 const GATES := [73.0, 153.0, 258.0, 360.0, 457.0, 585.0]
@@ -20,6 +21,7 @@ var phase := "play"
 var solved := [false, false, false, false, false, false]
 var gates: Array[StaticBody3D] = []
 var markers: Array[MeshInstance3D] = []
+var route_obstacles: Array[Node3D] = []
 var crate: ProtoCrate
 var bridge: StaticBody3D
 var bridge_open := false
@@ -44,7 +46,7 @@ var brass: StandardMaterial3D
 var snow: StandardMaterial3D
 
 func _ready() -> void:
-	test_mode = "--test=birlikteanim" in OS.get_cmdline_user_args() or "--test=birlikte" in OS.get_cmdline_user_args() or "--test=birlikteplay" in OS.get_cmdline_user_args()
+	test_mode = "--test=birlikteview" in OS.get_cmdline_user_args() or "--test=birlikteanim" in OS.get_cmdline_user_args() or "--test=birlikte" in OS.get_cmdline_user_args() or "--test=birlikteplay" in OS.get_cmdline_user_args()
 	wood = material(Color(0.17, 0.11, 0.075))
 	stone = material(Color(0.18, 0.22, 0.23))
 	brass = material(Color(0.65, 0.42, 0.12))
@@ -78,7 +80,9 @@ func _ready() -> void:
 	if not test_mode:
 		load_progress()
 	else:
-		if "--test=birlikteanim" in OS.get_cmdline_user_args():
+		if "--test=birlikteview" in OS.get_cmdline_user_args():
+			run_visual_review()
+		elif "--test=birlikteanim" in OS.get_cmdline_user_args():
 			run_animation_tests()
 		elif "--test=birlikteplay" in OS.get_cmdline_user_args():
 			run_walkthrough()
@@ -121,7 +125,8 @@ func sign_at(x: float, text: String, y := 2.4) -> Label3D:
 	return label
 
 func plate(x: float, width := 1.4) -> void:
-	var node := box(Vector3(x, 0.025, 0), Vector3(width, 0.05, 1.4), brass)
+	var plate_mat := material(Color(0.22, 0.20, 0.15))
+	var node := box(Vector3(x, 0.025, 0), Vector3(width, 0.05, 1.1), plate_mat)
 	markers.append(node.get_child(0) as MeshInstance3D)
 
 func lever(x: float) -> void:
@@ -137,10 +142,14 @@ func build_world() -> void:
 	env.background_color = Color(0.25, 0.31, 0.34)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.62, 0.7, 0.75)
-	env.ambient_light_energy = 0.7
+	env.ambient_light_energy = 0.5
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.35, 0.42, 0.44)
-	env.fog_density = 0.012
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_depth_begin = 12
+	env.fog_depth_end = 75
+	env.fog_depth_curve = 0.65
+	env.fog_density = 1.0
 	we.environment = env
 	add_child(we)
 	var sun := DirectionalLight3D.new()
@@ -148,31 +157,33 @@ func build_world() -> void:
 	sun.light_energy = 1.2
 	sun.shadow_enabled = true
 	add_child(sun)
-	box(Vector3(118, -0.6, -2), Vector3(260, 1.2, 12), stone, true)
-	box(Vector3(461, -0.6, -2), Vector3(406, 1.2, 12), stone, true)
+	var landscape := Landscape.new()
+	add_child(landscape)
+	landscape.build(self)
+	var log_body := StaticBody3D.new()
+	log_body.position = Vector3(40, Landscape.height_at(40), 0)
+	log_body.collision_layer = 9
+	add_child(log_body)
+	var log_shape := CollisionShape3D.new()
+	var log_box := BoxShape3D.new()
+	log_box.size = Vector3(0.7, 0.65, 2)
+	log_shape.shape = log_box
+	log_shape.position.y = 0.325
+	log_body.add_child(log_shape)
+	landscape.beam(log_body.position + Vector3(0, 0.32, -1.3), log_body.position + Vector3(0, 0.32, 1.3), 0.34, landscape.bark)
+	route_obstacles.append(log_body)
 	box(Vector3(-8, 2, 0), Vector3(1, 5, 3), stone, true)
 	box(Vector3(662, 2, 0), Vector3(1, 5, 3), stone, true)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 481
-	for i in 220:
-		var x := rng.randf_range(-10, 660)
-		var z := rng.randf_range(-15, -3)
-		var h := rng.randf_range(3, 7)
-		box(Vector3(x, h / 2, z), Vector3(0.25, h, 0.3), wood)
-		box(Vector3(x, h * 0.7, z), Vector3(2.5, 0.16, 0.4), wood)
-		if i % 3 == 0:
-			box(Vector3(x + 1, 0.4, -2.5), Vector3(1.4, 0.8, 1), snow)
 	for i in STATIONS.size():
-		sign_at(STATIONS[i], "%d · %s" % [i + 1, NAMES[i]], 3.8)
 		var gate := box(Vector3(GATES[i], 1.75, 0), Vector3(0.5, 3.5, 2.4), wood, true, 1 if i == 1 else 9) as StaticBody3D
 		gates.append(gate)
-		for z in [-1.5, 1.5]:
+		for z in ([-1.5] if i == 1 else [-1.5, 1.5]):
 			box(Vector3(GATES[i], 2, z), Vector3(0.4, 4, 0.4), stone)
 	plate(60)
 	plate(68)
 	# Dar geçidin görsel açıklığı: altı karanlık, üstünde kaya tavanı.
 	gates[1].get_child(0).visible = false
-	box(Vector3(153, 2.3, 0), Vector3(2.4, 2.2, 2.4), stone)
+	box(Vector3(153, 2.3, -0.9), Vector3(2.4, 2.2, 0.5), stone)
 	plate(158)
 	plate(240)
 	plate(245)
@@ -357,13 +368,20 @@ func current_station() -> int:
 
 func _process(dt: float) -> void:
 	if player == null or cinar == null: return
-	cam.position = cam.position.lerp(Vector3(player.position.x + 1, 4.4, 17), 1.0 - exp(-dt * 3))
-	cam.look_at(Vector3(player.position.x + 1, 1.1, 0))
+	cam.position = cam.position.lerp(Vector3(player.position.x + 1, ground_y(player.position.x) + 3.6, 14), 1.0 - exp(-dt * 3))
+	cam.look_at(Vector3(player.position.x + 1, ground_y(player.position.x) + 1.1, 0))
 	status.text = "BİRLİKTE  ·  %d / 6  ·  Çınar: %s%s" % [solved.count(true), {"follow":"takip", "stay":"bekliyor", "go":"gidiyor"}[cinar.mode], "  ·  DURAKLATILDI" if paused else ""]
 	target_marker.visible = phase == "play" and (selected or cinar.mode == "go")
 	target_marker.position = Vector3(cinar.position.x if selected else cinar.target_x, 0.04, 0)
 	if phase != "play": return
 	elapsed += dt
+	for marker in markers:
+		var x: float = marker.get_parent().position.x
+		var pressed: bool = occupied(x, player) or occupied(x, cinar) or occupied(x, crate)
+		marker.position.y = -0.025 if pressed else 0.0
+		var pm := marker.material_override as StandardMaterial3D
+		pm.emission_enabled = pressed
+		pm.emission = Color(0.25, 0.16, 0.05)
 	var nearby := current_station()
 	if nearby != shown_station and absf(player.position.x - STATIONS[nearby]) < 12:
 		shown_station = nearby
@@ -480,7 +498,7 @@ func load_progress() -> void:
 	restore_checkpoint()
 
 func ground_y(x: float) -> float:
-	return -8.0 if x > 248 and x < 258 and not bridge_open else 0.0
+	return -8.0 if x > 248 and x < 258 and not bridge_open else Landscape.height_at(x)
 func surface_at(_p: Node3D) -> String: return "toprak"
 func crate_at(p: Node3D, dir: int) -> Node:
 	if crate != null and absf(p.position.y - crate.position.y) < 0.3 and absf(crate.position.x - p.position.x - dir * 0.75) < 0.25: return crate
@@ -576,6 +594,7 @@ func walk_to(x: float) -> void:
 	var seconds := 0.0
 	while phase == "play" and absf(player.position.x - x) > 0.15 and seconds < 90.0:
 		bot_axis = clampf((x - player.position.x) * 1.8, -1, 1)
+		if absf(player.position.x - 40) < 1.5 and player.is_on_floor(): player.jump_pressed = true
 		await get_tree().create_timer(0.05).timeout
 		seconds += 0.05
 	bot_axis = 0.0
@@ -692,3 +711,21 @@ func run_animation_tests() -> void:
 	check(cinar.lever_stage == "" and player.interaction_left == 0, "Baştan eski animasyonu temizlemeli")
 	print("BIRLIKTE ANIMASYON hata=", failures)
 	get_tree().quit(1 if failures else 0)
+
+## Gerçek GL Compatibility ekran görüntüleri; yalnız görsel inceleme için.
+func run_visual_review() -> void:
+	if DisplayServer.get_name() == "headless":
+		get_tree().quit(1)
+		return
+	phase = "review"
+	player.set_physics_process(false)
+	cinar.set_physics_process(false)
+	for x in [32, 65, 149, 253, 348, 444, 575]:
+		set_bridge(x == 253)
+		player.position = Vector3(x, Landscape.height_at(x), 0)
+		cinar.position = Vector3(x - 1.5, Landscape.height_at(x - 1.5), 0)
+		cam.position = Vector3(x + 1, Landscape.height_at(x) + 3.6, 14)
+		await get_tree().create_timer(1.5).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/birlikte-vadi-%d.png" % x)
+	get_tree().quit()
