@@ -82,3 +82,21 @@ Godot_v4.3-stable_linux.x86_64 --headless --path godot res://proto/birlikte.tscn
 ```
 
 `birlikteanim`: animasyon/kemik yolları, döngü sınırları, Nehir etkileşimleri, hareketle iptal, duraklatma, Çınar çek/tut/bırak geçişi, onay, dar geçit, sıçrama ve yeniden başlatma. Ayrıca `birlikte`, `birlikteplay` ve `protoplay` regresyonları kullanılır. Kaynak hareketler iskelet kareleri üzerinden incelendi; bu, oyunun render edilmiş görüntüsü veya gerçek telefon testi değildir.
+
+
+## Vadi çevresi ve ilk parkur yenilemesi
+
+Düz iki platform ve kutu ağaçlar kaldırıldı. `proto/birlikte_cevre.gd` mevcut çevre görsellerinden katmanlı orman, dokulu kar/arazi, dallı 3B gövdeler, kayalar, ön plan siluetleri ve sıcak yol fenerleri kurar. Kameranın yüksekliği patikayı izler. Görünürlük mesafeleri çevre nesnelerini uzakta kapatır. GL Compatibility kullanılır.
+
+- **x 12–56:** 3,2 metreye çıkan kar yamacı, korkuluk, kurdele işaretleri; x 40'ta zıplanarak aşılan fiziksel kütük. Çınar takipte kütüğü aşar.
+- **x 80–136:** çukur patika ve orman katmanları.
+- **x 137–169:** ahşap değirmen, dönen dış çark, kar kaplı çatı ve Çınar geçidi.
+- **x 169–234:** dört metre yüksekliğe çıkan sırt ve kanyona iniş.
+- **x 240–264:** su yatağı, kaya yüzleri, ahşap köprü ve ince askı halatları.
+- **x 329–368:** taş döşeli fener avlusu ve yıkık sütunlar.
+- **x 426–465:** çapraz kirişli yıkık yük deposu ve vinç.
+- **x 540–650:** çatılar, sıcak ışıklı pencereler/fenerler ve köy yolu.
+
+Plakalar koyu metal yapıldı; üzerine basılınca görsel olarak çöker ve hafif parlar. Altı bulmacanın temel çözüm kuralları bu çevre çalışmasında korunur. Bu değişiklik bütün bulmacaların yeniden tasarımı veya minimum 10 dakika doğrulaması değildir.
+
+Gerçek Mesa OpenGL/GL Compatibility görüntüleri yedi noktada alınarak incelendi. Zemin normalleri ve değirmenin önündeki karakteri kapatan direk düzeltildi; yüksek kontrastlı kar dokusu yumuşatıldı. Örnek görüntüler `gorseller/birlikte-yamac.jpg`, `gorseller/birlikte-kanyon.jpg`. Gerçek telefon performansı henüz ölçülmedi.
