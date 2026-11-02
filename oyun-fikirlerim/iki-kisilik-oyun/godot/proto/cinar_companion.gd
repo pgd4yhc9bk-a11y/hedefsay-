@@ -56,13 +56,16 @@ func _physics_process(dt: float) -> void:
 	velocity.x = move_toward(velocity.x, clampf(dx * 2.0, -speed, speed) if mode != "stay" else 0.0, dt * 9.0)
 	if lever_stage == "release": velocity.x = 0
 	velocity.y = -0.5 if is_on_floor() else velocity.y - 21.0 * dt
-	# Takip sırasında kasanın arkasında kalmasın; yüksek duvarlara atlamaz.
-	if is_on_floor() and mode != "stay" and level.crate != null:
-		var obstacle: Node3D = level.crate
-		if absf(obstacle.position.x - position.x) < 1.2 and position.y < obstacle.position.y + 0.8 and signf(dx) == signf(obstacle.position.x - position.x):
-			velocity.y = 7.8
-			hopping = true
-			model.any_name = ""
+	# Alçak kütük ve kasa aşılır; yüksek kapılara atlanmaz.
+	var obstacles: Array = level.route_obstacles.duplicate()
+	if level.crate != null: obstacles.append(level.crate)
+	if is_on_floor() and mode != "stay":
+		for obstacle: Node3D in obstacles:
+			if absf(obstacle.position.x - position.x) < 1.2 and position.y < obstacle.position.y + 0.8 and signf(dx) == signf(obstacle.position.x - position.x):
+				velocity.y = 7.8
+				hopping = true
+				model.any_name = ""
+				break
 	move_and_slide()
 	position.z = 0.0
 	if mode == "go" and absf(position.x - target_x) < 0.12:
@@ -70,7 +73,7 @@ func _physics_process(dt: float) -> void:
 	if absf(velocity.x) > 0.05:
 		turn.rotation.y = move_toward(turn.rotation.y, 0.0 if velocity.x > 0 else -PI, dt * 7.0)
 	animate_companion(dt, tunnel)
-	if position.y < -4.0:
+	if position.y < level.ground_y(position.x) - 4.0:
 		level.restore_checkpoint()
 
 func reset_interaction() -> void:
