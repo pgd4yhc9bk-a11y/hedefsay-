@@ -577,20 +577,34 @@ func lift_drag(index: int, rel: Vector2, touches: int) -> void:
 	if not lift_active or touches < 2:
 		_fdy.clear()
 		return
-	_fdy[index] = rel.y
-	var down := 0.0
-	var up := 0.0
-	for k in _fdy:
-		var dy: float = _fdy[k]
-		if dy > 0.0:
-			down = maxf(down, dy)
-		else:
-			up = maxf(up, -dy)
-	if down > 0.5 and up > 0.5:   # zıt yönlerde: çekiş
-		add_lift(minf(down, up) * 0.004)   # ~8-9 çekişte yukarı
+	# Yalnızca yakın zamanda yapılan hareketler eşleşir; her hareket bir kez kullanılır.
+	var now := Time.get_ticks_msec()
+	for k in _fdy.keys():
+		if now - int(_fdy[k]["time"]) > 150:
+			_fdy.erase(k)
+	if absf(rel.y) <= 0.5:
+		_fdy.erase(index)
+		return
+	_fdy[index] = {"dy": rel.y, "time": now}
+	for k in _fdy.keys():
+		if k == index:
+			continue
+		var other: float = _fdy[k]["dy"]
+		if rel.y * other < 0.0:
+			add_lift(minf(absf(rel.y), absf(other)) * 0.004)
+			_fdy.clear()   # aynı çekiş, sonraki sürüklemede yeniden sayılmasın
+			break
 
-func is_lift_touch() -> bool:   # asansörde parmaklar zıplatmaz/yürütmez
-	return lift_active
+func touch_released(index: int) -> void:
+	_vlast.erase(index)
+	_fdy.clear()   # parmak çifti değişti; iki taraftan da yeni hareket bekle
+
+func reset_touch_gestures() -> void:
+	_vlast.clear()
+	_fdy.clear()
+
+func is_lift_touch() -> bool:   # tepeye varınca da iki parmaklık çekiş zıplamaya dönüşmesin
+	return on_lift
 
 ## Asansörü yükselt (metre). Dokunma, klavye (E) ve test botu buradan.
 func add_lift(dy: float) -> void:
@@ -603,6 +617,7 @@ func add_lift(dy: float) -> void:
 
 ## Her şeyi bırak (final sahnesi başlarken, yeniden doğarken): zorlanmış animasyon, dönüş, kol hedefleri
 func release_all() -> void:
+	reset_touch_gestures()
 	if forced != "":
 		pl.force_anim = ""
 		forced = ""
@@ -815,6 +830,8 @@ func _update_lift(dt: float) -> void:
 		_last_floor_y = py
 	_was_floor = fl
 	lift_active = on_lift and lift_y < ELEV_TOP - 0.01
+	if not lift_active:
+		_fdy.clear()
 	if lift_active and (Input.is_key_pressed(KEY_E) or Input.is_action_pressed("grab")):
 		add_lift(dt * 0.55)
 	_pull_k = maxf(0.0, _pull_k - dt)
