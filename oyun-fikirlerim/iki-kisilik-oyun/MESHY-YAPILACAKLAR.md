@@ -9,6 +9,15 @@
 
 ---
 
+## 0) ŞİMDİ GEREKENLER: çark ve halat (Nehir, Text to Motion) ⭐⭐
+
+| # | Ne için | Komut |
+|---|---|---|
+| A | Çarkı çevirme (yerinde, döngü) | `A girl stands facing a large vertical wheel at chest height on her side, grips its handle with both hands and turns it in big clockwise circles with effort, feet planted, leaning into each turn. Looping, in place.` |
+| B | Sandalda halat çekme (yerinde, döngü) | `A girl stands in a small boat, gripping a horizontal rope at chest height in front of her, pulling it hand over hand toward her body with effort, alternating hands, feet planted. Looping, in place.` |
+
+Gönderirken hangisinin A, hangisinin B olduğunu yaz. Oyunda yerleri hazır: gelince çark başında ve sandalda otomatik oynar.
+
 ## 1) Nehir: animasyonlar (Text to Motion)
 
 | # | Ne için | Komut |

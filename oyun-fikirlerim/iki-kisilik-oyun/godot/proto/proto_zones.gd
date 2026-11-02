@@ -34,6 +34,7 @@ var wheel_active := false
 var _click := 0.0
 var _vlast := {}                 # parmak -> son hareket yönü (dönüş açısı hesabı)
 var _gate_snd := false
+var _turn_t := 0.0               # son çevirmeden beri (animasyon için)
 
 # nehir
 var water: MeshInstance3D
@@ -422,6 +423,18 @@ func _update_wheel(dt: float) -> void:
 	if wheel_active:
 		if Input.is_key_pressed(KEY_E) or Input.is_action_pressed("grab"):
 			add_turn(dt * 0.55)
+		# Meshy'den çark çevirme animasyonu geldiyse: çevirirken onu oynatır, yerinde durur
+		_turn_t = maxf(0.0, _turn_t - dt)
+		if pl.mocap != null and pl.mocap.has_anim("M_TurnWheel"):
+			if _turn_t > 0.0 and pl.state == "ground":
+				pl.state = "cut"
+				pl.cut_target_x = INF
+				pl.velocity.x = 0.0
+				pl.mocap.set_any("M_TurnWheel")
+				pl.force_anim = "any"
+			elif _turn_t <= 0.0 and pl.force_anim == "any" and pl.mocap.any_name == "M_TurnWheel":
+				pl.force_anim = ""
+				pl.state = "ground"
 		# eller tutamakta: sol el tutamağı izler, sağ el (fener) çarkın kenarında
 		var hp := wheel.to_global(Vector3(0.4, 0, 0.12))   # tutamak (çarkla döner)
 		pl.reach = 1.0 if absf(pl.velocity.x) < 0.2 else 0.0
@@ -453,6 +466,8 @@ func add_turn(dtr: float) -> void:
 		return
 	var before := turns
 	turns = clampf(turns + dtr, 0.0, TURNS)
+	if dtr > 0.0:
+		_turn_t = 0.3
 	if floor(turns * 4.0) != floor(before * 4.0):   # her çeyrek turda bir tık
 		audio.play("cark", -8.0, 0.1)
 		if turns > before:
@@ -460,9 +475,13 @@ func add_turn(dtr: float) -> void:
 	if turns > 0.15 and not _gate_snd:
 		_gate_snd = true
 		audio.play("kapi_kalk", -10.0, 0.0)
-	if turns >= TURNS:
+	if turns >= TURNS - 0.06:   # parmakla çizilen daire tam kapanmayabilir: küçük pay
+		turns = TURNS
 		gate_open = true
 		wheel_active = false
+		if pl.force_anim == "any":
+			pl.force_anim = ""
+			pl.state = "ground"
 		pl.reach = 0.0
 		pl.look_at = Vector3.INF
 		pl.arm_r_target = Vector3.INF
@@ -518,7 +537,14 @@ func _update_river(dt: float) -> void:
 			pl.arm_r_target = Vector3.INF
 			pl.reach = 0.0
 			pl.look_at = Vector3.INF
-	if pulling:
+	var rope_anim: bool = pl.mocap != null and pl.mocap.has_anim("M_PullRope")
+	if rope_anim:   # Meshy'den halat çekme animasyonu geldiyse onu oynatır
+		if pulling and pl.force_anim == "":
+			pl.mocap.set_any("M_PullRope")
+			pl.force_anim = "any"
+		elif not pulling and pl.force_anim == "any" and pl.mocap.any_name == "M_PullRope":
+			pl.force_anim = ""
+	if pulling and not rope_anim:
 		# el el üstüne: iki el sırayla halatta öne uzanıp geri çeker
 		_phase += absf(boat_v) * dt * 2.2
 		var fwd := signf(ix)
@@ -528,6 +554,7 @@ func _update_river(dt: float) -> void:
 		pl.reach = 1.0
 		pl.look_at = Vector3(px + fwd * lerpf(0.55, 0.25, a), ry, ROPE_Z)
 		pl.arm_r_target = Vector3(px + fwd * lerpf(0.55, 0.25, b), ry, ROPE_Z)
+	if pulling:
 		_rope_snd -= dt
 		if _rope_snd <= 0.0 and absf(boat_v) > 0.2:
 			_rope_snd = 0.55

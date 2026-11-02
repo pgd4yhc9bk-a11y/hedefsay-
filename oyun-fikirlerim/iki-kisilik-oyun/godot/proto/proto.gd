@@ -1358,6 +1358,9 @@ func _input(ev: InputEvent) -> void:
 		if zones != null:
 			zones.touch_drag(ev.index, ev.position, ev.relative)
 		# yukarı hızlı kaydırma = zıpla. HER parmakta çalışır: sağ parmakla yürürken sol parmakla yukarı kaydırmak da zıplatır.
+		# Çarkın başında: ekranın sağ yarısında daire çizen parmak zıplatmaz (daire çizerken parmak yukarı da gider)
+		if zones != null and (zones.is_turn_touch(f["start"]) or (zones.wheel_active and ev.position.x > get_viewport().get_visible_rect().size.x * 0.5)):
+			return
 		if t - float(f["lt"]) > 0.25:
 			f["ly"] = ev.position.y
 			f["lt"] = t
@@ -1631,6 +1634,39 @@ func _run_test() -> void:
 			for n in hidden:
 				(n as Node3D).visible = true
 		close_cam = 0.0
+	elif test == "protocircle":   # çarkta sağ yarıda parmakla daire: çark dönmeli, Nehir zıplamamalı/yürümemeli
+		await _place(ProtoZones.STAND_X, 0.8)
+		bot = {}
+		var vs := get_viewport().get_visible_rect().size
+		var c := Vector2(vs.x * 0.78, vs.y * 0.5)
+		var r := vs.y * 0.15
+		var ev := InputEventScreenTouch.new()
+		ev.index = 0
+		ev.pressed = true
+		ev.position = c + Vector2(0, -r)
+		get_viewport().push_input(ev)
+		var last := ev.position
+		var ymax := player.position.y
+		var xs := player.position.x
+		var air := false
+		for i in 3 * 40:
+			var a := -PI / 2.0 + float(i + 1) / 40.0 * TAU
+			var dv := InputEventScreenDrag.new()
+			dv.index = 0
+			dv.position = c + Vector2(cos(a), sin(a)) * r
+			dv.relative = dv.position - last
+			last = dv.position
+			get_viewport().push_input(dv)
+			await get_tree().process_frame
+			ymax = maxf(ymax, player.position.y)
+			air = air or player.state == "air"
+		var up := InputEventScreenTouch.new()
+		up.index = 0
+		up.pressed = false
+		up.position = last
+		get_viewport().push_input(up)
+		await _wait(0.5)
+		print("DAIRE tur=%.2f kapi=%s havada=%s y_artis=%.3f x_kayma=%.3f" % [zones.turns, zones.gate_open, air, ymax - (-0.42), player.position.x - xs])
 	elif test == "prototut":   # öğretici: her adımda bir kare
 		bot = {"on": true}
 		chase = "done"
