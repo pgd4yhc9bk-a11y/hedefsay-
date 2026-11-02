@@ -1308,7 +1308,7 @@ void fragment() {
 	title = _label("Kurdeleleri takip et.", 40, Vector2(0, 520))
 	title.modulate.a = 0.0
 	cl.add_child(title)
-	sub = _label("SİS  ·  prototip bölüm\n\ndokun ya da bir tuşa bas", 22, Vector2(0, 300))
+	sub = _label("SİS  ·  Buluşma\n\nÇınar ile devam etmek için dokun", 22, Vector2(0, 300))
 	sub.modulate.a = 0.0
 	cl.add_child(sub)
 	var mb := Button.new()
@@ -1320,6 +1320,12 @@ void fragment() {
 	mb.add_theme_font_size_override("font_size", 26)
 	mb.pressed.connect(_back_to_menu)
 	cl.add_child(mb)
+	if FileAccess.file_exists("user://birlikte.cfg"):
+		var resume := Button.new()
+		resume.text = "Çınar ile devam et"
+		resume.position = Vector2(80, 10)
+		resume.pressed.connect(_continue_with_cinar)
+		cl.add_child(resume)
 
 func _shader_mat_canvas(code: String) -> ShaderMaterial:
 	var sh := Shader.new()
@@ -1380,7 +1386,7 @@ func _input(ev: InputEvent) -> void:
 	if not built:
 		return
 	if phase == "done" and ((ev is InputEventKey and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed) or (ev is InputEventMouseButton and ev.pressed)):
-		_back_to_menu()
+		_continue_with_cinar()
 		return
 	if ev is InputEventKey and ev.pressed and ev.keycode == KEY_ESCAPE:
 		_back_to_menu()
@@ -1450,6 +1456,11 @@ func _notification(what: int) -> void:
 			zones.reset_touch_gestures()
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		_back_to_menu()
+
+func _continue_with_cinar() -> void:
+	if test != "":
+		return
+	get_tree().change_scene_to_file("res://proto/birlikte.tscn")
 
 func _back_to_menu() -> void:
 	if test != "":
