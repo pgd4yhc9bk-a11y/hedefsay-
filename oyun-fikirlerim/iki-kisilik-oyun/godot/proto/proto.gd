@@ -1766,8 +1766,11 @@ func _run_test() -> void:
 				get_viewport().push_input(d)
 			await get_tree().process_frame
 			air = air or player.state == "air"
-			if k == 120:
+			if k == 5:
+				close_cam = 5.5
+			if k == 45:
 				await _shot("asansor_2")
+				close_cam = 0.0
 		for i in 2:
 			var e2 := InputEventScreenTouch.new()
 			e2.index = i

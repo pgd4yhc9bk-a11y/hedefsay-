@@ -4,11 +4,13 @@ extends Node3D
 ## Kök kayması çıkarılır ve döngü yapılır (yerinde oynasın).
 ## Çalıştırma: proto/ klasörüne retarget_ek.gd olarak kopyala + tscn; godot --headless --path godot res://proto/retarget_ek.tscn
 
-const SRC := "res://proto/mocap/ek/nehir_animlar3.glb"
+## Her iş: kaynak dosya ve {kod adı: oyundaki ad}. Kaynak iskelet Mixamo adlı (mixamorig_*) ya da bizimkiyle aynı adlı olabilir.
+const JOBS := [
+	{"src": "res://proto/mocap/ek/nehir_animlar3.glb", "pick": {"_01a19aaf_8c20_73a9_a96e_4316fb0a3a47": "M_TurnWheel", "_01a19ab0_b4e4_760b_b2c2_d80d2ffbb596": "M_PullRope"}},
+	{"src": "res://proto/mocap/ek/nehir_animlar4.glb", "pick": {"_01a19bc5_f9c2_723f_a26d_476ad8347f39": "M_PullChain"}},
+]
 const DST := "res://proto/mocap/nehir_meshy.glb"
 const LIB := "res://proto/mocap/anim_nehir.res"
-const PICK := {"_01a19aaf_8c20_73a9_a96e_4316fb0a3a47": "M_TurnWheel", "_01a19ab0_b4e4_760b_b2c2_d80d2ffbb596": "M_PullRope"}
-# yeni Meshy animasyonu gelince buraya kod adı -> "M_PullChain" (asansör zinciri) eklenir
 const FPS := 30.0
 const MIXAMO := {"pelvis": "Hips", "spine_01": "Spine", "spine_02": "Spine1", "spine_03": "Spine2", "neck_01": "Neck", "Head": "Head",
 	"clavicle_l": "LeftShoulder", "upperarm_l": "LeftArm", "lowerarm_l": "LeftForeArm", "hand_l": "LeftHand",
@@ -27,6 +29,13 @@ const MIXAMO := {"pelvis": "Hips", "spine_01": "Spine", "spine_02": "Spine1", "s
 	"pinky_01_r": "RightHandPinky1", "pinky_02_r": "RightHandPinky2", "pinky_03_r": "RightHandPinky3"}
 
 func _ready() -> void:
+	var lib: AnimationLibrary = load(LIB)
+	for job: Dictionary in JOBS:
+		await _job(job["src"], job["pick"], lib)
+	print("kaydet: ", ResourceSaver.save(lib, LIB, ResourceSaver.FLAG_COMPRESS))
+	get_tree().quit()
+
+func _job(SRC: String, PICK: Dictionary, lib: AnimationLibrary) -> void:
 	var src: Node3D = (load(SRC) as PackedScene).instantiate()
 	add_child(src)
 	var ss: Skeleton3D = src.find_child("Skeleton3D", true, false)
@@ -40,16 +49,19 @@ func _ready() -> void:
 	for di in ds.get_bone_count():
 		var dn := ds.get_bone_name(di)
 		var key := "Head" if dn == "head" else dn
-		if not MIXAMO.has(key):
+		if not MIXAMO.has(key) and ss.find_bone(dn) < 0:
 			continue
-		var si := ss.find_bone("mixamorig_" + MIXAMO[key])
+		var si := ss.find_bone("mixamorig_" + MIXAMO[key]) if MIXAMO.has(key) else -1
+		if si < 0:
+			si = ss.find_bone(dn)   # aynı adlı iskelet
 		if si >= 0:
 			pairs[di] = si
 	var hips_d := ds.find_bone("pelvis")
 	var hips_s := ss.find_bone("mixamorig_Hips")
+	if hips_s < 0:
+		hips_s = ss.find_bone("pelvis")
 	print("eslesen kemik: ", pairs.size(), "/", ds.get_bone_count())
 	var ratio := ds.get_bone_global_rest(hips_d).origin.y / ss.get_bone_global_rest(hips_s).origin.y
-	var lib: AnimationLibrary = load(LIB)
 	for an: String in PICK:
 		var a: Animation = ap.get_animation(an)
 		var na := Animation.new()
@@ -101,8 +113,9 @@ func _ready() -> void:
 			lib.remove_animation(PICK[an])
 		lib.add_animation(PICK[an], na)
 		print("aktarildi ", an, " -> ", PICK[an], " ", a.length, " s, kok kaymasi ", drift)
-	print("kaydet: ", ResourceSaver.save(lib, LIB, ResourceSaver.FLAG_COMPRESS))
-	get_tree().quit()
+	src.queue_free()
+	dst.queue_free()
+	await get_tree().process_frame
 
 ## Döngü dikişi: pozun en çok benzediği iki an arasını keser (en az 1.6 s), kalçanın yatay farkını dağıtır.
 func _loop_cut(a: Animation) -> Animation:
