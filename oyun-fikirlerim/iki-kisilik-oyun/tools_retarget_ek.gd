@@ -7,11 +7,12 @@ extends Node3D
 ## Her iş: kaynak dosya ve {kod adı: oyundaki ad}. Kaynak iskelet Mixamo adlı (mixamorig_*) ya da bizimkiyle aynı adlı olabilir.
 const JOBS := [
 	{"src": "res://proto/mocap/ek/nehir_animlar3.glb", "pick": {"_01a19aaf_8c20_73a9_a96e_4316fb0a3a47": "M_TurnWheel", "_01a19ab0_b4e4_760b_b2c2_d80d2ffbb596": "M_PullRope"}},
-	{"src": "res://proto/mocap/ek/nehir_animlar4.glb", "pick": {"_01a19bc5_f9c2_723f_a26d_476ad8347f39": "M_PullChain"}},
+	{"src": "res://proto/mocap/ek/nehir_animlar4.glb", "pick": {"_01a19bc5_f9c2_723f_a26d_476ad8347f39": "M_PullChain", "_01a19bcd_4ee9_7260_bff5_34988e4b5010": "M_IceSlip"}},
 ]
 const DST := "res://proto/mocap/nehir_meshy.glb"
 const LIB := "res://proto/mocap/anim_nehir.res"
 const FPS := 30.0
+const NO_LOOP := ["M_IceSlip"]
 const MIXAMO := {"pelvis": "Hips", "spine_01": "Spine", "spine_02": "Spine1", "spine_03": "Spine2", "neck_01": "Neck", "Head": "Head",
 	"clavicle_l": "LeftShoulder", "upperarm_l": "LeftArm", "lowerarm_l": "LeftForeArm", "hand_l": "LeftHand",
 	"clavicle_r": "RightShoulder", "upperarm_r": "RightArm", "lowerarm_r": "RightForeArm", "hand_r": "RightHand",
@@ -108,7 +109,10 @@ func _job(SRC: String, PICK: Dictionary, lib: AnimationLibrary) -> void:
 			var pp := ds.get_bone_parent(hips_d)
 			var lpos := gpos if pp < 0 else (ds.get_bone_global_rest(pp).affine_inverse() * gpos)
 			na.position_track_insert_key(ptr, tt, lpos)
-		na = _loop_cut(na)
+		if PICK[an] in NO_LOOP:   # tek seferlik (ör. buzda kayma): döngü kesilmez, kök kayması korunur değil çıkarılır
+			na.loop_mode = Animation.LOOP_NONE
+		else:
+			na = _loop_cut(na)
 		if lib.has_animation(PICK[an]):
 			lib.remove_animation(PICK[an])
 		lib.add_animation(PICK[an], na)

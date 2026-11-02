@@ -68,6 +68,9 @@ var lift_v := 0.0
 var on_lift := false
 var lift_active := false         # üstünde ve yukarı çıkılabilir
 var lift_chains: Array[MeshInstance3D] = []
+var lift_hook: Node3D
+var _hook_node: Node3D = null    # fenerin asılı olduğu kanca (sandal ya da asansör)
+var _grip_pt := Vector3.INF      # çekerken ellerin ortası: zincir buradan geçer
 var _pull_k := 0.0               # son çekişin etkisi (animasyon, ses)
 var _fdy := {}                   # parmak -> son düşey hareket (iki parmak zıt yönde mi)
 var _lift_click := 0.0
@@ -598,6 +601,12 @@ func add_lift(dy: float) -> void:
 		audio.play("kapi_kalk", -10.0, 0.0)
 		buzz(160)
 
+func _hands_free() -> void:
+	pl.reach = 0.0
+	pl.look_at = Vector3.INF
+	pl.arm_r_target = Vector3.INF
+	pl.mocap.grip_l = 0.45
+
 func _fall_death() -> void:   # yüksekten yere çakılma: yığılır, kontrol noktasına döner (asansör aşağı iner)
 	audio.play("inis", 2.0, 0.0)
 	Game.shake(0.5)
@@ -650,12 +659,21 @@ func _update_river(dt: float) -> void:
 			pl.reach = 0.0
 			pl.look_at = Vector3.INF
 	var rope_anim: bool = pl.mocap != null and pl.mocap.has_anim("M_PullRope")
-	if rope_anim:   # Meshy'den halat çekme animasyonu geldiyse onu oynatır
+	if rope_anim:   # Meshy'den halat çekme animasyonu geldiyse onu oynatır; eller her karede halata yönelir (kavrar)
 		if pulling and pl.force_anim == "":
 			pl.mocap.set_any("M_PullRope")
 			pl.force_anim = "any"
 		elif not pulling and pl.force_anim == "any" and pl.mocap.any_name == "M_PullRope":
 			pl.force_anim = ""
+			_hands_free()
+		if pulling:
+			var hl: Vector3 = pl.body.bone_world("hand.L")
+			var hr: Vector3 = pl.body.bone_world("hand.R")
+			var ryy := _rope_y(px)
+			pl.reach = 1.0
+			pl.look_at = Vector3(maxf(hl.x, px + 0.3), ryy, ROPE_Z)
+			pl.arm_r_target = Vector3(maxf(hr.x, px + 0.3), ryy, ROPE_Z)
+			pl.mocap.grip_l = 1.9
 	if pulling and not rope_anim:
 		# el el üstüne: iki el sırayla halatta öne uzanıp geri çeker
 		_phase += absf(boat_v) * dt * 2.2
@@ -674,14 +692,15 @@ func _update_river(dt: float) -> void:
 	wake.emitting = absf(boat_v) > 0.15
 	wake.position = Vector3(boat_x - signf(boat_v) * BOAT_HALF * 0.8, WATER_Y + 0.02, 0.0)
 	# fener: sandaldayken pruvadaki kancada, inerken yeniden elde
-	if pulling and not lantern_on_hook and pl.lantern_left < 0.01 and pl.lantern_pick == Vector3.INF:
+	if (pulling or _chain_pull) and not lantern_on_hook and pl.lantern_left < 0.01 and pl.lantern_pick == Vector3.INF:
 		lantern_on_hook = true
+		_hook_node = hook if pulling else lift_hook
 		_lan_k = 0.0
 		_lan_from = pl.lantern.global_position
 		audio.play("kumas", -14.0)
-	elif lantern_on_hook and not on_boat:
+	elif lantern_on_hook and ((_hook_node == hook and not on_boat) or (_hook_node == lift_hook and not on_lift)):
 		lantern_on_hook = false
-		pl.lantern_pick = hook.global_position
+		pl.lantern_pick = _hook_node.global_position
 		pl.lantern_pick_w = 0.0
 		var tw := create_tween()
 		tw.tween_property(pl, "lantern_pick_w", 1.0, 0.25)
@@ -690,7 +709,7 @@ func _update_river(dt: float) -> void:
 		audio.play("kumas", -14.0)
 	if lantern_on_hook:
 		_lan_k = minf(1.0, _lan_k + dt * 4.0)
-		pl.lantern_ground = _lan_from.lerp(hook.global_position, _lan_k * _lan_k * (3.0 - 2.0 * _lan_k))
+		pl.lantern_ground = _lan_from.lerp(_hook_node.global_position, _lan_k * _lan_k * (3.0 - 2.0 * _lan_k))
 		pl.lantern_upright = true
 	# boğulma: sandalsız suya girdi
 	if lv.phase == "play" and not on_boat and px > LAKE_A + 0.1 and px < LAKE_B - 0.1 and py < WATER_Y - 0.15 and pl.state != "dead":
@@ -716,6 +735,9 @@ func _build_lift() -> void:
 	lift = Node3D.new()
 	add_child(lift)
 	_mesh(_box(Vector3(ELEV_HALF * 2.0, 0.1, 1.1)), w, Vector3(0, -0.05, 0), lift)       # platform
+	lift_hook = Node3D.new()   # öndeki direğin tepesinde fener kancası
+	lift_hook.position = Vector3(-ELEV_HALF + 0.08, 0.92, 0.5)
+	lift.add_child(lift_hook)
 	for x in [-ELEV_HALF + 0.05, ELEV_HALF - 0.05]:
 		_mesh(_box(Vector3(0.08, 0.12, 1.15)), w, Vector3(x, -0.04, 0), lift)
 	for z in [-0.5, 0.5]:   # kenar korkulukları (dikey direkler)
@@ -736,7 +758,7 @@ func _build_lift() -> void:
 	_mesh(_box(Vector3(1.5, 0.18, 0.2)), w, Vector3(ELEV_X + 0.1, top, -0.75))
 	_mesh(_box(Vector3(0.14, 0.14, 1.6)), w, Vector3(ELEV_X, top, 0.0))
 	_mesh(_cyl(0.16, 0.12, 14), iron, Vector3(ELEV_X - 0.25, top - 0.15, 0.0), null, Vector3(PI / 2.0, 0, 0))
-	for i in 3:   # iki taşıyıcı zincir + çekme zinciri
+	for i in 4:   # iki taşıyıcı zincir + çekme zinciri (iki parça: ellere kadar ve ellerden aşağı)
 		var cm := _mesh(_cyl(0.016, 1.0, 6), iron, Vector3.ZERO)
 		cm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		lift_chains.append(cm)
@@ -746,7 +768,14 @@ func _place_lift_chains() -> void:
 	var top := ELEV_TOP + 2.1
 	_seg(lift_chains[0], Vector3(ELEV_X - 0.5, lift_y + 0.9, -0.5), Vector3(ELEV_X - 0.25, top - 0.15, -0.5))
 	_seg(lift_chains[1], Vector3(ELEV_X - 0.5, lift_y + 0.9, 0.5), Vector3(ELEV_X - 0.25, top - 0.15, 0.5))
-	_seg(lift_chains[2], Vector3(ELEV_X - 0.25, top - 0.3, -0.12), Vector3(ELEV_X - 0.25, lift_y + 0.15, -0.12))   # önünden sarkan çekme zinciri
+	var ct := Vector3(ELEV_X - 0.25, top - 0.3, -0.12)
+	if _grip_pt != Vector3.INF:   # çekerken: makaradan ellere, ellerden aşağı sarkar
+		_seg(lift_chains[2], ct, _grip_pt)
+		_seg(lift_chains[3], _grip_pt, Vector3(_grip_pt.x, lift_y + 0.15, _grip_pt.z))
+		lift_chains[3].visible = true
+	else:
+		_seg(lift_chains[2], ct, Vector3(ELEV_X - 0.25, lift_y + 0.15, -0.12))   # önünden sarkan çekme zinciri
+		lift_chains[3].visible = false
 
 func _update_lift(dt: float) -> void:
 	var px := pl.position.x
@@ -781,14 +810,19 @@ func _update_lift(dt: float) -> void:
 			if pl.force_anim == "":
 				pl.mocap.set_any("M_PullChain")
 				pl.force_anim = "any"
+			# animasyon olduğu gibi oynar; serbest sarkan çekme zinciri ellerin arasından geçer (eller zinciri tutar)
+			pl.mocap.grip_l = 1.9
+			_grip_pt = (pl.body.bone_world("hand.L") + pl.body.bone_world("hand.R")) * 0.5
 		else:
 			pl.reach = 1.0
 			pl.look_at = Vector3(cx, lift_y + lerpf(1.75, 1.05, a), -0.12)
 			pl.arm_r_target = Vector3(cx, lift_y + lerpf(1.75, 1.05, b), -0.12)
 	elif _chain_pull:
 		_chain_pull = false
+		_grip_pt = Vector3.INF
 		if pl.force_anim == "any" and pl.mocap.any_name == "M_PullChain":
 			pl.force_anim = ""
+		pl.mocap.grip_l = 0.45
 		if pl.state == "cut" and lv.phase == "play":
 			pl.state = "ground"
 		pl.cut_target_x = INF
