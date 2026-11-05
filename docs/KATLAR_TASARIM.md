@@ -1,4 +1,4 @@
-# Kayıp Katlar — Çevrim İçi Tasarım Belgesi (Taslak 0.3)
+# Kayıp Katlar — Çevrim İçi Tasarım Belgesi (Taslak 0.4)
 
 Çalışma adı: **Kayıp Katlar**. 2.5D mobil, kat kat ilerlenen, tek başına veya grupla oynanan çevrim içi aksiyon RPG.
 Prototip: `golge/index.html` (gölge mekaniği bu tasarımda **çıkarıldı**; oda, kart, demirci ve "baştan dene" hissi korunur).
@@ -143,13 +143,13 @@ Her kat, önceden tasarlanmış oda şablonlarının rastgele dizilmesiyle oluş
 ◆ Ayrıntılar:
 | | Günlük boss | Haftalık boss |
 |---|---|---|
-| Saat | ✔ Her gün **12:45** ve **21:30** (öğle arası ve akşam) | ✔ **Hafta sonu 21:00** (büyük etkinlik) |
+| Saat | ✔ Her gün **12:45** ve **21:30** (öğle arası ve akşam) | ✔ **Pazar 21:00** (büyük etkinlik) |
 | Kayıt | Başlamadan 2 saat önce açılır, 10 dk önce kapanır | Cuma'dan açılır |
 | Süre | 10 dk | 20 dk, 3 aşamalı |
 | Ödül | Nadir–Destansı eşya, bölge malzemesi | Destansı–Kadim eşya, +7…+9 malzemesi |
 | Hak | Günde 1 ödül | Haftada 1 ödül |
 
-Hafta sonu 21:00 büyük etkinliği yaklaşık 20 dakika sürer. 21:30 günlük boss'unun kaydı 21:20'de kapanır, böylece oyuncu ikisine de yetişebilir.
+Pazar 21:00 büyük etkinliği yaklaşık 20 dakika sürer. 21:30 günlük boss'unun kaydı 21:20'de kapanır, böylece oyuncu ikisine de yetişebilir.
 
 Aralıklar: 20–30, 30–40, 40–50, 50–60, 60–70, 70–80. Oyuncu yalnızca **kendi aralığına** girebilir. Yüksek seviye oyuncu düşük aralığı ezemez.
 
@@ -250,11 +250,10 @@ Sunucu yapısı: Başlangıçta **tek sunucu (dünya)**. Aktif oyuncu sayısı b
 | Sınıflar | İlk etapta 3: Savaşçı, Okçu, Büyücü |
 | Kral | Kazanan klanın lideri |
 | Ölüm cezası | Son çıkış kapısından sonraki ganimetin yarısı gider, EXP kalır |
-| Boss saatleri | Günlük 12:45 ve 21:30. Hafta sonu 21:00 büyük etkinlik |
+| Boss saatleri | Günlük 12:45 ve 21:30. Pazar 21:00 büyük etkinlik |
 | Gerçek para | Sadece görünüm ve benzeri, güç satılmaz |
 | +7 sonrası | Hesaba bağlanma yok, serbestçe satılır, vergi %12, başka kısıtlama yok |
 
 ## 14. Açık sorular
 
-1. Hafta sonu büyük etkinlik hem Cumartesi hem Pazar mı, yoksa tek gün mü?
-2. "Görünüm ve benzeri" kapsamı: ek envanter yuvası, ek pazar ilanı yuvası gibi kolaylıklar da satılacak mı?
+1. "Görünüm ve benzeri" kapsamı: ek envanter yuvası, ek pazar ilanı yuvası gibi kolaylıklar da satılacak mı? (Karar ertelendi, daha sonra düşünülecek.)
