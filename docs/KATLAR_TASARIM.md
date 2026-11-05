@@ -1,4 +1,4 @@
-# Kayıp Katlar — Çevrim İçi Tasarım Belgesi (Taslak 0.4)
+# Kayıp Katlar — Çevrim İçi Tasarım Belgesi (Taslak 0.5)
 
 Çalışma adı: **Kayıp Katlar**. 2.5D mobil, kat kat ilerlenen, tek başına veya grupla oynanan çevrim içi aksiyon RPG.
 Prototip: `golge/index.html` (gölge mekaniği bu tasarımda **çıkarıldı**; oda, kart, demirci ve "baştan dene" hissi korunur).
@@ -201,6 +201,24 @@ Güç veren ayrıcalıklar (ör. kralın daha çok hasar vurması) **yoktur**. A
 ◆ İleride: **Bölge Lordları.** Her bölgenin en derinine sezonda ilk inen klan o bölgenin lordu olur ve o bölgenin malzeme satışlarından küçük vergi payı alır. Kral sistemi ile birlikte sunucunun "siyasi haritasını" oluşturur.
 
 ---
+
+## 9A. Ortak alanlar ve görünürlük
+
+Gerçek parayla sadece görünüm satılacağı için gelir, oyuncuların birbirini görmesine bağlıdır. Kasaba bir menü değil, **yürünebilen çevrim içi bir meydandır**.
+
+| Yer | Ne görülür |
+|---|---|
+| Kasaba meydanı | Herkes kıyafetiyle dolaşır. Taht, kral heykeli, demirci, pazar tezgâhları, klan panosu, sefer kapısı |
+| Grup katları | 4 kişi, herkes kendi kıyafetiyle |
+| Boss odaları | 25 kişi aynı anda |
+| Oyuncu kartı | Birine dokununca: seviye, sınıf, klan, unvan, kıyafet, kuşanılan eşyalar ve +basmaları |
+| Sıralama, pazar, sohbet | İsmin yanında unvan ve klan etiketi; kralın ismi altın renk |
+
+**Kralın görünürlüğü:** Meydanın üst ortasında taht, tahta uzanan kırmızı halı, meydanın ortasında o ayın kralının heykeli (kralın kıyafetini giyer). Kral meydana girince herkese duyuru bandı çıkar. Taç, altın isim ve parıltı. Kral Bereketi aktifken tüm ekranlarda bant görünür. Kraliyet Muhafızlarının ayrı kıyafeti ve unvanı vardır.
+
+**Teknik:** Sunucu resim göndermez, kısa bir görünüm kimliği gönderir (ör. `kıyafet: 14, taç: 1, unvan: "Kral", klan: 7`). Çizimler telefonda yüklüdür. Meydan en fazla 50 kişilik **kanallara** bölünür (Kanal 1, Kanal 2…); arkadaşlar ve klan üyeleri aynı kanala konur. Nakama'nın anlık "oda içi durum" yayını bu iş için kullanılır.
+
+Prototipte meydan, **örnek (sahte) oyuncularla** gösterilir; sunucu bağlanınca gerçek oyuncular görünür.
 
 ## 10. Hile ve güvenlik
 

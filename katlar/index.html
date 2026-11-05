@@ -1,4 +1,5 @@
 <title>Kayıp Katlar</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -138,6 +139,12 @@ p { margin: 0; line-height: 1.5; color: var(--muted); }
 }
 .bar2 { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
 .bar2 i { display: block; height: 100%; background: var(--exp); }
+.iconbtn.wide { width: auto; padding: 0 10px; font-size: 12px; }
+.banner { align-self: center; max-width: 100%; border: 1px solid var(--r3); background: rgba(255,179,71,.12); color: var(--fg);
+  padding: 6px 12px; border-radius: 10px; font-weight: 700; font-size: 12px; text-align: center; }
+#ctx { left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 30px); border-radius: 26px;
+  height: 52px; padding: 0 22px; border: 2px solid var(--ember); background: var(--panel); color: var(--ember); font-size: 14px; }
+.gold { color: var(--r3); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -157,6 +164,17 @@ p { margin: 0; line-height: 1.5; color: var(--muted); }
     <div class="chip">Çanta: <b id="hGold">0</b> altın · <b id="hItems">0</b> eşya</div>
   </div>
 </div>
+<div class="hud" id="thud" hidden>
+  <div class="hrow">
+    <div class="lv" id="sqLv">1</div>
+    <div class="grow chip" id="sqWho"></div>
+    <button class="iconbtn wide" id="sqChar">Karakter</button>
+    <button class="iconbtn wide" id="sqBag">Çanta</button>
+  </div>
+  <div class="hrow"><div class="chip" id="sqChan">Kasaba Meydanı · Kanal 1</div><div class="grow"></div><div class="chip">Altın <b id="sqGold">0</b></div></div>
+  <div class="banner" id="banner" hidden></div>
+</div>
+<button class="actbtn" id="ctx" hidden></button>
 <button class="actbtn" id="skill" hidden aria-label="Yetenek"><span id="skillName">YETENEK</span></button>
 <button class="actbtn" id="dash" hidden aria-label="Atıl">ATIL</button>
 <div class="toast" id="toast" hidden></div>
@@ -171,9 +189,10 @@ p { margin: 0; line-height: 1.5; color: var(--muted); }
   </div>
 </div>
 
-<!-- Kasaba -->
+<!-- Karakter (kasaba paneli) -->
 <div class="layer" id="town" hidden>
   <div class="card">
+    <div class="hrow"><h2 class="grow">Karakter</h2><button class="btn alt small" id="charBack">Meydan</button></div>
     <div class="who">
       <div class="badge" id="tBadge">S</div>
       <div class="grow">
@@ -202,7 +221,7 @@ p { margin: 0; line-height: 1.5; color: var(--muted); }
 <!-- Envanter -->
 <div class="layer" id="inv" hidden>
   <div class="card">
-    <div class="hrow"><h2 class="grow">Envanter</h2><button class="btn alt small" id="invBack">Kasaba</button></div>
+    <div class="hrow"><h2 class="grow">Envanter</h2><button class="btn alt small" id="invBack">Meydan</button></div>
     <h3>Kuşanılanlar</h3>
     <div class="grid eq" id="eqGrid"></div>
     <div class="hrow"><h3 class="grow" id="invCount">Çanta 0/30</h3><button class="btn alt small" id="sellCommon">Sıradanları sat</button></div>
@@ -215,7 +234,7 @@ p { margin: 0; line-height: 1.5; color: var(--muted); }
 <!-- Demirci -->
 <div class="layer" id="forge" hidden>
   <div class="card">
-    <div class="hrow"><h2 class="grow">Demirci</h2><button class="btn alt small" id="forgeBack">Kasaba</button></div>
+    <div class="hrow"><h2 class="grow">Demirci</h2><button class="btn alt small" id="forgeBack">Meydan</button></div>
     <div class="mats"><span>Altın <b id="fGold">0</b></span><span>Basma Taşı <b id="fTas">0</b></span><span>Kor Tozu <b id="fKor">0</b></span></div>
     <h3>Basılacak eşyayı seç</h3>
     <div class="grid" id="forgeGrid"></div>
@@ -223,6 +242,11 @@ p { margin: 0; line-height: 1.5; color: var(--muted); }
     <div class="msg" id="fMsg" aria-live="polite"></div>
     <p class="note">+1…+3 her zaman başarılı. Başarısız olursan seviye düşmez, sadece malzeme gider. Her başarısız deneme o eşyanın sonraki şansını %15 artırır. +7 ve üstü Kor Tozu ister; Kor Tozu bekçilerden düşer.</p>
   </div>
+</div>
+
+<!-- Oyuncu kartı -->
+<div class="layer center" id="pcard" hidden>
+  <div class="card" id="pcardBody"></div>
 </div>
 
 <!-- Çıkış kapısı -->
@@ -244,7 +268,7 @@ p { margin: 0; line-height: 1.5; color: var(--muted); }
     <h2 id="endTitle">Düştün</h2>
     <p class="lead" id="endText"></p>
     <div class="rows" id="endRows"></div>
-    <button class="btn" id="endBtn">Kasabaya dön</button>
+    <button class="btn" id="endBtn">Meydana dön</button>
   </div>
 </div>
 
@@ -384,14 +408,14 @@ function resize() {
   cw = window.innerWidth; ch = window.innerHeight;
   cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
   cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
-  const top = 92, bot = 20, roomH = RH * PY + WALLH + LIP;
+  const top = 118, bot = 20, roomH = RH * PY + WALLH + LIP;
   S = Math.min((cw - 20) / RW, (ch - top - bot) / roomH);
   OX = (cw - RW * S) / 2;
   OY = top + Math.max(0, Math.min(30, (ch - top - bot - roomH * S) / 2)) + WALLH * S;
   floorRegion = -1;
 }
 function buildFloor(ri_) {
-  const R = REGIONS[ri_];
+  const R = ri_ === 'town' ? TOWNPAL : REGIONS[ri_];
   floorCv = document.createElement('canvas');
   floorCv.width = cv.width; floorCv.height = cv.height;
   const g = floorCv.getContext('2d'); g.scale(dpr, dpr);
@@ -415,6 +439,14 @@ function buildFloor(ri_) {
     g.fillStyle = `rgba(${R.spot},${0.02 + rr() * 0.04})`;
     g.beginPath(); g.ellipse(x, y, (6 + rr() * 18) * S, (4 + rr() * 10) * S * PY, 0, 0, 7); g.fill();
   }
+  if (ri_ === 'town') {
+    // halı ve heykel çevresindeki taş halkalar
+    const [c0x, c0y] = P(190, 40), [c1x, c1y] = P(230, 330);
+    g.fillStyle = '#6b2a2a'; g.fillRect(c0x, c0y, c1x - c0x, c1y - c0y);
+    g.fillStyle = 'rgba(255,210,122,.35)'; g.fillRect(c0x, c0y, 2, c1y - c0y); g.fillRect(c1x - 2, c0y, 2, c1y - c0y);
+    const [sx, sy] = P(STATUE.x, STATUE.y);
+    for (let k = 3; k >= 1; k--) { g.fillStyle = k % 2 ? 'rgba(0,0,0,.12)' : 'rgba(255,210,122,.07)'; g.beginPath(); g.ellipse(sx, sy, (40 + k * 22) * S, (40 + k * 22) * PY * S, 0, 0, 7); g.fill(); }
+  }
   g.restore();
   const sh = g.createLinearGradient(0, ay, 0, ay + 50 * S);
   sh.addColorStop(0, 'rgba(0,0,0,.35)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
@@ -428,9 +460,11 @@ function buildFloor(ri_) {
 const joy = { on: false, id: -1, bx: 0, by: 0, dx: 0, dy: 0 };
 const keys = {};
 let dashReq = false, skillReq = false;
+let tapStart = null;
 cv.addEventListener('pointerdown', e => {
   audio();
-  if (G.mode !== 'play' || joy.on) return;
+  tapStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+  if ((G.mode !== 'play' && G.mode !== 'town') || joy.on) return;
   joy.on = true; joy.id = e.pointerId; joy.bx = e.clientX; joy.by = e.clientY; joy.dx = joy.dy = 0;
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}
 });
@@ -440,7 +474,11 @@ cv.addEventListener('pointermove', e => {
   if (l > R) { joy.bx += dx - dx / l * R; joy.by += dy - dy / l * R; dx = dx / l * R; dy = dy / l * R; }
   joy.dx = dx / R; joy.dy = dy / R;
 });
-const joyEnd = e => { if (e.pointerId === joy.id) { joy.on = false; joy.dx = joy.dy = 0; } };
+const joyEnd = e => {
+  if (e.pointerId === joy.id) { joy.on = false; joy.dx = joy.dy = 0; }
+  if (e.type === 'pointerup' && tapStart && G.mode === 'town' && Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y) < 10 && performance.now() - tapStart.t < 350) townTap(e.clientX, e.clientY);
+  tapStart = null;
+};
 cv.addEventListener('pointerup', joyEnd); cv.addEventListener('pointercancel', joyEnd);
 const $ = id => document.getElementById(id);
 $('dash').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audio(); dashReq = true; });
@@ -739,7 +777,7 @@ function bar(x, y, z, w, k, col) {
 function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, cw, ch);
-  if (!run) return;
+  if (!run) { if (town && save) drawTown(); return; }
   if (floorRegion !== run.region) buildFloor(run.region);
   let sx0 = 0, sy0 = 0;
   if (G.shake > 0) { const k = G.shake * 14; sx0 = (Math.random() - 0.5) * k; sy0 = (Math.random() - 0.5) * k; }
@@ -812,11 +850,12 @@ function draw() {
 }
 
 // ================= Ekranlar =================
-const LAYERS = ['create', 'town', 'inv', 'forge', 'gate', 'end'];
+const LAYERS = ['create', 'town', 'inv', 'forge', 'gate', 'end', 'pcard'];
 function show(id) {
   LAYERS.forEach(l => { $(l).hidden = l !== id; });
   const inRun = run && (id === null || id === 'gate');
-  $('hud').hidden = !inRun; $('dash').hidden = id !== null; $('skill').hidden = id !== null;
+  $('hud').hidden = !inRun; $('dash').hidden = id !== null || !run; $('skill').hidden = id !== null || !run;
+  $('thud').hidden = !(G.mode === 'town' && id === null); if (id !== null || G.mode !== 'town') $('ctx').hidden = true;
 }
 function updHpOnly() {
   const s = runStats(), k = clamp(P1.hp / s.maxHp, 0, 1);
@@ -885,7 +924,7 @@ function endRun(kind, sold, lost) {
   $('endRows').innerHTML = rows.map(([a, b]) => `<div><span>${a}</span><b${a === 'Kaybedilen' ? ' class="down"' : ''}>${b}</b></div>`).join('');
   persist(); show('end');
 }
-$('endBtn').onclick = () => { run = null; openTown(); };
+$('endBtn').onclick = () => { run = null; openSquare(true); };
 
 // ---------- Sınıf seçimi ----------
 function openCreate() {
@@ -893,7 +932,7 @@ function openCreate() {
   for (const id in CLASSES) {
     const c = CLASSES[id], b = document.createElement('button'); b.className = 'pick'; b.type = 'button';
     b.innerHTML = `<em style="color:${c.col}">${c.yetenek}</em><b>${c.ad}</b><span>${c.ac} ${c.yac}</span>`;
-    b.onclick = () => { audio(); save = newSave(id); persist(); openTown(); };
+    b.onclick = () => { audio(); save = newSave(id); persist(); town = null; openSquare(); };
     box.appendChild(b);
   }
   G.mode = 'menu'; show('create');
@@ -924,7 +963,7 @@ function openTown() {
 $('resetBtn').onclick = () => {
   if (!resetArm) { resetArm = true; $('resetNote').hidden = false; return; }
   try { localStorage.removeItem(KEY); } catch (e) {}
-  save = null; openCreate();
+  save = null; town = null; openCreate();
 };
 // ---------- Eşya kartı ----------
 function itemLines(it) {
@@ -943,7 +982,7 @@ function slotHtml(it, sel, label) {
 function findItem(id) { for (const sl of SLOTS) if (save.eq[sl] && save.eq[sl].id === id) return { it: save.eq[sl], where: 'eq' }; const it = save.inv.find(x => x.id === id); return it ? { it, where: 'inv' } : null; }
 // ---------- Envanter ----------
 let selId = null;
-function openInv() { selId = null; renderInv(); show('inv'); }
+function openInv() { G.mode = 'menu'; selId = null; renderInv(); show('inv'); }
 function renderInv() {
   $('eqGrid').innerHTML = SLOTS.map(sl => slotHtml(save.eq[sl], save.eq[sl] && save.eq[sl].id === selId, SLOTAD[sl])).join('');
   $('invCount').textContent = 'Çanta ' + save.inv.length + '/' + INV;
@@ -975,10 +1014,10 @@ $('sellCommon').onclick = () => {
   save.inv = save.inv.filter(it => { if (it.r === 0 && it.plus === 0 && !isBetter(it)) { g += sellPrice(it); n++; return false; } return true; });
   save.gold += g; persist(); toast(n ? n + ' eşya satıldı, +' + g + ' altın' : 'Satılacak sıradan eşya yok'); selId = null; renderInv();
 };
-$('invBtn').onclick = openInv; $('invBack').onclick = openTown;
+$('invBtn').onclick = openInv; $('invBack').onclick = () => openSquare();
 // ---------- Demirci ----------
 let forgeId = null;
-function openForge(id) { forgeId = id || (save.eq.silah && save.eq.silah.id); $('fMsg').textContent = ''; $('fMsg').className = 'msg'; renderForge(); show('forge'); }
+function openForge(id) { G.mode = 'menu'; forgeId = id || (save.eq.silah && save.eq.silah.id); $('fMsg').textContent = ''; $('fMsg').className = 'msg'; renderForge(); show('forge'); }
 function forgeCost(it) { return { gold: Math.round((30 + it.ilvl * 6) * (it.plus + 1)), tas: TAS[it.plus], kor: KOR[it.plus] }; }
 function renderForge() {
   $('fGold').textContent = save.gold; $('fTas').textContent = save.tas; $('fKor').textContent = save.kor;
@@ -1016,7 +1055,7 @@ function renderForge() {
     persist(); renderForge();
   };
 }
-$('forgeBtn').onclick = () => openForge(); $('forgeBack').onclick = openTown;
+$('forgeBtn').onclick = () => openForge(); $('forgeBack').onclick = () => openSquare();
 // ---------- Duraklatma ----------
 function togglePause() {
   if (G.mode === 'play') { G.mode = 'pause'; $('pauseBtn').textContent = '▶'; }
@@ -1025,11 +1064,263 @@ function togglePause() {
 $('pauseBtn').onclick = togglePause;
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'play') togglePause(); });
 
+
+// ================= Kasaba meydanı =================
+// Not: Buradaki diğer oyuncular örnektir. Sunucu bağlanınca gerçek oyuncular görünecek.
+const TOWNPAL = { a: '#3a3330', b: '#403834', wall: '#4a3e3a', wallTop: '#6b5a52', spot: '255,210,122' };
+const STATUE = { x: 210, y: 380 };
+const BUILD = [
+  { id: 'dais', sortY: 30, x: 210, y: 62, w: 130, d: 56, h: 10, top: '#5a4c46', front: '#3d332f' },
+  { id: 'throne', x: 210, y: 52, w: 44, d: 22, h: 46, top: '#ffd27a', front: '#7a2a2a', label: 'Taht' },
+  { id: 'forge', x: 52, y: 300, w: 84, d: 120, h: 62, top: '#5a4038', front: '#3b2b26', label: 'Demirci', act: 'Demirciye gir', glow: '255,138,61' },
+  { id: 'stall1', x: 370, y: 270, w: 80, d: 64, h: 34, top: '#8a3b2e', front: '#4a3a2c', label: 'Pazar', act: 'Pazara bak' },
+  { id: 'stall2', x: 370, y: 390, w: 80, d: 64, h: 34, top: '#2e5a8a', front: '#4a3a2c', act: 'Pazara bak' },
+  { id: 'clan', x: 52, y: 600, w: 46, d: 22, h: 52, top: '#6b5a52', front: '#4a3e3a', label: 'Klan Panosu', act: 'Klan panosu' },
+  { id: 'gate', x: 210, y: 798, w: 140, d: 30, h: 72, top: '#6b5a52', front: '#2c2431', label: 'Sefer Kapısı', act: 'Sefere çık', portal: 1 },
+];
+const OUTFITS = [
+  { ad: 'Kraliyet Kıyafeti', body: '#7a1f2b', top: '#ffd27a', cape: '#b8323f', hat: 'tac', aura: '255,210,122', name: '#ffd27a' },
+  { ad: 'Muhafız Zırhı', body: '#4d5a6e', top: '#c8d2e0', cape: '#7a1f2b', hat: 'kask', name: '#e8d6c0' },
+  { ad: 'Kızıl Ejder Seti', body: '#b8323f', top: '#ff8a6a', cape: '#3b0f14', hat: 'sivri', aura: '255,90,60' },
+  { ad: 'Gece Pelerini', body: '#2b2f4a', top: '#8f9bd8', cape: '#141629' },
+  { ad: 'Kül Gezgini', body: '#6e625a', top: '#c9bcb0', cape: '#3a302a' },
+  { ad: 'Orman Avcısı', body: '#3e6b45', top: '#9fd8a5', cape: '#24402a', hat: 'sivri' },
+  { ad: 'Kristal Cübbe', body: '#3c6f8c', top: '#bfe6ff', aura: '143,184,255' },
+  { ad: 'Başlangıç Kıyafeti', body: null, top: null },
+];
+const NPCDEF = [
+  ['Demirkurt', 'ASİL', 'Kral', 'savasci', 47, 0, 'king'],
+  ['Tunçkalkan', 'ASİL', 'Kraliyet Muhafızı', 'savasci', 44, 1, 'guard'],
+  ['Kızılyay', 'ASİL', 'Kraliyet Muhafızı', 'okcu', 43, 1, 'guard'],
+  ['GeceAvcısı', 'GECE', 'Klan Lideri', 'okcu', 45, 3, ''],
+  ['KorBüyücü', 'KOR', 'Eski Kral', 'buyucu', 46, 2, ''],
+  ['Ayaz', 'KOR', 'Boss Avcısı', 'savasci', 38, 2, ''],
+  ['Zeyna', 'GECE', '', 'buyucu', 33, 6, ''],
+  ['Baykuş', '', '', 'okcu', 21, 5, 'seller'],
+  ['Selin', 'KOR', '', 'buyucu', 29, 6, ''],
+  ['Akrep', '', '', 'savasci', 17, 4, 'seller'],
+  ['Rüzgar', 'GECE', '', 'okcu', 26, 3, ''],
+  ['Yağız', '', '', 'savasci', 12, 7, ''],
+  ['Tospik', '', '', 'buyucu', 8, 7, ''],
+  ['Esmer', 'KOR', '', 'okcu', 31, 4, 'smith'],
+];
+let town = null, LBL = [];
+function npcGear(cls, lvl, seed) {
+  let x = seed * 9301 + 49297; const r = () => (x = (x * 9301 + 49297) % 233280) / 233280;
+  return SLOTS.map(sl => {
+    const rr = Math.min(3, Math.floor(r() * 3 + lvl / 25)), plus = Math.min(9, Math.floor(r() * (lvl / 6)));
+    const tier = Math.min(2, Math.floor(lvl / 15));
+    return { slot: sl, r: rr, plus, name: sl === 'silah' ? NAMES.silah[cls][tier] : NAMES[sl][tier] };
+  });
+}
+function freeSpot() {
+  for (let k = 0; k < 40; k++) {
+    const x = rnd(110, 310), y = rnd(170, 700);
+    if (Math.hypot(x - STATUE.x, y - STATUE.y) < 60) continue;
+    if (BUILD.some(b => Math.abs(x - b.x) < b.w / 2 + 20 && Math.abs(y - b.y) < b.d / 2 + 20)) continue;
+    return [x, y];
+  }
+  return [210, 600];
+}
+function initTown() {
+  town = { p: { x: 210, y: 720, fx: 0, fy: -1 }, npcs: [], near: null, t: 0, banner: 0 };
+  NPCDEF.forEach((d, i) => {
+    const [name, clan, title, cls, lvl, o, role] = d;
+    let x, y;
+    if (role === 'king') { x = 210; y = 104; } else if (role === 'guard') { x = i === 1 ? 128 : 292; y = 112; }
+    else if (role === 'seller') { x = 318; y = i === 7 ? 270 : 390; } else if (role === 'smith') { x = 108; y = 300; }
+    else [x, y] = freeSpot();
+    town.npcs.push({ name, clan, title, cls, lvl, of: OUTFITS[o], role, x, y, hx: x, hy: y, tx: x, ty: y, wait: rnd(0, 3), sp: rnd(38, 60), gear: npcGear(cls, lvl, i + 3) });
+  });
+}
+function openSquare(fromRun) {
+  if (!town) initTown();
+  if (fromRun) { town.p.x = 210; town.p.y = 740; }
+  G.mode = 'town'; resetArm = false; town.near = null; show(null);
+  const c = CLASSES[save.cls];
+  $('sqLv').textContent = save.lvl; $('sqWho').innerHTML = '<b>' + c.ad + '</b> · Seviye ' + save.lvl;
+  $('sqGold').textContent = save.gold;
+  $('sqChan').textContent = 'Kasaba Meydanı · Kanal 1 · ' + (town.npcs.length + 1) + ' kişi (örnek oyuncular)';
+  if (!town.bannerDone) {
+    town.bannerDone = true;
+    setTimeout(() => { const b = $('banner'); b.textContent = 'Kral Demirkurt [ASİL] meydana geldi'; b.hidden = false; }, 1200);
+    setTimeout(() => { const b = $('banner'); b.textContent = 'Kral Bereketi aktif: tüm sunucuya +%20 EXP (örnek)'; }, 5200);
+  }
+}
+function collide(o) {
+  for (const b of BUILD) {
+    const hw = b.w / 2 + PR, hd = b.d / 2 + PR, dx = o.x - b.x, dy = o.y - b.y;
+    if (Math.abs(dx) < hw && Math.abs(dy) < hd) {
+      const px = hw - Math.abs(dx), py = hd - Math.abs(dy);
+      if (px < py) o.x += Math.sign(dx || 1) * px; else o.y += Math.sign(dy || 1) * py;
+    }
+  }
+  const dx = o.x - STATUE.x, dy = o.y - STATUE.y, d = Math.hypot(dx, dy) || 1, m = 30 + PR;
+  if (d < m) { o.x += dx / d * (m - d); o.y += dy / d * (m - d); }
+  o.x = clamp(o.x, PR, RW - PR); o.y = clamp(o.y, PR, RH - PR);
+}
+function updateTown(dt) {
+  G.t += dt;
+  const p = town.p;
+  let mx = joy.dx, my = joy.dy;
+  if (keys.a || keys.arrowleft) mx -= 1; if (keys.d || keys.arrowright) mx += 1;
+  if (keys.w || keys.arrowup) my -= 1; if (keys.s || keys.arrowdown) my += 1;
+  let ml = Math.hypot(mx, my); if (ml > 1) { mx /= ml; my /= ml; ml = 1; }
+  if (ml > 0.15) { p.fx = mx / ml; p.fy = my / ml; }
+  p.x += mx * 140 * dt; p.y += my * 140 * dt; collide(p);
+  for (const n of town.npcs) {
+    if (n.wait > 0) { n.wait -= dt; continue; }
+    const dx = n.tx - n.x, dy = n.ty - n.y, d = Math.hypot(dx, dy);
+    if (d < 3) {
+      n.wait = rnd(1.5, 5);
+      if (n.role) { n.tx = n.hx + rnd(-14, 14); n.ty = n.hy + rnd(-8, 8); } else [n.tx, n.ty] = freeSpot();
+    } else { n.x += dx / d * n.sp * dt; n.y += dy / d * n.sp * dt; n.fx = dx / d; n.fy = dy / d; }
+  }
+  // yakındaki yapı
+  let near = null;
+  for (const b of BUILD) if (b.act && Math.abs(p.x - b.x) < b.w / 2 + 28 && Math.abs(p.y - b.y) < b.d / 2 + 28) near = b;
+  if (!near && Math.hypot(p.x - STATUE.x, p.y - STATUE.y) < 70) near = { id: 'statue', act: 'Heykeli incele' };
+  if ((near && near.id) !== (town.near && town.near.id)) {
+    town.near = near; const el = $('ctx');
+    el.hidden = !near; if (near) el.textContent = near.act;
+  }
+}
+function townAction(id) {
+  if (id === 'forge') openForge();
+  else if (id === 'gate') openTown();
+  else if (id === 'stall1' || id === 'stall2') toast('Pazar çevrim içi sürümde açılacak (Etap 3)');
+  else if (id === 'clan') toast('Klan sistemi çevrim içi sürümde açılacak (Etap 4)');
+  else if (id === 'statue') openKingCard();
+}
+$('ctx').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audio(); if (town && town.near) townAction(town.near.id); });
+$('sqChar').onclick = () => openTown();
+$('sqBag').onclick = () => openInv();
+$('charBack').onclick = () => openSquare();
+function box(b) {
+  const x0 = b.x - b.w / 2, x1 = b.x + b.w / 2, y0 = b.y - b.d / 2, y1 = b.y + b.d / 2;
+  const [ax, ay] = P(x0, y0, b.h), [bx, by] = P(x1, y1, b.h), [, fy] = P(x0, y1, 0);
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; { const [sx0, sy0] = P(x0 + 6, y1), [sx1] = P(x1 + 6, y1); ctx.fillRect(sx0, sy0 - 2, sx1 - sx0, 6 * S); }
+  ctx.fillStyle = b.front; ctx.fillRect(ax, by, bx - ax, fy - by);
+  ctx.fillStyle = b.top; ctx.fillRect(ax, ay, bx - ax, by - ay);
+  if (b.portal) {
+    const pw = (bx - ax) * 0.5, px = ax + (bx - ax) * 0.25, g = ctx.createLinearGradient(0, by, 0, fy);
+    g.addColorStop(0, 'rgba(143,184,255,.15)'); g.addColorStop(1, `rgba(143,184,255,${0.45 + Math.sin(G.t * 3) * 0.15})`);
+    ctx.fillStyle = g; ctx.fillRect(px, by + (fy - by) * 0.2, pw, (fy - by) * 0.8);
+  }
+  if (b.glow) { ctx.fillStyle = `rgba(${b.glow},${0.35 + Math.sin(G.t * 6) * 0.15})`; ctx.fillRect(bx - 10 * S, by + (fy - by) * 0.45, 6 * S, (fy - by) * 0.3); }
+  if (b.id === 'stall1' || b.id === 'stall2') { ctx.fillStyle = 'rgba(255,255,255,.18)'; for (let i = 0; i < 4; i++) ctx.fillRect(ax + (bx - ax) * i / 4, ay, (bx - ax) / 8, by - ay); }
+  if (b.label) {
+    const [lx, ly] = P(b.x, b.y, b.h + 10);
+    LBL.push({ x: lx, y: ly, label: b.label, col: '#efe6dc', size: 11 });
+  }
+}
+function drawHat(x, y, z, kind) {
+  const [hx, hy] = P(x, y, z);
+  if (kind === 'tac') {
+    ctx.fillStyle = '#ffd27a'; ctx.beginPath(); const w = 10 * S, h = 8 * S;
+    ctx.moveTo(hx - w, hy); ctx.lineTo(hx - w, hy - h); ctx.lineTo(hx - w / 2, hy - h / 2); ctx.lineTo(hx, hy - h * 1.2); ctx.lineTo(hx + w / 2, hy - h / 2); ctx.lineTo(hx + w, hy - h); ctx.lineTo(hx + w, hy); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ff5d5d'; ell(hx, hy - h * 0.35, 1.8 * S, 1.8 * S);
+  } else if (kind === 'sivri') {
+    ctx.fillStyle = '#3b2b26'; ctx.beginPath(); ctx.moveTo(hx - 11 * S, hy); ctx.lineTo(hx + 11 * S, hy); ctx.lineTo(hx + 2 * S, hy - 16 * S); ctx.closePath(); ctx.fill();
+  } else if (kind === 'kask') {
+    ctx.fillStyle = '#c8d2e0'; ctx.beginPath(); ctx.ellipse(hx, hy, 12 * S, 9 * S, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#b8323f'; ctx.fillRect(hx - 1.5 * S, hy - 14 * S, 3 * S, 7 * S);
+  }
+}
+function drawPerson(o, cls, of, label, sub, nameCol) {
+  groundShadow(o.x, o.y, PR);
+  if (of && of.aura) {
+    const [sx, sy] = P(o.x, o.y), g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 30 * S);
+    g.addColorStop(0, `rgba(${of.aura},${0.35 + Math.sin(G.t * 3) * 0.1})`); g.addColorStop(1, `rgba(${of.aura},0)`);
+    ctx.fillStyle = g; ell(sx, sy, 30 * S, 30 * PY * S);
+  }
+  const body = (of && of.body) || cls.col, top = (of && of.top) || cls.top;
+  if (of && of.cape) cyl(o.x, o.y - 3, PR + 2, 22, of.cape, of.cape);
+  cyl(o.x, o.y, PR, 28, body, top);
+  const [hx, hy] = P(o.x + (o.fx || 0) * 9, o.y + (o.fy || 0) * 9, 28); ctx.fillStyle = '#fff3e6'; ell(hx, hy, 2.4 * S, 2.4 * S);
+  if (of && of.hat) drawHat(o.x, o.y, 30, of.hat);
+  const [nx, ny] = P(o.x, o.y, of && of.hat ? 50 : 38);
+  LBL.push({ x: nx, y: ny, label, col: nameCol || '#efe6dc', size: 9.5, sub, subCol: sub === 'Kral' ? '#ffd27a' : '#c9bcb0' });
+}
+function drawTown() {
+  if (floorRegion !== 'town') buildFloor('town');
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(floorCv, 0, 0); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const list = [];
+  for (const b of BUILD) list.push({ y: b.sortY || b.y + b.d / 2, f: () => box(b) });
+  list.push({ y: STATUE.y + 2, f: () => {
+    groundShadow(STATUE.x, STATUE.y, 30);
+    cyl(STATUE.x, STATUE.y, 30, 22, '#5a5250', '#7d7472');
+    cyl(STATUE.x, STATUE.y, 13, 38, '#8a8280', '#b0a8a4', 22);
+    drawHat(STATUE.x, STATUE.y, 62, 'tac');
+    const [lx, ly] = P(STATUE.x, STATUE.y, 4);
+    LBL.push({ x: lx, y: ly + 34 * S, label: 'Kasım Kralı · Demirkurt', col: '#ffd27a', size: 10 });
+  } });
+  for (const n of town.npcs) list.push({ y: n.y, f: () => drawPerson(n, CLASSES[n.cls], n.of, (n.clan ? '[' + n.clan + '] ' : '') + n.name, n.title, n.of.name || (n.title === 'Kral' ? '#ffd27a' : null)) });
+  const p = town.p;
+  list.push({ y: p.y, f: () => drawPerson(p, CLASSES[save.cls], null, 'Sen · Sv ' + save.lvl, '', '#8fb8ff') });
+  LBL = [];
+  list.sort((a, b) => a.y - b.y).forEach(o => o.f());
+  ctx.textAlign = 'center';
+  const k = Math.max(S, 0.85);
+  for (const l of LBL) {
+    ctx.font = `700 ${Math.round(l.size * k)}px Rubik, system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillText(l.label, l.x + 1, l.y + 1); ctx.fillStyle = l.col; ctx.fillText(l.label, l.x, l.y);
+    if (l.sub) { ctx.font = `500 ${Math.round(8.5 * k)}px Rubik, system-ui, sans-serif`; ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillText(l.sub, l.x + 1, l.y - 11 * k + 1); ctx.fillStyle = l.subCol; ctx.fillText(l.sub, l.x, l.y - 11 * k); }
+  }
+  if (joy.on && G.mode === 'town') {
+    ctx.strokeStyle = 'rgba(239,230,220,.25)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(joy.bx, joy.by, 50, 0, 6.283); ctx.stroke();
+    ctx.fillStyle = 'rgba(239,230,220,.35)'; ell(joy.bx + joy.dx * 50, joy.by + joy.dy * 50, 20, 20);
+  }
+}
+function townTap(cx, cy) {
+  let best = null, bd = 30;
+  const cand = town.npcs.map(n => ({ o: n, k: 'npc' })).concat([{ o: town.p, k: 'me' }, { o: STATUE, k: 'statue' }]);
+  for (const c of cand) {
+    const [sx, sy] = P(c.o.x, c.o.y, c.k === 'statue' ? 40 : 18), d = Math.hypot(sx - cx, sy - cy);
+    if (d < bd) { bd = d; best = c; }
+  }
+  if (!best) return;
+  joy.on = false; joy.dx = joy.dy = 0;
+  if (best.k === 'statue') openKingCard(); else if (best.k === 'me') openMyCard(); else openNpcCard(best.o);
+}
+function gearRows(list) {
+  return list.map(g => `<div><span>${SLOTAD[g.slot]}</span><b class="t${g.r}">${g ? g.name + (g.plus ? ' +' + g.plus : '') : '—'}</b></div>`).join('');
+}
+function openCard(html) {
+  $('pcardBody').innerHTML = html + '<button class="btn alt" id="pcClose">Kapat</button>';
+  $('pcClose').onclick = () => openSquare();
+  G.mode = 'menu'; show('pcard');
+}
+function openNpcCard(n) {
+  const c = CLASSES[n.cls];
+  openCard(`<div class="who"><div class="badge" style="background:${n.of.body || c.col}">${c.kisa}</div><div class="grow">
+      <b${n.title === 'Kral' ? ' class="gold"' : ''}>${n.name}</b><p class="note">${n.clan ? '[' + n.clan + '] klanı' : 'Klansız'}${n.title ? ' · ' + n.title : ''}</p></div></div>
+    <div class="rows"><div><span>Sınıf</span><b>${c.ad}</b></div><div><span>Seviye</span><b>${n.lvl}</b></div><div><span>Kıyafet</span><b>${n.of.ad}</b></div></div>
+    <h3>Kuşandıkları</h3><div class="rows">${gearRows(n.gear)}</div>
+    <p class="note">Örnek oyuncu. Sunucu bağlanınca burada gerçek oyuncular görünecek.</p>`);
+}
+function openMyCard() {
+  const c = CLASSES[save.cls];
+  const gear = SLOTS.map(sl => save.eq[sl] ? { slot: sl, r: save.eq[sl].r, plus: save.eq[sl].plus, name: save.eq[sl].name } : { slot: sl, r: 0, plus: 0, name: '—' });
+  openCard(`<div class="who"><div class="badge" style="background:${c.col}">${c.kisa}</div><div class="grow"><b>Sen</b><p class="note">Klansız · diğer oyuncular seni böyle görür</p></div></div>
+    <div class="rows"><div><span>Sınıf</span><b>${c.ad}</b></div><div><span>Seviye</span><b>${save.lvl}</b></div><div><span>Kıyafet</span><b>Başlangıç Kıyafeti</b></div></div>
+    <h3>Kuşandıkların</h3><div class="rows">${gearRows(gear)}</div>`);
+}
+function openKingCard() {
+  openCard(`<h2 class="gold">Kasım Kralı</h2>
+    <p class="lead">Demirkurt · [ASİL] klanının lideri</p>
+    <div class="rows"><div><span>Taht Puanı</span><b>18.420</b></div><div><span>Kral olduğu ay</span><b>2. ay üst üste</b></div><div><span>Pazar vergisi</span><b>%8</b></div><div><span>Kral Bereketi</span><b>Bu hafta 1/2 kullanıldı</b></div></div>
+    <p>Heykel her ay yeni kralın kıyafetiyle yenilenir. Taht Puanı en yüksek klanın lideri ay sonunda kral olur.</p>
+    <p class="note">Örnek veri.</p>`);
+}
+
 // ================= Döngü =================
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.033, (now - last) / 1000); last = now;
   if (G.mode === 'play' || G.mode === 'dying') update(dt);
+  else if (G.mode === 'town') updateTown(dt);
   draw();
   if (G.mode === 'pause') {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = 'rgba(10,8,12,.55)'; ctx.fillRect(0, 0, cw, ch);
@@ -1039,8 +1330,8 @@ function frame(now) {
 }
 addEventListener('resize', resize);
 resize();
-if (save && save.cls && CLASSES[save.cls]) openTown(); else openCreate();
+if (save && save.cls && CLASSES[save.cls]) openSquare(); else openCreate();
 requestAnimationFrame(frame);
-window.__kk = { get save() { return save; }, get run() { return run; }, get P1() { return P1; }, G };
+window.__kk = { get save() { return save; }, get run() { return run; }, get P1() { return P1; }, get town() { return town; }, P, G };
 })();
 </script>
