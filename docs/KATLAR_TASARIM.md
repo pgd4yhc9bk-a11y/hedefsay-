@@ -1,4 +1,4 @@
-# Kayıp Katlar — Çevrim İçi Tasarım Belgesi (Taslak 0.1)
+# Kayıp Katlar — Çevrim İçi Tasarım Belgesi (Taslak 0.2)
 
 Çalışma adı: **Kayıp Katlar**. 2.5D mobil, kat kat ilerlenen, tek başına veya grupla oynanan çevrim içi aksiyon RPG.
 Prototip: `golge/index.html` (gölge mekaniği bu tasarımda **çıkarıldı**; oda, kart, demirci ve "baştan dene" hissi korunur).
@@ -15,7 +15,7 @@ Bu belge oyun sahibinin kurallarını (✔ ile işaretli) ve bunları uygulanabi
 1. Oyuncu kendi seviyesine uygun bir **bölgeye** girer (tek başına veya grup).
 2. Bölgenin 1. katından başlar, kat kat aşağı iner. Derin kat = daha çok EXP, daha iyi eşya.
 3. Her 5 katta bir **çıkış kapısı** açılır: "Ganimetle çık" ya da "Devam et".
-4. Ölürse kazandığı **EXP'yi korur**, ama son çıkış kapısından sonra topladığı ganimetin yarısını kaybeder.
+4. ✔ Ölürse kazandığı **EXP'yi korur**, ama son çıkış kapısından sonra topladığı ganimetin yarısını kaybeder. Oyuncu buna göre risk alır.
 
 Bu yapı, beğenilen "baştan başla, hırs yap" hissini korur ve risk ile ödül arasında sürekli bir karar yaratır.
 
@@ -102,7 +102,7 @@ Her kat, önceden tasarlanmış oda şablonlarının rastgele dizilmesiyle oluş
 ◆ Yuvalar: Silah, Zırh, Miğfer, Eldiven, Çizme, Yüzük, Kolye, Tılsım.
 ◆ Nadirlik: Sıradan → Nadir → Destansı → Efsanevi → (yalnızca bosslarda) Kadim.
 ◆ Her eşyanın seviye şartı, ana değeri ve 1–4 rastgele özelliği olur (kritik, can çalma, hız, bölge direnci…).
-◆ Sınıflar: **Savaşçı** (ön saf), **Okçu** (menzilli hasar), **Büyücü** (alan hasarı ve destek). Grup ve boss'ta rollerin anlamı olur.
+◆ ✔ İlk etapta 3 sınıf: **Savaşçı** (ön saf), **Okçu** (menzilli hasar), **Büyücü** (alan hasarı ve destek). Grup ve boss'ta rollerin anlamı olur.
 
 ◆ **Basma (+1…+9)**
 | Basma | Malzeme | Başarı | Başarısızlıkta |
@@ -112,7 +112,7 @@ Her kat, önceden tasarlanmış oda şablonlarının rastgele dizilmesiyle oluş
 | +7…+9 | Boss malzemesi | %40 / %30 / %20 | Seviye düşmez. Her başarısızlık sonrakine +%15 ekler |
 
 - Şanslar her zaman ekranda açıkça yazar. **Gerçek parayla şans artırılamaz.**
-- +7 ve üstü eşya hesaba bağlanır, satılamaz. En güçlü eşya satın alınmaz, emekle yapılır. Pazarda ise +0…+6 eşya ve malzeme döner.
+- ✔ **Hesaba bağlanma yok:** +7, +8 ve +9 eşyalar da pazarda satılabilir. Bu, yüksek basma eşyalara gerçek bir pazar değeri verir. Riskleri §6'daki ek kurallarla dengelenir.
 - +7, +8 ve +9'da eşyaya görsel efekt eklenir (alev izi, parıltı).
 
 ---
@@ -127,6 +127,12 @@ Her kat, önceden tasarlanmış oda şablonlarının rastgele dizilmesiyle oluş
 - Para ve eşya aynı veritabanı işleminde el değiştirir: ya ikisi birden olur ya hiçbiri.
 - 10. seviye altına pazar kapalıdır. Bu, bot hesap açıp satış yapmayı zorlaştırır.
 
+◆ **+7 ve üstü eşyalar için ek kurallar** (bağlanma olmadığı için):
+- Satın alınan +7…+9 eşya 24 saat yeniden satılamaz. Bu, hızlı al-sat ve para aklamayı yavaşlatır.
+- +7 ve üstü satışlarda vergi daha yüksektir (ör. %12).
+- Her eşyanın geçmişi görünür: kim bastı, kaç kez el değiştirdi.
+- Çok yüksek ya da çok düşük fiyatlı ilanlar (piyasa ortalamasından aşırı sapan) incelemeye düşer. Bu, gerçek parayla dışarıda anlaşıp oyunda 1 altına eşya devretmeyi (RMT) yakalamak içindir.
+
 ◆ **Ekonomi dengesi.** Oyuna para girer (düşmanlar, kat ödülleri). Oyundan para çıkması da gerekir: pazar vergisi, ilan ücreti, basma ücreti, tamir. Haftalık "giren / çıkan altın" raporu izlenir.
 
 ---
@@ -140,11 +146,13 @@ Her kat, önceden tasarlanmış oda şablonlarının rastgele dizilmesiyle oluş
 ◆ Ayrıntılar:
 | | Günlük boss | Haftalık boss |
 |---|---|---|
-| Saat | 13:00 ve 21:00 (iki seans, çalışan oyuncu da yetişsin) | Cumartesi 21:00 |
+| Saat | ✔ Her gün **12:45** ve **21:30** (öğle arası ve akşam) | ✔ **Hafta sonu 21:00** (büyük etkinlik) |
 | Kayıt | Başlamadan 2 saat önce açılır, 10 dk önce kapanır | Cuma'dan açılır |
 | Süre | 10 dk | 20 dk, 3 aşamalı |
 | Ödül | Nadir–Destansı eşya, bölge malzemesi | Destansı–Kadim eşya, +7…+9 malzemesi |
 | Hak | Günde 1 ödül | Haftada 1 ödül |
+
+Hafta sonu 21:00 büyük etkinliği yaklaşık 20 dakika sürer. 21:30 günlük boss'unun kaydı 21:20'de kapanır, böylece oyuncu ikisine de yetişebilir.
 
 Aralıklar: 20–30, 30–40, 40–50, 50–60, 60–70, 70–80. Oyuncu yalnızca **kendi aralığına** girebilir. Yüksek seviye oyuncu düşük aralığı ezemez.
 
@@ -177,8 +185,8 @@ Aralıklar: 20–30, 30–40, 40–50, 50–60, 60–70, 70–80. Oyuncu yalnız
 ✔ Her ay belirli bir klan sunucunun kralını seçer. Krala özel kıyafet ve bazı ayrıcalıklar.
 
 ◆ **Kral nasıl belirlenir:**
-- **Etap 1 (klan savaşları yokken):** Ay boyunca klanlar **Taht Puanı** toplar. Kaynakları: boss katkısı, klan boss'u, en derin katlar ve etkinlikler. Ayın son haftasında ilk 4 klan "taht adayı" olur. Ayın sonunda en yüksek puanlı klan kazanır, liderleri kral olur (ya da klan kendi içinde oylar).
-- **Etap 2 (klan savaşlarıyla):** Ayın son hafta sonu **Taht Savaşı** yapılır. İlk 4 aday klan, kalenin kapısı ve tahtı için savaşır. Kazanan klan, kralı belirler.
+- **Etap 1 (klan savaşları yokken):** Ay boyunca klanlar **Taht Puanı** toplar. Kaynakları: boss katkısı, klan boss'u, en derin katlar ve etkinlikler. Ayın son haftasında ilk 4 klan "taht adayı" olur. Ayın sonunda en yüksek puanlı klan kazanır. ✔ **Kral, kazanan klanın lideridir.**
+- **Etap 2 (klan savaşlarıyla):** Ayın son hafta sonu **Taht Savaşı** yapılır. İlk 4 aday klan, kalenin kapısı ve tahtı için savaşır. Kazanan klanın lideri kral olur.
 - Aynı klan üst üste en fazla 3 ay kral olabilir. Sonra bir ay ara verir, ya da "taht savunması" daha zor hale gelir. Bu, tek klanın sunucuyu sonsuza kadar tutmasını engeller.
 
 ◆ **Kralın ayrıcalıkları** (oyun dengesini bozmayacak şekilde):
@@ -238,10 +246,18 @@ Sunucu yapısı: Başlangıçta **tek sunucu (dünya)**. Aktif oyuncu sayısı b
 | 7 | Klan savaşları, Taht Savaşı, Bölge Lordları | — |
 | 8 | Görünüm mağazası, sezonlar, seviye sınırının artması | — |
 
-## 13. Açık sorular (karar bekleyenler)
+## 13. Alınan kararlar
 
-1. Sınıf sayısı: ilk etapta 3 mü, 2 mi?
-2. Kral klan lideri mi olsun, yoksa klan kendi içinde mi oylasın?
-3. Ölünce ganimet kaybı (son kapıdan sonra yarısı) çok mu sert?
-4. Boss saatleri: 13:00 / 21:00 uygun mu?
-5. Gerçek parayla ne satılacak: sadece görünüm mü, yoksa ek envanter/ilan yuvası gibi kolaylıklar da mı?
+| Konu | Karar |
+|---|---|
+| Sınıflar | İlk etapta 3: Savaşçı, Okçu, Büyücü |
+| Kral | Kazanan klanın lideri |
+| Ölüm cezası | Son çıkış kapısından sonraki ganimetin yarısı gider, EXP kalır |
+| Boss saatleri | Günlük 12:45 ve 21:30. Hafta sonu 21:00 büyük etkinlik |
+| Gerçek para | Sadece görünüm ve benzeri, güç satılmaz |
+| +7 sonrası | Hesaba bağlanma yok, pazarda satılabilir (§6 ek kurallar) |
+
+## 14. Açık sorular
+
+1. Hafta sonu büyük etkinlik hem Cumartesi hem Pazar mı, yoksa tek gün mü?
+2. "Görünüm ve benzeri" kapsamı: ek envanter yuvası, ek pazar ilanı yuvası gibi kolaylıklar da satılacak mı?
