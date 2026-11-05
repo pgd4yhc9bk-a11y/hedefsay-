@@ -26,3 +26,15 @@ Derleme gerekmez: `prototip/index.html` dosyasını tarayıcıda aç.
 - Zemberek-NLP **kodu** Apache 2.0; [SSS](https://github.com/ahmetaa/zemberek-nlp/wiki/FAQ) kapalı kaynaklı ticari üründe kullanıma izin verildiğini söylüyor (dağıtım koşullarına uyulmak şartıyla).
 - Sözlük **verisinin** (ana sözlük / kelime listesi) lisansı SSS'de geçmiyor; bu **doğrulanmadı**. Yayından önce depodaki LICENSE dosyası ve veri dosyalarının kendi notları okunmalı. Belirsiz kalırsa belgedeki plana göre kendi listemizi hazırlarız.
 - Proje bakım modunda (son sürüm 0.17.1, 2019).
+
+## Kayıp Katlar (`katlar/`)
+
+2.5D kat kat ilerlenen RPG'nin Etap 0 web prototipi. Tasarım: [docs/KATLAR_TASARIM.md](docs/KATLAR_TASARIM.md).
+`katlar/index.html` dosyasını tarayıcıda aç. İlerleme tarayıcıda (localStorage) saklanır.
+
+- 3 sınıf (Savaşçı, Okçu, Büyücü), her biri otomatik saldırı + bir yetenek.
+- Seviye 1–80 EXP eğrisi (içerik şimdilik 30'a kadar), 3 bölge × 20 kat, 10. ve 20. katta bekçi.
+- Altın, Basma Taşı, Kor Tozu; rastgele özellikli eşyalar (4 nadirlik), envanter, kuşanma, satma.
+- Demirci: eşya başına +1…+9, başarısızlıkta seviye düşmez, her başarısızlık +%15.
+- Her 5 katta çıkış kapısı ganimeti güvene alır; ölünce son kapıdan sonraki ganimetin yarısı gider, EXP kalır.
+- `golge/` eski gölge mekanikli deneme, artık kullanılmıyor.
