@@ -1,4 +1,4 @@
-# Kayıp Katlar — Çevrim İçi Tasarım Belgesi (Taslak 0.2)
+# Kayıp Katlar — Çevrim İçi Tasarım Belgesi (Taslak 0.3)
 
 Çalışma adı: **Kayıp Katlar**. 2.5D mobil, kat kat ilerlenen, tek başına veya grupla oynanan çevrim içi aksiyon RPG.
 Prototip: `golge/index.html` (gölge mekaniği bu tasarımda **çıkarıldı**; oda, kart, demirci ve "baştan dene" hissi korunur).
@@ -112,7 +112,7 @@ Her kat, önceden tasarlanmış oda şablonlarının rastgele dizilmesiyle oluş
 | +7…+9 | Boss malzemesi | %40 / %30 / %20 | Seviye düşmez. Her başarısızlık sonrakine +%15 ekler |
 
 - Şanslar her zaman ekranda açıkça yazar. **Gerçek parayla şans artırılamaz.**
-- ✔ **Hesaba bağlanma yok:** +7, +8 ve +9 eşyalar da pazarda satılabilir. Bu, yüksek basma eşyalara gerçek bir pazar değeri verir. Riskleri §6'daki ek kurallarla dengelenir.
+- ✔ **Hesaba bağlanma yok:** +7, +8 ve +9 eşyalar da pazarda satılabilir. Bu, yüksek basma eşyalara gerçek bir pazar değeri verir. Bu eşyaların satışında vergi %12'dir (§6).
 - +7, +8 ve +9'da eşyaya görsel efekt eklenir (alev izi, parıltı).
 
 ---
@@ -127,11 +127,8 @@ Her kat, önceden tasarlanmış oda şablonlarının rastgele dizilmesiyle oluş
 - Para ve eşya aynı veritabanı işleminde el değiştirir: ya ikisi birden olur ya hiçbiri.
 - 10. seviye altına pazar kapalıdır. Bu, bot hesap açıp satış yapmayı zorlaştırır.
 
-◆ **+7 ve üstü eşyalar için ek kurallar** (bağlanma olmadığı için):
-- Satın alınan +7…+9 eşya 24 saat yeniden satılamaz. Bu, hızlı al-sat ve para aklamayı yavaşlatır.
-- +7 ve üstü satışlarda vergi daha yüksektir (ör. %12).
-- Her eşyanın geçmişi görünür: kim bastı, kaç kez el değiştirdi.
-- Çok yüksek ya da çok düşük fiyatlı ilanlar (piyasa ortalamasından aşırı sapan) incelemeye düşer. Bu, gerçek parayla dışarıda anlaşıp oyunda 1 altına eşya devretmeyi (RMT) yakalamak içindir.
+✔ **+7 ve üstü eşyalar:** Satışta vergi **%12**. Başka kısıtlama yok: bekleme süresi yok, fiyat denetimi yok, satıcı istediği fiyata satar. Eşya geçmişi oyuncuya gösterilmez.
+(Teknik not: Kopyalama hilesini yakalamak için her eşya hareketi sunucuda yine kayda geçer. Bu kayıt oyuncuya görünmez ve satışı engellemez.)
 
 ◆ **Ekonomi dengesi.** Oyuna para girer (düşmanlar, kat ödülleri). Oyundan para çıkması da gerekir: pazar vergisi, ilan ücreti, basma ücreti, tamir. Haftalık "giren / çıkan altın" raporu izlenir.
 
@@ -255,7 +252,7 @@ Sunucu yapısı: Başlangıçta **tek sunucu (dünya)**. Aktif oyuncu sayısı b
 | Ölüm cezası | Son çıkış kapısından sonraki ganimetin yarısı gider, EXP kalır |
 | Boss saatleri | Günlük 12:45 ve 21:30. Hafta sonu 21:00 büyük etkinlik |
 | Gerçek para | Sadece görünüm ve benzeri, güç satılmaz |
-| +7 sonrası | Hesaba bağlanma yok, pazarda satılabilir (§6 ek kurallar) |
+| +7 sonrası | Hesaba bağlanma yok, serbestçe satılır, vergi %12, başka kısıtlama yok |
 
 ## 14. Açık sorular
 
