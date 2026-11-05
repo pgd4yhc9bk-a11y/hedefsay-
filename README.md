@@ -29,8 +29,8 @@ Derleme gerekmez: `prototip/index.html` dosyasını tarayıcıda aç.
 
 ## Kayıp Katlar (`katlar/`)
 
-2.5D kat kat ilerlenen RPG'nin Etap 0 web prototipi. Tasarım: [docs/KATLAR_TASARIM.md](docs/KATLAR_TASARIM.md).
-`katlar/index.html` dosyasını tarayıcıda aç. İlerleme tarayıcıda (localStorage) saklanır.
+2.5D kat kat ilerlenen RPG'nin Etap 0 web prototipi. Grafikler Three.js (WebGL) ile 3D: `katlar/sahne.js` çizim, `katlar/oyun.js` oyun mantığı. Tasarım: [docs/KATLAR_TASARIM.md](docs/KATLAR_TASARIM.md).
+`katlar/index.html` dosyasını tarayıcıda aç (internet gerekir: Three.js CDN'den yüklenir). İlerleme tarayıcıda (localStorage) saklanır.
 
 - 3 sınıf (Savaşçı, Okçu, Büyücü), her biri otomatik saldırı + bir yetenek.
 - Seviye 1–80 EXP eğrisi (içerik şimdilik 30'a kadar), 3 bölge × 20 kat, 10. ve 20. katta bekçi.
