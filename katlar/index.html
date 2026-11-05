@@ -225,15 +225,6 @@ p { margin: 0; line-height: 1.5; color: var(--muted); }
   </div>
 </div>
 
-<!-- Sefer kartları -->
-<div class="layer center" id="cards" hidden>
-  <div class="card">
-    <h2 id="cardsTitle">Kat temizlendi</h2>
-    <p>Sefer gücü seç. Sefer bitince güçler gider.</p>
-    <div class="picks" id="picks"></div>
-  </div>
-</div>
-
 <!-- Çıkış kapısı -->
 <div class="layer center" id="gate" hidden>
   <div class="card">
@@ -464,20 +455,6 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
-// ================= Sefer güçleri =================
-const CARDS = [
-  { id: 'dmg', ad: 'Keskin Kenar', ac: 'Hasar %15 artar.', max: 5, f: b => b.dmg *= 1.15 },
-  { id: 'atk', ad: 'Seri El', ac: 'Saldırı hızı %18 artar.', max: 4, f: b => b.atk *= 1.18 },
-  { id: 'hp', ad: 'Kül Yürek', ac: 'En yüksek can %20 artar ve tam iyileşirsin.', max: 3, f: (b, p) => { b.hp *= 1.2; p.heal = 1; } },
-  { id: 'spd', ad: 'Çevik Adım', ac: 'Hareket hızı %10 artar.', max: 3, f: b => b.spd *= 1.1 },
-  { id: 'crit', ad: 'Zayıf Nokta', ac: 'Kritik şansı +%8.', max: 3, f: b => b.crit += 8 },
-  { id: 'leech', ad: 'Kan Bağı', ac: 'Verdiğin hasarın %3\'ü kadar iyileşirsin.', max: 2, f: b => b.leech += 3 },
-  { id: 'cd', ad: 'Odak', ac: 'Yetenek bekleme süresi %20 kısalır.', max: 3, f: b => b.cd *= 0.8 },
-  { id: 'multi', ad: 'Çift Atış', ac: 'Her saldırıda +1 mermi.', max: 2, only: ['okcu', 'buyucu'], f: b => b.multi++ },
-  { id: 'reach', ad: 'Uzun Kol', ac: 'Saldırı menzili %25 artar.', max: 2, only: ['savasci'], f: b => b.reach *= 1.25 },
-  { id: 'luck', ad: 'Hazine Kokusu', ac: 'Eşya düşme şansı %30 artar.', max: 2, f: b => b.luck *= 1.3 },
-];
-
 // ================= Oyun durumu =================
 const G = { mode: 'menu', t: 0, shake: 0, clearT: -1 };
 let run = null, P1, enemies, shots, arrows, pending, parts, texts, waves, fx;
@@ -487,7 +464,7 @@ function runStats() {
     spd: s.spd * b.spd, leech: s.leech + b.leech, gold: s.gold, exp: s.exp, cd: b.cd, multi: b.multi, reach: b.reach, luck: b.luck };
 }
 function startRun(ri_) {
-  run = { region: ri_, floor: 0, kills: 0, taken: {}, bag: { gold: 0, tas: 0, kor: 0, items: [] }, safe: { gold: 0, tas: 0, kor: 0, items: 0 }, expRun: 0,
+  run = { region: ri_, floor: 0, kills: 0, bag: { gold: 0, tas: 0, kor: 0, items: [] }, safe: { gold: 0, tas: 0, kor: 0, items: 0 }, expRun: 0,
     buff: { hp: 1, dmg: 1, atk: 1, spd: 1, crit: 0, leech: 0, cd: 1, multi: 0, reach: 1, luck: 1 } };
   P1 = { x: RW / 2, y: RH * 0.72, hp: 1, inv: 0, dashT: 0, dashCd: 0, fx: 0, fy: -1, fireT: 0, ax: 0, ay: -1, skillCd: 0, swing: 0, swingA: 0 };
   P1.hp = runStats().maxHp;
@@ -835,10 +812,10 @@ function draw() {
 }
 
 // ================= Ekranlar =================
-const LAYERS = ['create', 'town', 'inv', 'forge', 'cards', 'gate', 'end'];
+const LAYERS = ['create', 'town', 'inv', 'forge', 'gate', 'end'];
 function show(id) {
   LAYERS.forEach(l => { $(l).hidden = l !== id; });
-  const inRun = run && (id === null || id === 'cards' || id === 'gate');
+  const inRun = run && (id === null || id === 'gate');
   $('hud').hidden = !inRun; $('dash').hidden = id !== null; $('skill').hidden = id !== null;
 }
 function updHpOnly() {
@@ -877,28 +854,10 @@ function floorCleared() {
     $('gateText').textContent = 'Güvene alındı: ' + b.gold + ' altın, ' + b.items.length + ' eşya' + (b.tas ? ', ' + b.tas + ' Basma Taşı' : '') + (b.kor ? ', ' + b.kor + ' Kor Tozu' : '') + '.' + (sold ? ' Çanta dolu olduğu için ' + sold + ' eşya satıldı.' : '');
     G.mode = 'gate'; show('gate'); persist(); return;
   }
-  showCards();
+  toast(run.floor + '. kat temizlendi');
+  nextFloor();
 }
-function showCards() {
-  const pool = CARDS.filter(k => (run.taken[k.id] || 0) < k.max && (!k.only || k.only.includes(save.cls)));
-  const pick = [];
-  while (pick.length < 3 && pool.length) pick.push(pool.splice(Math.random() * pool.length | 0, 1)[0]);
-  const box = $('picks'); box.innerHTML = '';
-  $('cardsTitle').textContent = run.floor + '. kat temizlendi';
-  pick.forEach(k => {
-    const b = document.createElement('button'); b.className = 'pick'; b.type = 'button';
-    const lv = run.taken[k.id] || 0;
-    b.innerHTML = `<em>Sefer gücü${k.max > 1 ? ' · ' + (lv + 1) + '/' + k.max : ''}</em><b>${k.ad}</b><span>${k.ac}</span>`;
-    b.onclick = () => {
-      const fl = {}; k.f(run.buff, fl); run.taken[k.id] = lv + 1;
-      if (fl.heal) P1.hp = runStats().maxHp;
-      G.mode = 'play'; show(null); nextFloor();
-    };
-    box.appendChild(b);
-  });
-  G.mode = 'cards'; show('cards');
-}
-$('gateGo').onclick = () => showCards();
+$('gateGo').onclick = () => { G.mode = 'play'; show(null); nextFloor(); };
 $('gateOut').onclick = () => endRun('out', 0);
 function die() {
   if (G.mode !== 'play') return;
