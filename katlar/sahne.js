@@ -197,17 +197,36 @@ function diorama(cols, opts = {}) {
   }
   envGroup.add(im);
 }
-function backWall(col, capCol, h = 3.4) {
+function backWall(col, capCol, h = 3.4, gap = {}) {
   const n = 12, w = RW * U / n;
   for (let i = 0; i < n; i++) {
+    if (gap.n && (i === 5 || i === 6)) continue;
     const hh = h + (Math.random() - 0.5) * 0.5;
     const b = bx(w - 0.05, hh, 1.3, M(col)); b.position.set(-HW + w * (i + 0.5), hh / 2 - 0.3, -HD - 0.65); envGroup.add(b);
     const cap = bx(w + 0.05, 0.22, 1.45, M(capCol)); cap.position.set(b.position.x, hh - 0.3 + 0.11, -HD - 0.65); envGroup.add(cap);
   }
   for (const s of [-1, 1]) {
-    const side = bx(0.8, 1.1, RH * U + 1.3, M(col)); side.position.set(s * (HW + 0.4), 0.25, -0.65); envGroup.add(side);
-    const cap = bx(0.95, 0.18, RH * U + 1.4, M(capCol)); cap.position.set(s * (HW + 0.4), 0.88, -0.65); envGroup.add(cap);
+    const open = s < 0 ? gap.w : gap.e;
+    const segs = open ? [[-HD - 1.3, -2.6], [2.6, HD]] : [[-HD - 1.3, HD]];
+    for (const [z0, z1] of segs) {
+      const L = z1 - z0, zc = (z0 + z1) / 2;
+      const side = bx(0.8, 1.1, L, M(col)); side.position.set(s * (HW + 0.4), 0.25, zc); envGroup.add(side);
+      const cap = bx(0.95, 0.18, L + 0.1, M(capCol)); cap.position.set(s * (HW + 0.4), 0.88, zc); envGroup.add(cap);
+    }
   }
+}
+function doorMark(x, z, rot, big) {
+  const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = rot;
+  for (const s of [-1, 1]) {
+    const p = bx(0.55, big ? 3.6 : 1.6, 0.55, M('#6a5c55')); p.position.set(s * 2.4, (big ? 3.6 : 1.6) / 2 - 0.3, 0); g.add(p);
+    const f = cn(0.12, 0.35, 6, Gl('#8fb8ff')); f.position.set(s * 2.4, (big ? 3.6 : 1.6) - 0.1, 0); f.castShadow = false; g.add(f);
+  }
+  if (big) { const l = bx(5.4, 0.5, 0.7, M('#7a6a62')); l.position.y = 3.4; g.add(l); }
+  const fl = mesh(geo('doorfl', () => new T.PlaneGeometry(4.2, 2.6)), new T.MeshBasicMaterial({ map: GLOW, color: lin('#6f8cff'), transparent: true, opacity: 0.55, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false }), false, false);
+  fl.rotation.x = -Math.PI / 2; fl.position.set(0, 0.02, 0); g.add(fl);
+  envGroup.add(g);
+  envAnims.push((dt, tt) => { fl.material.opacity = 0.4 + Math.sin(tt * 3) * 0.15; });
+  emitters.push({ rate: 3, acc: 0, fn: () => { const v = new T.Vector3((Math.random() - 0.5) * 4, 0.1, (Math.random() - 0.5) * 1.2).applyAxisAngle(new T.Vector3(0, 1, 0), rot); emit(x + v.x, 0.1, z + v.z, 0, 0.8 + Math.random() * 0.6, 0, 1.2, 0.2, '#8fb8ff', 0, 0); } });
 }
 function pillar(x, z, col, capCol, h = 4.4) {
   const p = bx(1.3, h, 1.3, M(col)); p.position.set(x, h / 2 - 0.3, z); envGroup.add(p);
@@ -230,15 +249,23 @@ const DUNG = [
   { a: '#463a2e', b: '#3c3127', base: '#1d1712', lip: '#2c231b', wall: '#4d3c2c', cap: '#6b5440', fog: '#100c09', hemiS: '#b89a7a', hemiG: '#1d1610', sun: '#ffd2a8' },
   { a: '#2e3d31', b: '#26342a', base: '#121a14', lip: '#1e2a21', wall: '#2f4434', cap: '#47634c', fog: '#08100b', hemiS: '#8ab89a', hemiG: '#0f1a12', sun: '#c8ffd8' },
 ];
-function buildDungeon(ri) {
+let envLight = { hemi: 0.8, sun: 0.55 };
+function buildDungeon(ri, opt = {}) {
   clearEnv();
-  const D = DUNG[ri];
+  const D = DUNG[ri], gap = opt.doors ? { n: opt.doors.n >= 0, s: opt.doors.s >= 0, w: opt.doors.w >= 0, e: opt.doors.e >= 0 } : {};
   scene.background = lin(D.fog); scene.fog.color = lin(D.fog);
   hemi.color = lin(D.hemiS); hemi.groundColor = lin(D.hemiG); hemi.intensity = 0.8;
   sun.color = lin(D.sun); sun.intensity = 0.55; sun.position.set(-8, 26, 12);
   diorama(D, { metal: ri === 1 ? 0.25 : 0 });
-  backWall(D.wall, D.cap);
-  for (const x of [-7, 0, 7]) pillar(x, -HD - 0.4, D.wall, D.cap);
+  backWall(D.wall, D.cap, 3.4, gap);
+  for (const x of [-7, 0, 7]) if (!(gap.n && x === 0)) pillar(x, -HD - 0.4, D.wall, D.cap);
+  if (gap.n) doorMark(0, -HD - 0.3, 0, true);
+  if (gap.s) doorMark(0, HD - 0.4, 0, false);
+  if (gap.w) doorMark(-HW + 0.4, 0, Math.PI / 2, false);
+  if (gap.e) doorMark(HW - 0.4, 0, Math.PI / 2, false);
+  envLight = { hemi: 0.8, sun: 0.55 };
+  if (opt.camp) { camp(); envLight = { hemi: 1.0, sun: 0.75 }; }
+  if (opt.lair) { for (let i = 0; i < 8; i++) bones(-HW + 2 + Math.random() * (RW * U - 4), -HD + 3 + Math.random() * 10, Math.random); }
   torch(-7, 2.1, -HD + 0.45, 0); torch(7, 2.1, -HD + 0.45, 1);
   for (const s of [-1, 1]) { const t = torch; t(s * (HW + 0.3), 0.9, 4, null); t(s * (HW + 0.3), 0.9, 14, null); }
   const rng = seeded(11 + ri * 7);
@@ -281,7 +308,30 @@ function buildDungeon(ri) {
     for (let i = 0; i < 9; i++) mushrooms(i % 2 ? HW - 1 - rng() * 1.5 : -HW + 1 + rng() * 1.5, -HD + 2 + i * 4 + rng() * 2, rng, i === 4 ? 2 : null);
     emitters.push({ rate: 3, acc: 0, fn: () => emit(-HW + Math.random() * RW * U, 0.5 + Math.random() * 2, -HD + Math.random() * RH * U, (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.6, 4, 0.22, '#b8ff8a', 0, 0) });
   }
-  envKey = 'd' + ri;
+  envKey = opt.key || 'd' + ri;
+}
+function camp() {
+  const cx = X(210), cz = Z(430);
+  for (let i = 0; i < 5; i++) { const l = cy(0.12, 0.12, 1.2, 6, M('#4a3020')); l.rotation.z = Math.PI / 2; l.rotation.y = i / 5 * 3.14; l.position.set(cx, 0.15, cz); envGroup.add(l); }
+  for (let i = 0; i < 8; i++) { const st = sp(0.18, M('#6a5c55'), 0); const a = i / 8 * 6.283; st.position.set(cx + Math.cos(a) * 0.85, 0.1, cz + Math.sin(a) * 0.85); envGroup.add(st); }
+  const f = cn(0.35, 0.9, 7, Gl('#ff8a2a')); f.position.set(cx, 0.55, cz); envGroup.add(f);
+  const fs = glowSprite('#ff8a3d', 3.5, 0.9); fs.position.set(cx, 0.7, cz); envGroup.add(fs);
+  const l = PL[2]; l.color = lin('#ff9a4a'); l.distance = 12; l.position.set(cx, 1.4, cz); flick.push({ l, base: 2.2, f: fs, fl: f });
+  emitters.push({ rate: 10, acc: 0, fn: () => emit(cx + (Math.random() - 0.5) * 0.5, 0.6, cz + (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.4, 1.5 + Math.random(), (Math.random() - 0.5) * 0.4, 1.1, 0.2, '#ffb04a', -0.3, 0.3) });
+  for (const [tx, tz, c] of [[-6, -6, '#8a3b2e'], [6, -3, '#2e6a8a'], [-6.5, 9, '#4e6a3a']]) {
+    const tent = mesh(new T.CylinderGeometry(0, 2.0, 2.2, 4, 1), M(c)); tent.rotation.y = Math.PI / 4; tent.position.set(tx, 1.1, tz); envGroup.add(tent);
+    const door = bx(0.7, 1.0, 0.05, M('#1a1410')); door.position.set(tx, 0.5, tz + 1.42); envGroup.add(door);
+  }
+  // kasabaya dönüş geçidi
+  const px = X(210), pz = Z(150);
+  for (const s of [-1, 1]) { const p = bx(0.8, 3.4, 0.8, M('#6a5c55')); p.position.set(px + s * 1.9, 1.4, pz); envGroup.add(p); }
+  const lt = bx(4.6, 0.6, 0.9, M('#7a6a62')); lt.position.set(px, 3.3, pz); envGroup.add(lt);
+  const mat = new T.ShaderMaterial({ uniforms: { t: { value: 0 } }, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
+    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader: 'uniform float t; varying vec2 vUv; void main(){ vec2 p=vUv-0.5; float r=length(p)*2.0; float a=atan(p.y,p.x); float s=sin(a*3.0+r*9.0-t*3.0)*0.5+0.5; vec3 c=mix(vec3(1.0,0.75,0.3),vec3(1.0,0.45,0.2),s); float al=smoothstep(1.0,0.7,r)*(0.45+0.55*s); gl_FragColor=vec4(c*1.3,al); }' });
+  const portal = mesh(new T.PlaneGeometry(3.0, 3.0), mat, false, false); portal.position.set(px, 1.5, pz); envGroup.add(portal);
+  envAnims.push((dt, tt) => { mat.uniforms.t.value = tt; });
+  const L2 = PL[1]; L2.color = lin('#ffb06a'); L2.distance = 9; L2.intensity = 1.6; L2.position.set(px, 1.8, pz + 1.2);
 }
 function seeded(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 function bones(x, z, r) {
@@ -585,6 +635,28 @@ function bossModel(ri) {
   g.scale.setScalar(1.45);
   return { root: g, parts, glow: glowc };
 }
+const WCOL = { trap: '#ff3a8a', fire: '#ff8a2a' };
+function warnModel(w) {
+  const col = lin(w.aim ? '#ffd27a' : WCOL[w.col] || '#ff3a2a');
+  const g = new T.Group();
+  const mk = (op) => new T.MeshBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide, toneMapped: false });
+  if (w.kind === 'c') {
+    const edge = mesh(geo('wring', () => new T.RingGeometry(0.9, 1, 40)), mk(0.75), false, false); edge.rotation.x = -Math.PI / 2; g.add(edge);
+    const fill = mesh(geo('wdisc', () => new T.CircleGeometry(1, 40)), mk(0.32), false, false); fill.rotation.x = -Math.PI / 2; fill.position.y = 0.005; g.add(fill);
+    return { root: g, parts: { edge, fill } };
+  }
+  const lg = geo('wline', () => { const p = new T.PlaneGeometry(1, 1); p.rotateX(-Math.PI / 2); p.translate(0, 0, 0.5); return p; });
+  const base = mesh(lg, mk(w.aim ? 0.18 : 0.22), false, false); g.add(base);
+  const fill = mesh(lg, mk(w.aim ? 0.5 : 0.45), false, false); fill.position.y = 0.005; g.add(fill);
+  return { root: g, parts: { base, fill } };
+}
+function goblinModel() {
+  const m = humanoid({ skin: '#7ab84a', body: '#c8973a', body2: '#ffd27a', legs: '#4a3a22', hair: '#3a2a18', scale: 1.05 });
+  const sack = sp(0.36, M('#8a6a3a'), 1); sack.position.set(0, 1.05, -0.38); m.root.add(sack);
+  const coin = glowSprite('#ffd27a', 1.6, 0.7); coin.position.set(0, 1.4, -0.3); m.root.add(coin);
+  for (const s of [-1, 1]) { const ear = cn(0.07, 0.3, 4, M('#7ab84a')); ear.rotation.z = -s * 1.2; ear.position.set(s * 0.27, 0.05, 0); m.parts.head.add(ear); }
+  return m;
+}
 function arrowModel(red) {
   const g = new T.Group();
   if (red) { const s = bx(0.05, 0.05, 0.7, Gl('#ff4a3a')); g.add(s); const gl = glowSprite('#ff4a3a', 0.8, 0.7); g.add(gl); return g; }
@@ -654,11 +726,18 @@ function syncRun(S, dt, t) {
   let bossL = false;
   for (const e of S.enemies) {
     if (e.dead) continue;
-    const m = getModel(e, e.type, () => e.type === 'rat' ? ratModel() : e.type === 'guard' ? guardModel() : e.type === 'archer' ? archerModel() : bossModel(S.run.region));
+    const m = getModel(e, e.type + (e.elite || ''), () => {
+      const mm = e.type === 'rat' ? ratModel() : e.type === 'guard' ? guardModel() : e.type === 'archer' ? archerModel() : e.type === 'goblin' ? goblinModel() : bossModel(S.run.region);
+      if (e.elite) { const c = e.elite === 'hizli' ? '#ffb347' : '#ff4a3a'; mm.root.scale.multiplyScalar(1.22); ring(mm.root, c, 0.75); const a = glowSprite(c, 2.4, 0.4); a.position.y = 0.6; mm.root.add(a); mm.eliteCol = c; }
+      mm.baseScale = mm.root.scale.x; mm.enemy = 1; return mm;
+    });
+    if (m.eliteCol && Math.random() < dt * 8) emit(X(e.x) + (Math.random() - 0.5) * 0.8, 0.2, Z(e.y) + (Math.random() - 0.5) * 0.8, 0, 1.2, 0, 0.7, 0.25, m.eliteCol, 0, 0);
+    if (e.type === 'goblin' && Math.random() < dt * 6) emit(X(e.x), 1.2, Z(e.y), (Math.random() - 0.5) * 2, 2, (Math.random() - 0.5) * 2, 0.6, 0.18, '#ffd27a', 9, 0.3);
     const ex = X(e.x), ez = Z(e.y);
     const mv = Math.hypot(e.x - m.prevX, e.y - m.prevY) / Math.max(dt, 1e-3);
     m.root.position.set(ex, 0, ez);
     faceTo(m, X(p.x) - ex, Z(p.y) - ez, dt, 8);
+    if (e.dashT > 0 && Math.random() < 0.6) emit(ex, 0.4, ez, 0, 0.3, 0, 0.3, 0.35, '#ff8a6a', 0, 0);
     if (e.type === 'rat') { m.parts.body.position.y = Math.abs(Math.sin(t * 16 + e.x)) * 0.08 * (mv > 10 ? 1 : 0.2); m.parts.body.rotation.z = Math.sin(t * 16 + e.x) * 0.1; }
     else if (e.type === 'boss') {
       const s = animWalk(m, mv > 5, dt, t, 4);
@@ -671,13 +750,36 @@ function syncRun(S, dt, t) {
     } else {
       const s = animWalk(m, mv > 10, dt, t);
       if (e.type === 'archer') { m.parts.armL.rotation.x = -1.4; m.parts.armR.rotation.x = -1.3 + Math.max(0, 0.6 - e.cd) * 0.5; }
-      else { m.parts.armR.rotation.x = -sw * 0 - s * 0.6 - 0.3; m.parts.armL.rotation.x = -0.6; }
+      else if (e.type === 'goblin') { m.parts.armL.rotation.x = s * 0.9; m.parts.armR.rotation.x = -s * 0.9; }
+      else { m.parts.armR.rotation.x = e.atkLock > 0 ? -2.6 + (1 - Math.min(1, e.atkLock)) * 3 : -s * 0.6 - 0.3; m.parts.armL.rotation.x = -0.6; }
     }
     flashModel(m, e.flash > 0);
     if (e.slow > 0 && Math.random() < dt * 10) emit(ex + (Math.random() - 0.5), 0.3 + Math.random() * 1.2, ez + (Math.random() - 0.5), 0, 0.3, 0, 0.6, 0.25, '#bfe6ff', 0, 0);
     m.prevX = e.x; m.prevY = e.y;
   }
   if (!bossL) PL[3].intensity = 0;
+  // uyarı alanları
+  for (const w of S.warns || []) {
+    const m = getModel(w, 'w' + w.kind + (w.aim ? 'a' : '') + (w.col || ''), () => warnModel(w));
+    const k = clamp(1 - w.t / w.t0, 0, 1);
+    if (w.kind === 'c') { m.root.position.set(X(w.x), 0.03, Z(w.y)); m.root.scale.setScalar(w.r * U); m.parts.fill.scale.setScalar(Math.max(0.02, k)); m.parts.edge.material.opacity = 0.5 + 0.4 * Math.sin(t * 20) * k; }
+    else {
+      const dx = X(w.x2) - X(w.x), dz = Z(w.y2) - Z(w.y), L = Math.hypot(dx, dz);
+      m.root.position.set(X(w.x), 0.03, Z(w.y)); m.root.rotation.y = Math.atan2(dx, dz);
+      m.parts.base.scale.set(w.w * U, 1, L); m.parts.fill.scale.set(w.w * U, 1, Math.max(0.01, L * k));
+    }
+  }
+  // diğer oyuncular (açık bölge)
+  for (const b of S.bots || []) {
+    const m = getModel(b, 'bot' + b.cls, () => npcModel(b));
+    const mv = Math.hypot(b.x - m.prevX, b.y - m.prevY) / Math.max(dt, 1e-3);
+    m.root.position.set(X(b.x), 0, Z(b.y)); faceTo(m, b.fx, b.fy, dt, 10);
+    const s = animWalk(m, mv > 5, dt, t + b.lvl);
+    m.parts.armL.rotation.x = s * 0.6; m.parts.armR.rotation.x = b.atkT > 0 ? (b.cls === 'savasci' ? -2.4 + (0.25 - b.atkT) * 12 : -1.5) : -s * 0.6;
+    if (b.cls === 'okcu' && b.atkT > 0) m.parts.armL.rotation.x = -1.5;
+    if (m.aura && Math.random() < dt * 4) emit(X(b.x) + (Math.random() - 0.5) * 0.6, 0.2, Z(b.y) + (Math.random() - 0.5) * 0.6, 0, 0.9, 0, 1.2, 0.2, m.auraCol, 0, 0);
+    m.prevX = b.x; m.prevY = b.y;
+  }
   // mermiler
   for (const b of S.shots) {
     const m = getModel(b, b.kind, () => b.kind === 'arrow' ? { root: arrowModel(false), parts: {} } : { root: orbModel('#8fb8ff', 0.16), parts: {} });
@@ -724,10 +826,10 @@ function syncTown(S, dt, t) {
 function cullModels(dt) {
   for (const m of [...models]) {
     if (m.seen === frameNo) continue;
-    if (m.kind === 'rat' || m.kind === 'guard' || m.kind === 'archer' || m.kind === 'boss') {
+    if (m.enemy) {
       if (m.dying == null) { m.dying = 0.5; flashModel(m, false); }
       m.dying -= dt; const k = Math.max(0, m.dying / 0.5);
-      m.root.scale.setScalar((m.kind === 'boss' ? 1.45 : m.kind === 'guard' ? 1.7 : 1.35) * (0.3 + 0.7 * k)); m.root.position.y -= dt * 1.2; m.root.rotation.z += dt * 4;
+      m.root.scale.setScalar(m.baseScale * (0.3 + 0.7 * k)); m.root.position.y -= dt * 1.2; m.root.rotation.z += dt * 4;
       if (m.dying > 0) continue;
     }
     entGroup.remove(m.root); models.delete(m); if (m.obj && m.obj.__m === m) delete m.obj.__m;
@@ -784,6 +886,9 @@ function ev(type, d) {
     case 'dash': burst3(x, 0.3, z, '#efe6dc', 8, 2.5, 0.3, 2, 0.4); break;
     case 'spawn': burst3(x, 0.2, z, '#ff4a3a', 12, 3, 0.3, 6, 0.6); break;
     case 'clear': break;
+    case 'perfect': fxRing(x, z, 3.2, '#7ff0ff', 0.6); fxRing(x, z, 1.6, '#ffffff', 0.35); burst3(x, 1, z, '#7ff0ff', 30, 5, 0.3, 2, 0.7); shake = Math.max(shake, 0.15); break;
+    case 'impact': fxRing(x, z, d.r * U, d.fire ? '#ffb04a' : '#ff8a8a', 0.35); burst3(x, 0.2, z, d.fire ? '#ff8a2a' : '#c8b0a0', 16, 4, 0.3, 12, 0.5); shake = Math.max(shake, 0.12); break;
+    case 'poof': burst3(x, 0.8, z, '#ffe39a', 30, 4, 0.3, 0, 0.6); fxRing(x, z, 1.5, '#ffe39a', 0.4); break;
   }
 }
 function burst(x, y, zPx, col, n, spd) { burst3(X(x), Y(zPx || 10), Z(y), col, n, (spd || 120) * U * 1.2); }
@@ -841,6 +946,17 @@ function drawOverlay(S) {
       octx.fillStyle = 'rgba(0,0,0,.65)'; octx.fillRect(sx - w / 2 - 1, sy - 1, w + 2, h + 2);
       octx.fillStyle = boss ? '#ff8a3d' : '#ff5d5d'; octx.fillRect(sx - w / 2, sy, w * clamp(e.hp / e.mhp, 0, 1), h);
     }
+    for (const b of S.bots || []) {
+      const [sx, sy] = project(b.x, b.y, 46);
+      txt((b.clan ? '[' + b.clan + '] ' : '') + b.name, sx, sy, (b.of && b.of.name) || '#d8e8ff', 9.5 * k);
+      txt('Sv ' + b.lvl, sx, sy - 10 * k, '#c9bcb0', 8 * k, 500);
+    }
+    if (S.run.kind === 'acik') {
+      const D = S.doors, R_ = S.OPEN.rooms, at = { n: [210, 30], s: [210, 790], w: [30, 410], e: [390, 410] };
+      for (const k2 of ['n', 's', 'w', 'e']) if (D[k2] >= 0) { const [sx, sy] = project(at[k2][0], at[k2][1], 70); txt(R_[D[k2]].ad + ' · Sv ' + R_[D[k2]].lvl, sx, sy, '#bcd0ff', 10 * k); }
+      if (R_[S.run.room].camp) { const [sx, sy] = project(S.CAMP_PORTAL.x, S.CAMP_PORTAL.y, 85); txt('Kasabaya dönüş', sx, sy, '#ffd27a', 11 * k); }
+      miniMap(S, k);
+    }
     for (const q of S.texts) {
       const [sx, sy] = project(q.x, q.y, q.z + 20); octx.globalAlpha = clamp(q.t * 1.5, 0, 1);
       txt(q.txt, sx, sy, q.col, (q.big ? 13 : 11) * k * (q.big && q.t > 0.85 ? 1 + (q.t - 0.85) * 2 : 1));
@@ -855,14 +971,45 @@ function drawOverlay(S) {
   if (S.mode === 'pause') { octx.fillStyle = 'rgba(10,8,12,.55)'; octx.fillRect(0, 0, W, H); octx.font = '22px Bungee, Impact, sans-serif'; octx.fillStyle = '#efe6dc'; octx.fillText('Duraklatıldı', W / 2, H / 2); }
 }
 
+function miniMap(S, k) {
+  const R_ = S.OPEN.rooms, cs = 14 * k, gp = 4 * k, cols = 6, rows = 3;
+  const w = cols * cs + (cols - 1) * gp + 14, h = rows * cs + (rows - 1) * gp + 26;
+  const x0 = W - w - 12, y0 = 132;
+  octx.fillStyle = 'rgba(17,14,20,.62)'; octx.strokeStyle = 'rgba(255,255,255,.12)'; octx.lineWidth = 1;
+  octx.beginPath(); octx.roundRect ? octx.roundRect(x0, y0, w, h, 10) : octx.rect(x0, y0, w, h); octx.fill(); octx.stroke();
+  octx.textAlign = 'left'; octx.font = `700 ${8.5 * k}px Rubik, system-ui, sans-serif`; octx.fillStyle = '#c9bcb0'; octx.fillText(S.OPEN.ad, x0 + 7, y0 + 12);
+  const cx = r => x0 + 7 + r.gx * (cs + gp), cy_ = r => y0 + 19 + r.gy * (cs + gp);
+  octx.strokeStyle = 'rgba(188,208,255,.45)'; octx.lineWidth = 2;
+  R_.forEach((r, i) => { for (const [dx, dy] of [[1, 0], [0, 1]]) { const j = R_.findIndex(o => o.gx === r.gx + dx && o.gy === r.gy + dy); if (j >= 0) { octx.beginPath(); octx.moveTo(cx(r) + cs / 2, cy_(r) + cs / 2); octx.lineTo(cx(R_[j]) + cs / 2, cy_(R_[j]) + cs / 2); octx.stroke(); } } });
+  R_.forEach((r, i) => {
+    const cur = i === S.run.room, vis = S.run.visited[i];
+    octx.fillStyle = cur ? '#ff8a3d' : r.camp ? '#3e6b45' : r.lair ? '#7a1f2b' : vis ? '#4e4258' : '#2a2330';
+    octx.fillRect(cx(r), cy_(r), cs, cs);
+    octx.strokeStyle = r.lair ? '#ff5d5d' : 'rgba(255,255,255,.25)'; octx.lineWidth = 1; octx.strokeRect(cx(r) + 0.5, cy_(r) + 0.5, cs - 1, cs - 1);
+    octx.textAlign = 'center'; octx.font = `700 ${7 * k}px Rubik, system-ui, sans-serif`; octx.fillStyle = cur ? '#1a0d05' : '#efe6dc';
+    octx.fillText(r.camp ? 'K' : String(r.lvl), cx(r) + cs / 2, cy_(r) + cs / 2 + 2.5 * k);
+  });
+  octx.textAlign = 'center';
+}
 // ---------- ana çizim ----------
 let lastT = 0;
 function render(dt, S) {
   frameNo++; const t = S.t;
-  const want = S.run ? 'd' + S.run.region : 'town';
-  if (want !== envKey) { if (want === 'town') buildTown(S); else buildDungeon(S.run.region); camInit = false; }
+  const want = S.run ? (S.run.kind === 'acik' ? 'o' + S.run.room : 'd' + S.run.region) : 'town';
+  if (want !== envKey) {
+    if (want === 'town') buildTown(S);
+    else if (S.run.kind === 'acik') { const r = S.OPEN.rooms[S.run.room]; buildDungeon(S.run.region, { doors: S.doors, camp: r.camp, lair: r.lair, key: want }); }
+    else buildDungeon(S.run.region);
+    camInit = false;
+  }
   if (S.run) syncRun(S, dt, t); else if (S.town) syncTown(S, dt, t);
   cullModels(dt);
+  if (S.run) {
+    const dark = S.run.event === 'karanlik';
+    hemi.intensity = lerp(hemi.intensity, dark ? 0.06 : envLight.hemi, Math.min(1, dt * 3));
+    sun.intensity = lerp(sun.intensity, dark ? 0.04 : envLight.sun, Math.min(1, dt * 3));
+    if (dark) { PL[4].intensity = 2.4; PL[4].distance = 13; }
+  }
   for (const a of envAnims) a(dt, t);
   for (const f of flick) {
     const n = (f.soft ? 0.06 : 0.18) * (Math.sin(t * 13 + f.base * 7) * 0.5 + Math.sin(t * 23.7) * 0.3 + Math.random() * 0.4);

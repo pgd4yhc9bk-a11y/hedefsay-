@@ -154,6 +154,9 @@ p { margin: 0; line-height: 1.5; color: var(--muted); }
 #ctx { left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 30px); border-radius: 26px;
   height: 52px; padding: 0 22px; border: 2px solid var(--ember); background: var(--panel); color: var(--ember); font-size: 14px; }
 .gold { color: var(--r3); }
+#slowFx { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at 50% 50%, rgba(127,240,255,0) 45%, rgba(127,240,255,.35) 100%); }
+#slowFx.on { animation: slowIO 1s ease-out; }
+@keyframes slowIO { 0% { opacity: 1; } 70% { opacity: .7; } 100% { opacity: 0; } }
 #fade { position: fixed; inset: 0; z-index: 6; background: #07050a; opacity: 0; pointer-events: none; }
 #fade.on { animation: fadeIO .7s ease-out; }
 @keyframes fadeIO { 0% { opacity: 1; } 100% { opacity: 0; } }
@@ -182,10 +185,11 @@ p { margin: 0; line-height: 1.5; color: var(--muted); }
   <div class="meter exp"><i id="hExp"></i></div>
   <div class="hrow">
     <div class="chip" id="hRegion">Kül Mahzeni</div>
-    <div class="chip">Kat <b id="hFloor">1</b>/20</div>
+    <div class="chip" id="hPlace">Kat <b>1</b>/20</div>
     <div class="grow"></div>
     <div class="chip">Çanta: <b id="hGold">0</b> altın · <b id="hItems">0</b> eşya</div>
   </div>
+  <div class="hrow"><div class="chip" id="hTime" hidden></div></div>
 </div>
 <div class="hud" id="thud" hidden>
   <div class="hrow">
@@ -202,6 +206,7 @@ p { margin: 0; line-height: 1.5; color: var(--muted); }
 <button class="actbtn" id="dash" hidden aria-label="Atıl">ATIL</button>
 <div class="toast" id="toast" hidden></div>
 <div id="fade" aria-hidden="true"></div>
+<div id="slowFx" aria-hidden="true"></div>
 <div id="floorCard" aria-live="polite"><div id="fcA"></div><div id="fcB"></div></div>
 
 <!-- Sınıf seçimi -->

@@ -175,31 +175,37 @@ const SKILLICON = {
   buyucu: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M12 9l2 3-2 3-2-3z"/></svg>',
 };
 // ================= Oyun durumu =================
-const G = { mode: 'menu', t: 0, shake: 0, clearT: -1 };
-let run = null, P1, enemies, shots, arrows, pending, parts, texts, waves, fx;
+const G = { mode: 'menu', t: 0, clearT: -1, slow: 0 };
+let run = null, P1, enemies, shots, arrows, pending, texts, waves, warns, bots;
 function runStats() {
   const s = calcStats(), b = run.buff;
   return { maxHp: Math.round(s.maxHp * b.hp), dmg: s.dmg * b.dmg, armor: s.armor, crit: Math.min(75, s.crit + b.crit), atk: s.atk * b.atk,
     spd: s.spd * b.spd, leech: s.leech + b.leech, gold: s.gold, exp: s.exp, cd: b.cd, multi: b.multi, reach: b.reach, luck: b.luck };
 }
-function startRun(ri_) {
-  run = { region: ri_, floor: 0, kills: 0, bag: { gold: 0, tas: 0, kor: 0, items: [] }, safe: { gold: 0, tas: 0, kor: 0, items: 0 }, expRun: 0,
-    buff: { hp: 1, dmg: 1, atk: 1, spd: 1, crit: 0, leech: 0, cd: 1, multi: 0, reach: 1, luck: 1 } };
-  P1 = { x: RW / 2, y: RH * 0.72, hp: 1, inv: 0, dashT: 0, dashCd: 0, fx: 0, fy: -1, fireT: 0, ax: 0, ay: -1, skillCd: 0, swing: 0, swingA: 0 };
+function newRunBase(extra) {
+  run = Object.assign({ kills: 0, bag: { gold: 0, tas: 0, kor: 0, items: [] }, safe: { gold: 0, tas: 0, kor: 0, items: 0 }, expRun: 0, perfects: 0, stars: 0, floorsDone: 0,
+    buff: { hp: 1, dmg: 1, atk: 1, spd: 1, crit: 0, leech: 0, cd: 1, multi: 0, reach: 1, luck: 1 } }, extra);
+  P1 = { x: RW / 2, y: RH * 0.72, hp: 1, inv: 0, dashT: 0, dashCd: 0, fx: 0, fy: -1, fireT: 0, ax: 0, ay: -1, skillCd: 0, swing: 0, swingA: 0,
+    lastDash: { t: -9, x: 0, y: 0 }, critN: 0, lastPerfect: -9, atkT: 0 };
   P1.hp = runStats().maxHp;
   $('skillIcon').innerHTML = SKILLICON[save.cls];
-  G.mode = 'play'; show(null); nextFloor();
+  G.mode = 'play'; show(null);
 }
-function mlv() { const R = REGIONS[run.region]; return R.min + (run.floor - 1) * (R.max - R.min) / 19; }
+function startRun(ri_) { newRunBase({ kind: 'kat', region: ri_, floor: 0 }); nextFloor(); }
+function mlv() {
+  if (run.kind === 'acik') return OPEN.rooms[run.room].lvl;
+  const R = REGIONS[run.region]; return R.min + (run.floor - 1) * (R.max - R.min) / 19;
+}
+function resetRoom() { enemies = []; shots = []; arrows = []; pending = []; texts = []; warns = []; bots = []; waves = []; G.clearT = -1; }
+const BOSSNAME = ['Kül Bekçisi', 'Pas Golemi', 'Kök Devi'];
+const EVENTAD = { goblin: 'Hazine Goblini görüldü! Kaçmadan yakala', tuzak: 'Tuzaklı kat: yerdeki kırmızı alanlardan kaç', karanlik: 'Karanlık kat: sadece meşalenin ışığı var' };
+const AFFIXAD = { hizli: 'Hızlı', patlayan: 'Patlayan' };
 function nextFloor() {
-  run.floor++;
-  enemies = []; shots = []; arrows = []; pending = []; parts = []; texts = []; fx = [];
-  G.clearT = -1;
+  run.floor++; resetRoom();
   P1.x = RW / 2; P1.y = RH * 0.74; P1.inv = 1.0;
-  const n = run.floor, rg = run.region;
-  waves = [];
-  if (n === 10 || n === 20) {
-    waves.push([{ type: 'boss' }, ...Array(2 + rg + (n === 20 ? 2 : 0)).fill({ type: 'rat' })]);
+  const n = run.floor, rg = run.region, boss = n === 10 || n === 20;
+  if (boss) {
+    waves.push([{ type: 'boss' }, ...Array(2 + rg + (n === 20 ? 2 : 0)).fill(0).map(() => ({ type: 'rat' }))]);
   } else {
     const count = 3 + Math.floor(n * 0.45) + rg;
     const make = c => Array.from({ length: c }, () => {
@@ -210,11 +216,19 @@ function nextFloor() {
     });
     waves.push(make(count));
     if (n >= 4) waves.push(make(Math.ceil(count * 0.6)));
+    // elitler
+    const ne = n >= 8 ? 2 : n >= 3 ? 1 : 0;
+    for (let i = 0; i < ne; i++) { const w = waves[waves.length - 1]; const q = w[ri(0, w.length - 1)]; q.elite = Math.random() < 0.5 ? 'hizli' : 'patlayan'; }
   }
+  run.event = null;
+  if (n >= 2 && n % 5 !== 0 && !boss && Math.random() < 0.35) run.event = ['goblin', 'tuzak', 'karanlik'][ri(0, 2)];
+  if (run.event === 'goblin') pending.push({ x: rnd(80, 340), y: rnd(120, 320), type: 'goblin', t: 1.6 });
+  run.trapT = 2;
+  run.floorT = 0; run.floorHit = false;
+  run.par = Math.round(16 + waves.reduce((a, w) => a + w.length, 0) * 2.4 + (boss ? 30 : 0));
   spawnWave(); updHud();
-  floorTitle(REGIONS[rg].ad + ' · ' + n + '. kat', n === 10 || n === 20 ? BOSSNAME[rg] + ' uyandı' : (n % 5 === 0 ? 'Bu katın sonunda çıkış kapısı var' : ''));
+  floorTitle(REGIONS[rg].ad + ' · ' + n + '. kat', boss ? BOSSNAME[rg] + ' uyandı' : run.event ? EVENTAD[run.event] : (n % 5 === 0 ? 'Bu katın sonunda çıkış kapısı var' : ''));
 }
-const BOSSNAME = ['Kül Bekçisi', 'Pas Golemi', 'Kök Devi'];
 let ftT = 0;
 function floorTitle(a, b) {
   const el = $('floorCard'); $('fcA').textContent = a; $('fcB').textContent = b; $('fcB').hidden = !b;
@@ -228,18 +242,22 @@ function spawnWave() {
     do { x = 40 + Math.random() * (RW - 80); y = 40 + Math.random() * (RH * 0.6); k++; }
     while (Math.hypot(x - P1.x, y - P1.y) < 200 && k < 30);
     if (s.type === 'boss') { x = RW / 2; y = 160; }
-    pending.push({ x, y, type: s.type, t: 0.9 + i * 0.1 });
+    pending.push({ x, y, type: s.type, elite: s.elite, t: 0.9 + i * 0.1 });
   });
 }
-function makeEnemy(type, x, y) {
-  const L = mlv(), bossHp = run.floor === 20 ? 1.5 : 1;
+function makeEnemy(type, x, y, q) {
+  const L = mlv(), bossHp = run.kind === 'kat' && run.floor === 20 ? 1.5 : run.kind === 'acik' ? 1.6 : 1;
   const b = {
-    rat:    { r: 11, hp: 12 + L * 7,  sp: 92 + L * 1.2, h: 14, dmg: 4 + L * 1.6, c: C.rat, ct: C.ratTop, xp: 1, g: 1 },
-    guard:  { r: 18, hp: 45 + L * 22, sp: 50, h: 30, dmg: 8 + L * 2.8, c: C.guard, ct: C.guardTop, xp: 1.8, g: 2 },
-    archer: { r: 12, hp: 16 + L * 9,  sp: 72, h: 24, dmg: 5 + L * 2.0, c: C.archer, ct: C.archerTop, xp: 1.3, g: 1.5 },
-    boss:   { r: 34, hp: (300 + L * 120) * bossHp, sp: 42, h: 58, dmg: 8 + L * 2.4, c: C.boss, ct: C.bossTop, xp: 15, g: 12 },
+    rat:    { r: 11, hp: 12 + L * 7,  sp: 92 + L * 1.2, h: 14, dmg: 5 + L * 1.8, c: C.rat, ct: C.ratTop, xp: 1, g: 1 },
+    guard:  { r: 18, hp: 45 + L * 22, sp: 52, h: 30, dmg: 10 + L * 3.2, c: C.guard, ct: C.guardTop, xp: 1.8, g: 2 },
+    archer: { r: 12, hp: 16 + L * 9,  sp: 72, h: 24, dmg: 6 + L * 2.2, c: C.archer, ct: C.archerTop, xp: 1.3, g: 1.5 },
+    boss:   { r: 34, hp: (300 + L * 120) * bossHp, sp: 42, h: 58, dmg: 10 + L * 2.8, c: C.boss, ct: C.bossTop, xp: 15, g: 12 },
+    goblin: { r: 10, hp: 30 + L * 14, sp: 128, h: 16, dmg: 0, c: '#d8b84a', ct: '#ffe39a', xp: 4, g: 30 },
   }[type];
-  return Object.assign({ type, x, y, lvl: L, mhp: b.hp, flash: 0, hitCd: 0, slow: 0, cd: 1 + Math.random() * 1.5, cd2: 4, charge: 0, cvx: 0, cvy: 0 }, b);
+  const e = Object.assign({ type, x, y, lvl: L, flash: 0, slow: 0, cd: 1 + Math.random() * 1.5, cd2: 3 + Math.random() * 3, dashT: 0, dvx: 0, dvy: 0, atkLock: 0, pdmg: 0, pat: 0, life: 13 }, b);
+  if (q && q.elite) { e.elite = q.elite; e.hp *= 2.6; e.r *= 1.15; e.xp *= 2.2; e.g *= 2.5; if (e.elite === 'hizli') e.sp *= 1.55; }
+  e.mhp = e.hp;
+  return e;
 }
 
 // ================= Yardımcılar =================
@@ -247,60 +265,194 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 function burstParts(x, y, col, n = 10, z = 10, sp = 120) { RN.burst(x, y, z, col, n, sp); }
 function floatText(x, y, txt, col, big) { if (texts.length > 60) texts.shift(); texts.push({ x: x + rnd(-6, 6), y, z: 30, txt, col, t: 1, big }); }
 let toastT = 0;
-function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 1800); }
+function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 2200); }
 function hurtPlayer(d, srcLvl) {
-  if (P1.inv > 0 || P1.dashT > 0) return;
+  if (P1.inv > 0 || P1.dashT > 0 || G.mode !== 'play') return;
   const s = runStats(), red = s.armor / (s.armor + 40 + srcLvl * 6);
   const dmg = Math.max(1, Math.round(d * (1 - red)));
-  P1.hp -= dmg; P1.inv = 0.35; RN.ev('hurt', { x: P1.x, y: P1.y, k: Math.min(0.4, 0.12 + dmg / s.maxHp) }); flashHurt();
+  P1.hp -= dmg; P1.inv = 0.4; run.floorHit = true;
+  RN.ev('hurt', { x: P1.x, y: P1.y, k: Math.min(0.4, 0.12 + dmg / s.maxHp) }); flashHurt();
   floatText(P1.x, P1.y, '-' + dmg, C.bad);
   blip(110, 0.18, 'sawtooth', 0.06, 0.5);
   updHud();
   if (P1.hp <= 0) die();
 }
 function expPenalty() {
-  const diff = save.lvl - REGIONS[run.region].max;
+  const top = run.kind === 'acik' ? OPEN.rooms[run.room].lvl + 4 : REGIONS[run.region].max;
+  const diff = save.lvl - top;
   return diff >= 8 ? 0.1 : diff >= 4 ? 0.5 : 1;
 }
-function killEnemy(e) {
-  e.dead = true; run.kills++;
-  const s = runStats();
+const lootMul = () => run.kind === 'acik' ? 1.5 : 1;
+function killEnemy(e, byBot) {
+  e.dead = true;
+  if (e.elite === 'patlayan') warn({ kind: 'c', x: e.x, y: e.y, r: 78, t: 0.9, dmg: e.dmg * 1.6, lvl: e.lvl, col: 'fire' });
+  if (e.type === 'boss' && run.kind === 'acik') run.lairCd = 45;
+  RN.ev('kill', { x: e.x, y: e.y, col: e.type === 'boss' ? '#ffb04a' : e.c, boss: e.type === 'boss' });
+  if (byBot && !(e.pdmg > 0)) { blip(300, 0.06, 'triangle', 0.02, 0.6); return; }
+  run.kills++;
+  const s = runStats(), LM = lootMul();
   const xp = Math.round((5 + e.lvl * 2) * e.xp * s.exp * expPenalty());
   gainExp(xp); run.expRun += xp;
-  const gold = Math.round((2 + e.lvl) * e.g * rnd(0.7, 1.3) * s.gold);
+  const gold = Math.round((2 + e.lvl) * e.g * rnd(0.7, 1.3) * s.gold * LM);
   run.bag.gold += gold;
   floatText(e.x, e.y - 4, '+' + gold, C.gold);
-  if (Math.random() < (e.type === 'boss' ? 1 : 0.12)) { const n = e.type === 'boss' ? ri(3, 5) : 1; run.bag.tas += n; floatText(e.x, e.y + 8, '+' + n + ' Basma Taşı', '#d7c7b8'); }
-  if (e.type === 'boss') { const n = ri(1, 2) + (run.floor === 20 ? 1 : 0); run.bag.kor += n; floatText(e.x, e.y + 20, '+' + n + ' Kor Tozu', C.bossTop); }
-  else if (run.region === 2 && Math.random() < 0.01) { run.bag.kor++; floatText(e.x, e.y + 20, '+1 Kor Tozu', C.bossTop); }
-  const chance = ({ rat: 0.05, archer: 0.08, guard: 0.12, boss: 1 })[e.type] * s.luck;
-  const drops = e.type === 'boss' ? (run.floor === 20 ? 3 : 2) : (Math.random() < chance ? 1 : 0);
+  if (Math.random() < (e.type === 'boss' ? 1 : 0.12 * LM)) { const n = e.type === 'boss' ? Math.round(ri(3, 5) * LM) : 1; run.bag.tas += n; floatText(e.x, e.y + 8, '+' + n + ' Basma Taşı', '#d7c7b8'); }
+  if (e.type === 'boss') { const n = Math.round((ri(1, 2) + (run.floor === 20 ? 1 : 0)) * LM); run.bag.kor += n; floatText(e.x, e.y + 20, '+' + n + ' Kor Tozu', C.bossTop); }
+  else if (e.lvl >= 20 && Math.random() < 0.01 * LM) { run.bag.kor++; floatText(e.x, e.y + 20, '+1 Kor Tozu', C.bossTop); }
+  const chance = ({ rat: 0.05, archer: 0.08, guard: 0.12, boss: 1, goblin: 1 })[e.type] * s.luck * LM;
+  let drops = e.type === 'boss' ? (run.floor === 20 ? 3 : 2) : e.type === 'goblin' ? 2 : (Math.random() < chance ? 1 : 0);
+  if (e.elite) drops++;
+  if (e.type === 'goblin') { toast('Hazine Goblini yakalandı!'); blip(1400, 0.3, 'triangle', 0.06, 1.4); }
   for (let i = 0; i < drops; i++) {
-    const it = makeItem(Math.max(1, Math.round(e.lvl)), e.type === 'boss');
+    const it = makeItem(Math.max(1, Math.round(e.lvl)), e.type === 'boss' || e.type === 'goblin' || (e.elite && i === drops - 1));
     run.bag.items.push(it);
     floatText(e.x, e.y - 18 - i * 12, RNAME[it.r] + ' ' + it.name, RCOL[it.r], true);
     if (it.r >= 1) RN.ev('loot', { x: e.x + rnd(-15, 15), y: e.y + rnd(-15, 15), col: RCOL[it.r] });
     if (it.r >= 2) blip(1200, 0.25, 'sine', 0.05, 1.3);
   }
-  RN.ev('kill', { x: e.x, y: e.y, col: e.type === 'boss' ? '#ffb04a' : e.c, boss: e.type === 'boss' }); RN.ev('gold', { x: e.x, y: e.y });
+  RN.ev('gold', { x: e.x, y: e.y });
   blip(330, 0.08, 'triangle', 0.05, 0.6);
   updHud();
 }
 function hitEnemy(e, base, silent) {
   if (e.dead) return;
-  const s = runStats(), crit = Math.random() * 100 < s.crit, d = Math.round(base * (crit ? 1.8 : 1) * rnd(0.9, 1.1));
-  e.hp -= d; e.flash = 0.08; RN.ev('hit', { x: e.x, y: e.y, crit });
+  const s = runStats(), forced = P1.critN > 0, crit = forced || Math.random() * 100 < s.crit, d = Math.round(base * (crit ? (forced ? 2.2 : 1.8) : 1) * rnd(0.9, 1.1));
+  if (forced) P1.critN--;
+  e.hp -= d; e.pdmg += d; e.flash = 0.08; RN.ev('hit', { x: e.x, y: e.y, crit });
   if (!silent || crit) floatText(e.x, e.y - e.h * 0.3, (crit ? d + '!' : '' + d), crit ? C.crit : '#f3e9df', crit);
   if (s.leech) P1.hp = Math.min(s.maxHp, P1.hp + d * s.leech / 100);
-  if (e.hp <= 0) killEnemy(e);
+  if (e.hp <= 0) killEnemy(e, false);
+}
+function botHit(e, d) {
+  if (e.dead) return;
+  e.hp -= d; e.flash = 0.06; RN.ev('hit', { x: e.x, y: e.y, crit: false });
+  if (e.hp <= 0) killEnemy(e, true);
 }
 function nearest(range = 1e9) {
   let tgt = null, best = range;
   for (const e of enemies) { if (e.dead) continue; const d = Math.hypot(e.x - P1.x, e.y - P1.y) - e.r; if (d < best) { best = d; tgt = e; } }
   return tgt;
 }
+// ---------- uyarı alanları (atılarak kaçılabilen saldırılar) ----------
+function warn(o) { o.t0 = o.t; warns.push(o); return o; }
+function inWarn(w, x, y) {
+  if (w.kind === 'c') return Math.hypot(x - w.x, y - w.y) < w.r + PR * 0.5;
+  const dx = w.x2 - w.x, dy = w.y2 - w.y, L2 = dx * dx + dy * dy || 1;
+  const k = clamp(((x - w.x) * dx + (y - w.y) * dy) / L2, 0, 1);
+  return Math.hypot(x - (w.x + dx * k), y - (w.y + dy * k)) < w.w / 2 + PR * 0.5;
+}
+function resolveWarn(w) {
+  if (w.fn) w.fn(w);
+  if (!w.dmg) return;
+  if (w.kind === 'c') RN.ev('impact', { x: w.x, y: w.y, r: w.r, fire: w.col === 'fire' });
+  const p = P1, inside = inWarn(w, p.x, p.y), ld = p.lastDash, recent = G.t - ld.t < 0.45;
+  if ((inside && p.dashT > 0) || (!inside && recent && inWarn(w, ld.x, ld.y))) perfectDodge();
+  else if (inside) hurtPlayer(w.dmg, w.lvl);
+}
+function perfectDodge() {
+  if (G.t - P1.lastPerfect < 0.6) return;
+  P1.lastPerfect = G.t; G.slow = 0.9; P1.critN = 3; run.perfects++;
+  floatText(P1.x, P1.y - 12, 'Kusursuz kaçış!', '#7ff0ff', true);
+  RN.ev('perfect', { x: P1.x, y: P1.y });
+  const el = $('slowFx'); el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  blip(1500, 0.25, 'sine', 0.06, 0.5); setTimeout(() => blip(2000, 0.2, 'sine', 0.04, 0.7), 80);
+}
+
+// ================= Açık bölge =================
+const OPEN = { ad: 'Sınır Toprakları', rooms: [
+  { ad: 'Kamp', gx: 0, gy: 2, lvl: 1, camp: 1 },
+  { ad: 'Küllü Patika', gx: 1, gy: 2, lvl: 3 },
+  { ad: 'Yanık Koru', gx: 2, gy: 2, lvl: 6 },
+  { ad: 'Taş Ocağı', gx: 2, gy: 1, lvl: 9 },
+  { ad: 'Paslı Köprü', gx: 3, gy: 1, lvl: 12 },
+  { ad: 'Çökük Kule', gx: 3, gy: 0, lvl: 15 },
+  { ad: 'Sis Bataklığı', gx: 4, gy: 1, lvl: 18 },
+  { ad: 'Kök Vadisi', gx: 4, gy: 2, lvl: 22 },
+  { ad: 'Kemik Tarlası', gx: 5, gy: 2, lvl: 26 },
+  { ad: 'Ejder Mağarası', gx: 5, gy: 1, lvl: 30, lair: 1 },
+] };
+const CAMP_PORTAL = { x: 210, y: 150 };
+function roomAt(gx, gy) { return OPEN.rooms.findIndex(r => r.gx === gx && r.gy === gy); }
+function doorsOf(i) { const r = OPEN.rooms[i]; return { n: roomAt(r.gx, r.gy - 1), s: roomAt(r.gx, r.gy + 1), w: roomAt(r.gx - 1, r.gy), e: roomAt(r.gx + 1, r.gy) }; }
+const roomPal = i => { const l = OPEN.rooms[i].lvl; return l < 10 ? 0 : l < 20 ? 1 : 2; };
+const BOTNAMES = ['Kartal', 'Atlas', 'Mira', 'Bozkurt', 'Eflin', 'Kılıçaslan', 'Toprak', 'Ilgaz', 'Defne', 'Barlas', 'Nehir', 'Alp', 'Sarp', 'Lale', 'Börü', 'Ece'];
+function startOpen() {
+  newRunBase({ kind: 'acik', region: 0, room: 0, visited: { 0: 1 }, respawn: 2, lairCd: 0 });
+  enterRoom(0, null);
+  toast('Kapılardan geçerek odalar arasında dolaş. Kamptaki geçit seni kasabaya götürür.');
+}
+function roomTarget(i) { const r = OPEN.rooms[i]; return r.camp ? 0 : 4 + Math.floor(r.lvl / 7); }
+function enterRoom(i, from) {
+  run.room = i; run.region = roomPal(i); run.visited[i] = 1; resetRoom();
+  const r = OPEN.rooms[i];
+  if (from === 'w') { P1.x = 34; P1.y = RH / 2; } else if (from === 'e') { P1.x = RW - 34; P1.y = RH / 2; }
+  else if (from === 'n') { P1.x = RW / 2; P1.y = 34; } else if (from === 's') { P1.x = RW / 2; P1.y = RH - 34; }
+  else { P1.x = RW / 2; P1.y = 260; }
+  P1.inv = 0.8;
+  for (let k = 0; k < roomTarget(i); k++) spawnOpenEnemy(0.3 + k * 0.15);
+  if (r.lair && run.lairCd <= 0) pending.push({ x: RW / 2, y: 200, type: 'boss', t: 1.2 });
+  const nb = r.camp ? ri(3, 4) : ri(1, 3), names = BOTNAMES.slice().sort(() => Math.random() - 0.5);
+  for (let k = 0; k < nb; k++) {
+    const cls = ['savasci', 'okcu', 'buyucu'][ri(0, 2)];
+    bots.push({ name: names[k], clan: ['', 'KOR', 'GECE', 'ASİL', ''][ri(0, 4)], cls, lvl: clamp(r.lvl + ri(-2, 5), 1, 80),
+      of: OUTFITS[ri(1, OUTFITS.length - 1)], x: rnd(80, 340), y: r.camp ? rnd(320, 520) : rnd(200, 700), fx: 0, fy: 1, fireT: rnd(0, 1), tx: 0, ty: 0, wait: rnd(0, 2), atkT: 0 });
+  }
+  floorTitle(OPEN.ad + ' · ' + r.ad, r.camp ? 'Güvenli bölge · geçit kasabaya döner' : 'Seviye ' + r.lvl + ' · herkese açık · ganimet 1,5 kat');
+  updHud();
+}
+function spawnOpenEnemy(delay) {
+  const r = OPEN.rooms[run.room];
+  let x, y, k = 0;
+  do { x = 50 + Math.random() * (RW - 100); y = 60 + Math.random() * (RH - 120); k++; } while (Math.hypot(x - P1.x, y - P1.y) < 220 && k < 30);
+  const q = Math.random();
+  const type = r.lvl >= 8 && q < 0.25 ? 'archer' : r.lvl >= 5 && q < 0.5 ? 'guard' : 'rat';
+  pending.push({ x, y, type, t: delay || 0.8, elite: Math.random() < 0.12 ? (Math.random() < 0.5 ? 'hizli' : 'patlayan') : null });
+}
+function updateOpen(dt) {
+  const r = OPEN.rooms[run.room], d = doorsOf(run.room), p = P1;
+  // kapılar
+  const mid = 50;
+  if (p.x <= PR + 1 && d.w >= 0 && Math.abs(p.y - RH / 2) < mid) return enterRoom(d.w, 'e');
+  if (p.x >= RW - PR - 1 && d.e >= 0 && Math.abs(p.y - RH / 2) < mid) return enterRoom(d.e, 'w');
+  if (p.y <= PR + 1 && d.n >= 0 && Math.abs(p.x - RW / 2) < mid) return enterRoom(d.n, 's');
+  if (p.y >= RH - PR - 1 && d.s >= 0 && Math.abs(p.x - RW / 2) < mid) return enterRoom(d.s, 'n');
+  // kamp geçidi
+  if (r.camp && Math.hypot(p.x - CAMP_PORTAL.x, p.y - CAMP_PORTAL.y) < 34) { const sold = bank(); endRun('camp', sold); return; }
+  // yeniden doğma
+  run.respawn -= dt; run.lairCd -= dt;
+  if (run.respawn <= 0) {
+    run.respawn = 3.5;
+    if (enemies.filter(e => !e.dead && e.type !== 'boss').length + pending.length < roomTarget(run.room)) spawnOpenEnemy(0.9);
+    if (r.lair && run.lairCd <= 0 && !enemies.some(e => e.type === 'boss' && !e.dead) && !pending.some(q => q.type === 'boss')) { pending.push({ x: RW / 2, y: 200, type: 'boss', t: 1.5 }); toast('Ejder Mağarası bekçisi yeniden doğuyor!'); run.lairCd = 999; }
+  }
+  // diğer oyuncular (örnek)
+  for (const b of bots) {
+    b.fireT -= dt; b.atkT = Math.max(0, b.atkT - dt);
+    let tgt = null, bd = 320;
+    for (const e of enemies) { if (e.dead) continue; const dd = Math.hypot(e.x - b.x, e.y - b.y); if (dd < bd) { bd = dd; tgt = e; } }
+    const melee = b.cls === 'savasci', range = melee ? 34 : 170;
+    if (tgt && !r.camp) {
+      const dx = tgt.x - b.x, dy = tgt.y - b.y, dd = Math.hypot(dx, dy) || 1;
+      b.fx = dx / dd; b.fy = dy / dd;
+      if (dd > range) { b.x += dx / dd * 120 * dt; b.y += dy / dd * 120 * dt; }
+      if (b.fireT <= 0 && dd < range + 20) {
+        b.fireT = rnd(0.7, 1.1); b.atkT = 0.25;
+        const dmg = 6 + b.lvl * 2.2;
+        if (melee) { RN.ev('swing', { x: b.x, y: b.y, a: Math.atan2(dy, dx), r: 50, col: '#ffd2a8' }); botHit(tgt, dmg); }
+        else shots.push({ x: b.x, y: b.y, vx: dx / dd * 380, vy: dy / dd * 380, t: 1.2, pierce: 0, hit: new Set(), dmg, kind: b.cls === 'okcu' ? 'arrow' : 'bolt', bot: 1 });
+      }
+    } else {
+      b.wait -= dt;
+      if (b.wait <= 0) { b.tx = rnd(80, 340); b.ty = r.camp ? rnd(300, 560) : rnd(150, 700); b.wait = rnd(2, 5); }
+      const dx = b.tx - b.x, dy = b.ty - b.y, dd = Math.hypot(dx, dy);
+      if (dd > 4) { b.x += dx / dd * 60 * dt; b.y += dy / dd * 60 * dt; b.fx = dx / dd; b.fy = dy / dd; }
+    }
+    b.x = clamp(b.x, PR, RW - PR); b.y = clamp(b.y, PR, RH - PR);
+  }
+}
 
 // ================= Güncelleme =================
+let hudT = 0;
 function update(dt) {
   G.t += dt;
   const s = runStats(), p = P1, cls = CLASSES[save.cls];
@@ -309,9 +461,12 @@ function update(dt) {
   if (keys.w || keys.arrowup) my -= 1; if (keys.s || keys.arrowdown) my += 1;
   let ml = Math.hypot(mx, my); if (ml > 1) { mx /= ml; my /= ml; ml = 1; }
   if (ml > 0.15) { p.fx = mx / ml; p.fy = my / ml; }
-  p.dashCd -= dt; p.inv -= dt; p.skillCd -= dt; p.swing -= dt; p.atkT = Math.max(0, (p.atkT || 0) - dt);
+  p.dashCd -= dt; p.inv -= dt; p.skillCd -= dt; p.swing -= dt; p.atkT = Math.max(0, p.atkT - dt);
   const speed = 150 * s.spd;
-  if (dashReq && p.dashCd <= 0) { p.dashT = 0.17; p.dashCd = 1.1; blip(700, 0.08, 'sine', 0.05, 0.4); RN.ev('dash', { x: p.x, y: p.y }); }
+  if (dashReq && p.dashCd <= 0) {
+    p.dashT = 0.2; p.dashCd = 0.95; p.lastDash = { t: G.t, x: p.x, y: p.y };
+    blip(700, 0.08, 'sine', 0.05, 0.4); RN.ev('dash', { x: p.x, y: p.y });
+  }
   dashReq = false;
   if (p.dashT > 0) { p.dashT -= dt; p.x += p.fx * speed * 3.3 * dt; p.y += p.fy * speed * 3.3 * dt; }
   else { p.x += mx * speed * dt; p.y += my * speed * dt; }
@@ -322,7 +477,22 @@ function update(dt) {
   $('skill').style.setProperty('--cd', (cdk * 360) + 'deg');
   $('skillName').textContent = p.skillCd > 0 ? Math.ceil(p.skillCd) : '';
 
-  for (const q of pending) { q.t -= dt; if (q.t <= 0) { enemies.push(makeEnemy(q.type, q.x, q.y)); RN.ev('spawn', { x: q.x, y: q.y }); } }
+  if (run.kind === 'acik') { updateOpen(dt); if (G.mode !== 'play') return; }
+  if (run.kind === 'kat') {
+    if (!G.clearT || G.clearT < 0) run.floorT += dt;
+    if (run.event === 'tuzak') {
+      run.trapT -= dt;
+      if (run.trapT <= 0) {
+        run.trapT = 2.3; const L = mlv();
+        for (let i = 0; i < 4; i++) {
+          const near = i < 2, x = near ? p.x + rnd(-70, 70) : rnd(40, RW - 40), y = near ? p.y + rnd(-70, 70) : rnd(60, RH - 60);
+          warn({ kind: 'c', x: clamp(x, 30, RW - 30), y: clamp(y, 30, RH - 30), r: 40, t: 1.1, dmg: 6 + L * 2.2, lvl: L, col: 'trap' });
+        }
+      }
+    }
+  }
+
+  for (const q of pending) { q.t -= dt; if (q.t <= 0) { enemies.push(makeEnemy(q.type, q.x, q.y, q)); RN.ev('spawn', { x: q.x, y: q.y }); } }
   pending = pending.filter(q => q.t > 0);
 
   // yetenek
@@ -330,7 +500,7 @@ function update(dt) {
     p.skillCd = cls.cd * s.cd;
     if (cls.kind === 'melee') {
       RN.ev('shock', { x: p.x, y: p.y, r: 100 }); p.swing = 0.16; p.swingA = 0;
-      for (const e of enemies) { const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy) || 1; if (d < 100 + e.r) { hitEnemy(e, s.dmg * 2.5); if (e.type !== 'boss') { e.x += dx / d * 60; e.y += dy / d * 60; } } }
+      for (const e of enemies) { const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy) || 1; if (d < 100 + e.r) { hitEnemy(e, s.dmg * 2.5); if (e.type !== 'boss') { e.x += dx / d * 60; e.y += dy / d * 60; e.atkLock = 0.6; } } }
       blip(90, 0.3, 'sawtooth', 0.08, 0.4);
     } else if (cls.kind === 'arrow') {
       for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283; shots.push({ x: p.x, y: p.y, vx: Math.cos(a) * 420, vy: Math.sin(a) * 420, t: 1.2, pierce: 2, hit: new Set(), dmg: s.dmg * 1.5, kind: 'arrow' }); }
@@ -346,7 +516,7 @@ function update(dt) {
   // otomatik saldırı
   p.fireT -= dt;
   const reach = 62 * s.reach;
-  const tgt = cls.kind === 'melee' ? nearest(reach + 8) : nearest();
+  const tgt = cls.kind === 'melee' ? nearest(reach + 8) : nearest(420);
   const any = nearest();
   if (any) { const a = Math.atan2(any.y - p.y, any.x - p.x); p.ax = Math.cos(a); p.ay = Math.sin(a); }
   if (tgt && p.fireT <= 0) {
@@ -380,6 +550,7 @@ function update(dt) {
       if (e.dead || b.t <= 0 || b.hit.has(e)) continue;
       if (Math.hypot(e.x - b.x, e.y - b.y) < e.r + 5) {
         b.hit.add(e);
+        if (b.bot) { botHit(e, b.dmg); b.t = 0; continue; }
         if (b.kind === 'bolt') {
           RN.ev('boom', { x: b.x, y: b.y, r: 42 });
           for (const o of enemies) if (!o.dead && Math.hypot(o.x - b.x, o.y - b.y) < 42 + o.r) hitEnemy(o, o === e ? b.dmg : b.dmg * 0.6, o !== e);
@@ -393,54 +564,100 @@ function update(dt) {
   }
   shots = shots.filter(b => b.t > 0);
 
-  // düşmanlar
+  // düşmanlar: her saldırı önce yerde uyarı olarak görünür, atılarak kaçılabilir
   for (const e of enemies) {
     if (e.dead) continue;
-    e.flash -= dt; e.hitCd -= dt; e.slow -= dt;
-    const sp = e.sp * (e.slow > 0 ? 0.45 : 1);
-    const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
-    if (e.type === 'archer') {
-      const want = d < 170 ? -1 : d > 260 ? 1 : 0;
-      e.x += dx / d * sp * want * dt + Math.cos(G.t + e.r) * 20 * dt; e.y += dy / d * sp * want * dt;
-      e.cd -= dt;
-      if (e.cd <= 0) { e.cd = 2.3; arrows.push({ x: e.x, y: e.y, vx: dx / d * 200, vy: dy / d * 200, t: 3, dmg: e.dmg, lvl: e.lvl }); blip(300, 0.05, 'triangle', 0.025, 1.5); }
-    } else if (e.type === 'boss') {
-      e.cd -= dt; e.cd2 -= dt;
-      if (e.charge > 0) { e.charge -= dt; e.x += e.cvx * dt; e.y += e.cvy * dt; }
-      else { e.x += dx / d * sp * dt; e.y += dy / d * sp * dt; }
-      if (e.cd <= 0) {
-        e.cd = e.hp < e.mhp / 2 ? 2.0 : 2.8; const k = e.hp < e.mhp / 2 ? 16 : 12, off = Math.random();
-        for (let i = 0; i < k; i++) { const a = (i + off) / k * 6.283; arrows.push({ x: e.x, y: e.y, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, t: 4, dmg: e.dmg, lvl: e.lvl, orb: true }); }
-        blip(160, 0.2, 'sawtooth', 0.05, 0.6);
+    e.flash -= dt; e.slow -= dt; e.cd -= dt; e.cd2 -= dt; e.atkLock = Math.max(0, e.atkLock - dt);
+    const slowK = e.slow > 0 ? 0.45 : 1, sp = e.sp * slowK;
+    const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
+    const L = e.lvl;
+    if (e.dashT > 0) { e.dashT -= dt; e.x += e.dvx * dt; e.y += e.dvy * dt; }
+    else if (e.type === 'rat') {
+      if (d < 95 && e.cd <= 0 && !e.atkLock) {
+        const len = 95; e.cd = 1.7 / (e.elite === 'hizli' ? 1.4 : 1); e.atkLock = 0.6;
+        warn({ kind: 'l', x: e.x, y: e.y, x2: e.x + ux * len, y2: e.y + uy * len, w: 28, t: 0.55 / slowK, dmg: e.dmg, lvl: L, fn: () => { if (!e.dead) { e.dashT = 0.16; e.dvx = ux * len / 0.16; e.dvy = uy * len / 0.16; } } });
+      } else if (!e.atkLock && d > 30) { e.x += ux * sp * dt; e.y += uy * sp * dt; }
+    } else if (e.type === 'guard') {
+      if (d < 100 && e.cd <= 0 && !e.atkLock) {
+        e.cd = 2.4; e.atkLock = 1.0;
+        warn({ kind: 'c', x: e.x + ux * 42, y: e.y + uy * 42, r: 52, t: 0.85 / slowK, dmg: e.dmg, lvl: L });
+      } else if (d > 170 && d < 330 && e.cd2 <= 0 && !e.atkLock) {
+        const len = Math.min(d + 50, 280); e.cd2 = 6; e.atkLock = 1.4;
+        warn({ kind: 'l', x: e.x, y: e.y, x2: e.x + ux * len, y2: e.y + uy * len, w: 40, t: 0.9 / slowK, dmg: e.dmg * 1.2, lvl: L, fn: () => { if (!e.dead) { e.dashT = 0.32; e.dvx = ux * len / 0.32; e.dvy = uy * len / 0.32; } } });
+      } else if (!e.atkLock && d > 48) { e.x += ux * sp * dt; e.y += uy * sp * dt; }
+    } else if (e.type === 'archer') {
+      const want = d < 170 ? -1 : d > 270 ? 1 : 0;
+      if (!e.atkLock) { e.x += ux * sp * want * dt + Math.cos(G.t + e.r) * 20 * dt; e.y += uy * sp * want * dt; }
+      if (e.cd <= 0 && d < 420) {
+        e.cd = 2.5; e.atkLock = 0.7;
+        warn({ kind: 'l', x: e.x, y: e.y, x2: e.x + ux * 460, y2: e.y + uy * 460, w: 8, t: 0.65 / slowK, aim: 1, fn: () => { if (!e.dead) arrows.push({ x: e.x, y: e.y, vx: ux * 400, vy: uy * 400, t: 2, dmg: e.dmg, lvl: L }); blip(300, 0.05, 'triangle', 0.025, 1.5); } });
       }
-      if (e.cd2 <= 0) { e.cd2 = 5; e.charge = 0.7; e.cvx = dx / d * 330; e.cvy = dy / d * 330; RN.addShake(0.2); }
-    } else { e.x += dx / d * sp * dt; e.y += dy / d * sp * dt; }
+    } else if (e.type === 'goblin') {
+      e.life -= dt;
+      if (e.life <= 0) { e.dead = true; floatText(e.x, e.y, 'Goblin kaçtı!', '#ffe39a', true); RN.ev('poof', { x: e.x, y: e.y }); continue; }
+      const fl = d < 260 ? -1 : 0.2;
+      e.x += (ux * fl + Math.cos(G.t * 1.7 + e.r) * 0.6) * sp * dt; e.y += (uy * fl + Math.sin(G.t * 1.3) * 0.6) * sp * dt;
+    } else if (e.type === 'boss') {
+      const ph2 = e.hp < e.mhp / 2;
+      if (!e.atkLock) { e.x += ux * sp * dt; e.y += uy * sp * dt; }
+      if (e.cd <= 0) {
+        const pat = e.pat++ % 3; e.cd = (ph2 ? 2.2 : 3.0);
+        if (pat === 0) {
+          const k = ph2 ? 16 : 12, off = Math.random();
+          for (let i = 0; i < k; i++) { const a = (i + off) / k * 6.283; arrows.push({ x: e.x, y: e.y, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, t: 4, dmg: e.dmg, lvl: L, orb: true }); }
+          blip(160, 0.2, 'sawtooth', 0.05, 0.6);
+        } else if (pat === 1) {
+          e.atkLock = 1.2;
+          const n = ph2 ? 5 : 3;
+          for (let i = 0; i < n; i++) warn({ kind: 'c', x: clamp(p.x + rnd(-50, 50) * (i > 0 ? 1 : 0), 30, RW - 30), y: clamp(p.y + rnd(-50, 50) * (i > 0 ? 1 : 0), 30, RH - 30), r: 62, t: 0.95 + i * 0.32, dmg: e.dmg * 1.3, lvl: L, col: 'fire' });
+        } else {
+          const len = 320; e.atkLock = 1.6;
+          warn({ kind: 'l', x: e.x, y: e.y, x2: e.x + ux * len, y2: e.y + uy * len, w: 70, t: 1.0, dmg: e.dmg * 1.6, lvl: L, fn: () => { if (!e.dead) { e.dashT = 0.4; e.dvx = ux * len / 0.4; e.dvy = uy * len / 0.4; RN.addShake(0.25); } } });
+        }
+      }
+    }
     e.x = clamp(e.x, e.r, RW - e.r); e.y = clamp(e.y, e.r, RH - e.r);
-    if (d < e.r + PR - 2 && e.hitCd <= 0) { e.hitCd = 0.8; hurtPlayer(e.type === 'boss' && e.charge > 0 ? e.dmg * 2 : e.dmg, e.lvl); }
+    // temas hasar vermez, sadece iter
+    if (e.type !== 'goblin' && d < e.r + PR) { const push = (e.r + PR - d); p.x = clamp(p.x + ux * push, PR, RW - PR); p.y = clamp(p.y + uy * push, PR, RH - PR); }
   }
   for (let i = 0; i < enemies.length; i++) for (let j = i + 1; j < enemies.length; j++) {
-    const a = enemies[i], b = enemies[j]; if (a.dead || b.dead) continue;
+    const a = enemies[i], b = enemies[j]; if (a.dead || b.dead || a.dashT > 0 || b.dashT > 0) continue;
     const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, m = a.r + b.r;
     if (d < m) { const k = (m - d) / 2 / d; a.x -= dx * k; a.y -= dy * k; b.x += dx * k; b.y += dy * k; }
   }
   enemies = enemies.filter(e => !e.dead);
 
+  // uyarılar
+  for (const w of warns) { w.t -= dt; if (w.t <= 0 && !w.done) { w.done = true; resolveWarn(w); } }
+  warns = warns.filter(w => !w.done);
+
   for (const a of arrows) {
     a.x += a.vx * dt; a.y += a.vy * dt; a.t -= dt;
     if (a.x < 0 || a.x > RW || a.y < 0 || a.y > RH) a.t = 0;
-    if (G.mode === 'play' && Math.hypot(p.x - a.x, p.y - a.y) < PR) { a.t = 0; hurtPlayer(a.dmg, a.lvl); }
+    if (G.mode === 'play' && Math.hypot(p.x - a.x, p.y - a.y) < PR + (a.orb ? 4 : 0)) {
+      a.t = 0;
+      if (p.dashT > 0) perfectDodge(); else hurtPlayer(a.dmg, a.lvl);
+    }
   }
   arrows = arrows.filter(a => a.t > 0);
 
   for (const q of texts) { q.t -= dt; q.z += 34 * dt; }
   texts = texts.filter(q => q.t > 0);
   updHpOnly();
+  hudT -= dt; if (hudT <= 0) { hudT = 0.25; updTimer(); }
 
-  if (G.mode === 'play' && !enemies.length && !pending.length) {
+  if (run.kind === 'kat' && G.mode === 'play' && !enemies.some(e => e.type !== 'goblin') && !pending.some(q => q.type !== 'goblin')) {
     if (waves.length) spawnWave();
     else if (G.clearT < 0) G.clearT = 0.8;
   }
   if (G.clearT > 0) { G.clearT -= dt; if (G.clearT <= 0) floorCleared(); }
+}
+function updTimer() {
+  const el = $('hTime');
+  if (!run || run.kind !== 'kat') { el.hidden = true; return; }
+  el.hidden = false;
+  const over = run.floorT > run.par;
+  el.innerHTML = `<b class="${over ? 'down' : ''}">${Math.floor(run.floorT)}</b>/${run.par} sn · ${run.floorHit ? '<span class="down">hasar aldın</span>' : '<span class="up">hasarsız</span>'}`;
 }
 
 // ================= Ekranlar =================
@@ -458,7 +675,8 @@ function updHpOnly() {
 function updHud() {
   if (!run) return;
   $('hLv').textContent = save.lvl; $('hExp').style.width = (save.lvl >= MAXLV ? 100 : save.exp / need(save.lvl) * 100) + '%';
-  $('hRegion').textContent = REGIONS[run.region].ad; $('hFloor').textContent = run.floor;
+  if (run.kind === 'acik') { const r = OPEN.rooms[run.room]; $('hRegion').textContent = OPEN.ad; $('hPlace').innerHTML = '<b>' + r.ad + '</b> · Sv ' + r.lvl; }
+  else { $('hRegion').textContent = REGIONS[run.region].ad; $('hPlace').innerHTML = 'Kat <b>' + run.floor + '</b>/20'; }
   $('hGold').textContent = run.bag.gold; $('hItems').textContent = run.bag.items.length;
   updHpOnly();
 }
@@ -477,6 +695,17 @@ function floorCleared() {
   P1.hp = Math.min(s.maxHp, P1.hp + s.maxHp * 0.25);
   const bonus = Math.round((10 + mlv() * 4) * s.exp * expPenalty()); gainExp(bonus); run.expRun += bonus;
   floatText(P1.x, P1.y, '+' + bonus + ' EXP', C.exp, true);
+  // yıldızlar: geçmek 1, hasarsız +1, hedef sürede +1
+  const noHit = !run.floorHit, fast = run.floorT <= run.par, stars = 1 + (noHit ? 1 : 0) + (fast ? 1 : 0);
+  run.stars += stars; run.floorsDone++;
+  let msg = '★'.repeat(stars) + '☆'.repeat(3 - stars) + ' ' + run.floor + '. kat';
+  if (stars >= 2) { const g = Math.round((10 + mlv() * 3) * stars * s.gold); run.bag.gold += g; msg += ' · +' + g + ' altın'; }
+  if (stars === 3) {
+    const it = makeItem(Math.max(1, Math.round(mlv())), Math.random() < 0.35); run.bag.items.push(it);
+    msg += ' · ödül sandığı: ' + RNAME[it.r] + ' ' + it.name; RN.ev('loot', { x: P1.x, y: P1.y, col: RCOL[it.r] });
+    blip(880, 0.12, 'triangle', 0.06, 1.5); setTimeout(() => blip(1320, 0.2, 'triangle', 0.05), 120);
+  }
+  toast(msg + (stars < 3 ? (noHit ? '' : ' · hasarsız bitirirsen +1 yıldız') + (fast ? '' : ' · ' + run.par + ' sn altında +1 yıldız') : ''));
   save.best[run.region] = Math.max(save.best[run.region] || 0, run.floor);
   blip(660, 0.12, 'triangle', 0.06, 1.5); setTimeout(() => blip(990, 0.15, 'triangle', 0.05), 110);
   updHud();
@@ -487,7 +716,6 @@ function floorCleared() {
     $('gateText').textContent = 'Güvene alındı: ' + b.gold + ' altın, ' + b.items.length + ' eşya' + (b.tas ? ', ' + b.tas + ' Basma Taşı' : '') + (b.kor ? ', ' + b.kor + ' Kor Tozu' : '') + '.' + (sold ? ' Çanta dolu olduğu için ' + sold + ' eşya satıldı.' : '');
     G.mode = 'gate'; show('gate'); persist(); return;
   }
-  toast(run.floor + '. kat temizlendi');
   nextFloor();
 }
 $('gateGo').onclick = () => { G.mode = 'play'; show(null); nextFloor(); };
@@ -506,13 +734,15 @@ function die() {
 }
 function endRun(kind, sold, lost) {
   G.mode = 'end';
-  $('endTitle').textContent = kind === 'dead' ? 'Düştün' : kind === 'done' ? 'Bölge tamamlandı' : 'Ganimetle çıktın';
-  $('endText').textContent = kind === 'dead' ? 'Son çıkış kapısından sonra topladıklarının yarısı kayboldu. EXP\'n duruyor.'
+  $('endTitle').textContent = kind === 'dead' ? 'Düştün' : kind === 'done' ? 'Bölge tamamlandı' : kind === 'camp' ? 'Kasabaya döndün' : 'Ganimetle çıktın';
+  $('endText').textContent = kind === 'dead' ? (run.kind === 'acik' ? 'Kampa dönmeden topladıklarının yarısı kayboldu. EXP\'n duruyor.' : 'Son çıkış kapısından sonra topladıklarının yarısı kayboldu. EXP\'n duruyor.')
     : kind === 'done' ? REGIONS[run.region].ad + ' bölgesinin 20 katını da geçtin.' : 'Ganimetin kasabada, güvende.';
   const r = run.safe, rows = [
-    ['Ulaşılan kat', run.floor], ['Öldürme', run.kills], ['Kazanılan EXP', run.expRun],
+    run.kind === 'acik' ? ['Gezilen oda', Object.keys(run.visited).length + '/10'] : ['Ulaşılan kat', run.floor], ['Öldürme', run.kills], ['Kazanılan EXP', run.expRun],
+    ['Kusursuz kaçış', run.perfects],
     ['Kasaya giren altın', r.gold], ['Kasaya giren eşya', r.items], ['Basma Taşı / Kor Tozu', r.tas + ' / ' + r.kor],
   ];
+  if (run.kind === 'kat' && run.floorsDone) rows.splice(3, 0, ['Toplam yıldız', run.stars + '/' + run.floorsDone * 3]);
   if (lost) rows.push(['Kaybedilen', lost.gold + ' altın, ' + lost.items + ' eşya']);
   if (sold) rows.push(['Çanta dolu, satılan', sold + ' eşya']);
   $('endRows').innerHTML = rows.map(([a, b]) => `<div><span>${a}</span><b${a === 'Kaybedilen' ? ' class="down"' : ''}>${b}</b></div>`).join('');
@@ -545,6 +775,9 @@ function openTown() {
   $('tHp').textContent = s.maxHp; $('tDmg').textContent = s.dmg; $('tArm').textContent = s.armor;
   $('tGold').textContent = save.gold; $('tTas').textContent = save.tas; $('tKor').textContent = save.kor;
   const box = $('regionPicks'); box.innerHTML = '';
+  { const b = document.createElement('button'); b.className = 'pick'; b.type = 'button';
+    b.innerHTML = `<em>Açık bölge · Seviye 1–30 · herkese açık</em><b>${OPEN.ad}</b><span>10 oda, sağ üstte harita. Diğer oyuncularla aynı yerde savaş. Ganimet 1,5 kat, EXP aynı. Kamptaki geçitten dönünce ganimet güvende.</span>`;
+    b.onclick = () => { audio(); startOpen(); }; box.appendChild(b); }
   REGIONS.forEach((R, i) => {
     const b = document.createElement('button'); b.className = 'pick'; b.type = 'button';
     const open = save.lvl >= R.min, pen = save.lvl - R.max >= 4;
@@ -858,16 +1091,19 @@ function openKingCard() {
 const VIEW = {
   get mode() { return G.mode; }, get t() { return G.t; }, get run() { return run; }, get P1() { return P1; },
   get enemies() { return enemies; }, get shots() { return shots; }, get arrows() { return arrows; }, get pending() { return pending; },
-  get texts() { return texts; }, get town() { return town; }, get save() { return save; }, joy, BUILD, STATUE,
+  get texts() { return texts; }, get warns() { return warns; }, get bots() { return bots; }, OPEN, CAMP_PORTAL,
+  get doors() { return run && run.kind === 'acik' ? doorsOf(run.room) : null; }, get town() { return town; }, get save() { return save; }, joy, BUILD, STATUE,
   get showMe() { return !!save && !!town && $('create').hidden; }, get anyEnemy() { return !!(run && enemies && enemies.some(e => !e.dead)); },
 };
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.033, (now - last) / 1000); last = now;
-  if (G.mode === 'play' || G.mode === 'dying') update(dt);
+  G.slow = Math.max(0, G.slow - dt);
+  const gdt = G.slow > 0 ? dt * 0.35 : dt;
+  if (G.mode === 'play' || G.mode === 'dying') update(gdt);
   else if (G.mode === 'town') updateTown(dt);
   else { G.t += dt; if (!run && town) moveNpcs(dt); }
-  RN.render(dt, VIEW);
+  RN.render(G.slow > 0 ? dt * 0.35 : dt, VIEW);
   RN.perfWatch(dt, G.mode === 'play' || G.mode === 'town');
   requestAnimationFrame(frame);
 }
@@ -875,5 +1111,5 @@ addEventListener('resize', resize);
 resize();
 if (save && save.cls && CLASSES[save.cls]) openSquare(); else openCreate();
 requestAnimationFrame(frame);
-window.__kk = { get save() { return save; }, get run() { return run; }, get P1() { return P1; }, get town() { return town; }, get pending() { return pending; }, get enemies() { return enemies; }, RN, G };
+window.__kk = { get save() { return save; }, get run() { return run; }, get P1() { return P1; }, get town() { return town; }, get pending() { return pending; }, get enemies() { return enemies; }, get warns() { return warns; }, RN, G, startOpen, enterRoom: (i, f) => enterRoom(i, f) };
 })();

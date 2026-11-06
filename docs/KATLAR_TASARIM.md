@@ -1,4 +1,4 @@
-# Kayıp Katlar — Çevrim İçi Tasarım Belgesi (Taslak 0.5)
+# Kayıp Katlar — Çevrim İçi Tasarım Belgesi (Taslak 0.6)
 
 Çalışma adı: **Kayıp Katlar**. 2.5D mobil, kat kat ilerlenen, tek başına veya grupla oynanan çevrim içi aksiyon RPG.
 Prototip: `golge/index.html` (gölge mekaniği bu tasarımda **çıkarıldı**; oda, kart, demirci ve "baştan dene" hissi korunur).
@@ -75,6 +75,42 @@ Düşmanların verdiği EXP de kat derinliğiyle artar. Süre tablosunu tutturma
 Her kat, önceden tasarlanmış oda şablonlarının rastgele dizilmesiyle oluşur. Her bölgenin 10. ve 20. katında **bölge bekçisi** bulunur.
 
 ---
+
+## 3A. Açık bölge (herkese açık harita)
+
+✔ Katların yanında bir de **açık harita** var. İlk örnek: **Sınır Toprakları**, 10 oda.
+✔ Sağ üstte **mini harita** görünür. Bu odalarda herkes aynı yerde savaşır. **Ganimet 1,5 kat, EXP aynı.**
+
+| Oda | Seviye | Not |
+|---|---|---|
+| Kamp | — | Güvenli bölge, kasabaya dönüş geçidi |
+| Küllü Patika → Yanık Koru → Taş Ocağı → Paslı Köprü | 3 → 12 | |
+| Çökük Kule | 15 | Çıkmaz oda |
+| Sis Bataklığı → Kök Vadisi → Kemik Tarlası | 18 → 26 | |
+| Ejder Mağarası | 30 | Yeniden doğan bekçi (45 sn bekleme) |
+
+◆ Kurallar (prototipte uygulandı):
+- Odalar arasında kapılardan geçilir; düşmanlar sürekli yeniden doğar (oda başına 4–8).
+- Ganimet **katkıya göre**: Bir düşmana hiç vurmadıysan, onu başkası öldürünce ganimet almazsın. Vurduysan alırsın (kişisel ganimet, kapışma yok).
+- Ganimet çantada taşınır; **Kamptaki geçitten dönünce** güvene alınır. Ölürsen çantanın yarısı gider, EXP kalır.
+- Prototipte diğer oyuncular **örnek botlardır**; sunucu gelince gerçek oyuncular olur. Her oda en fazla 25 kişi; dolarsa kanal açılır (bkz. §9A).
+
+## 3B. Katlarda beceri
+
+✔ Katlar sadece ileri-geri yürümek olmasın; oyuncunun becerisi sonucu değiştirsin.
+
+◆ **Okunabilir saldırılar:** Düşmanların her saldırısı önce yerde kırmızı alan olarak görünür ve dolar. Dolunca vurur. Temas artık hasar vermez; **her hasar kaçılabilir**.
+| Düşman | Saldırı |
+|---|---|
+| Fare | Kısa atılma (çizgi) |
+| Muhafız | Önüne kalkan darbesi (daire), uzaktaysa hücum (geniş çizgi) |
+| Okçu | Nişan çizgisi, sonra hızlı ok |
+| Bekçi | Halka mermi, art arda alan darbeleri, uzun hücum; canı yarıya inince hızlanır |
+
+◆ **Kusursuz kaçış:** Alan dolmadan hemen önce atılarak çıkarsan (veya okun içinden atılırsan) kısa ağır çekim olur ve sonraki 3 vuruşun kritik olur.
+◆ **Kat yıldızları:** Geçmek ★, hasar almadan bitirmek +★, hedef sürenin altında bitirmek +★. 2 yıldız ek altın, 3 yıldız **ödül sandığı** (ek eşya) verir. Süre ve hasarsız durumu ekranda görünür.
+◆ **Elit düşmanlar** (3. kattan itibaren): Hızlı veya Patlayan. Patlayan elit ölünce yerinde patlama alanı bırakır. Elitler ek eşya düşürür.
+◆ **Kat olayları** (%35 şansla): Hazine Goblini (kaçmadan yakala, büyük ödül), Tuzaklı kat (yerden tuzak alanları), Karanlık kat (sadece meşale ışığı).
 
 ## 4. Tek başına ve grup
 
@@ -246,6 +282,17 @@ Grup katları ve 25 kişilik boss odaları **gerçek zamanlı** olduğu için ö
 Sunucu yapısı: Başlangıçta **tek sunucu (dünya)**. Aktif oyuncu sayısı belirli bir eşiği geçince yeni sunucular açılır. Her sunucunun kendi kralı ve pazarı olur.
 
 ---
+
+## 11A. 3D modeller (Meshy AI ile)
+
+Karakter ve eşya modelleri Meshy AI ile üretilecek. Oyun şu an modelleri koddan çiziyor; aynı yerlere GLB dosyaları takılacak (Three.js GLTFLoader).
+
+Teslim şartları:
+- Biçim: **GLB**, tek dosya, dokular içinde. Y yukarı, model ayakları 0 noktasında, yüzü +Z yönüne bakar.
+- Boyut: insan karakter yaklaşık 1,7 birim boy. Telefon için karakter başına en fazla ~5.000 üçgen, doku 1024 px.
+- Rig ve animasyon adları: `idle`, `walk`, `attack`, `cast`, `hit`, `death` (düşmanlar için `telegraph` da olabilir).
+- Silahlar ayrı dosya: tutma noktası 0 noktasında; karakterin sağ el kemiğine takılır. Kıyafetler kasaba görünürlüğü için ayrı renk/doku setleri olarak.
+- Liste: 3 sınıf × (erkek/kadın isteğe bağlı), fare, muhafız, okçu, goblin, 3 bekçi golemi, kasaba yapıları (demirci, tezgâh, taht, heykel, geçit), 6 eşya simgesi.
 
 ## 12. Yol haritası
 
