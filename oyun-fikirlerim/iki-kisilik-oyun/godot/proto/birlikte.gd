@@ -42,13 +42,18 @@ var wood: StandardMaterial3D
 var stone: StandardMaterial3D
 var brass: StandardMaterial3D
 var snow: StandardMaterial3D
+var mobile := false
+var cam_dist := 14.0
 
 func _ready() -> void:
 	test_mode = "--test=birlikteanim" in OS.get_cmdline_user_args() or "--test=birlikte" in OS.get_cmdline_user_args() or "--test=birlikteplay" in OS.get_cmdline_user_args()
-	wood = material(Color(0.17, 0.11, 0.075))
-	stone = material(Color(0.18, 0.22, 0.23))
-	brass = material(Color(0.65, 0.42, 0.12))
-	snow = material(Color(0.48, 0.53, 0.55))
+	mobile = OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("web_android") or OS.has_feature("web_ios") or OS.get_environment("MOBIL") != ""
+	wood = ProtoOrtam.wood_mat()
+	stone = ProtoOrtam.stone_mat()
+	brass = material(Color(0.42, 0.27, 0.08))   # eskimiş bakır: fener ışığında parlamasın
+	brass.metallic = 0.15
+	brass.roughness = 0.85
+	snow = material(Color(0.2, 0.19, 0.18))   # köprü tahtaları: açık renkli eski kalas
 	build_world()
 	audio = ProtoAudio.new()
 	add_child(audio)
@@ -71,11 +76,20 @@ func _ready() -> void:
 	crate.min_x = 430
 	add_child(crate)
 	cam = Camera3D.new()
-	cam.fov = 40
-	cam.position = Vector3(6, 4.4, 17)
+	cam.fov = 30
+	cam.near = 0.1
+	cam.far = 400.0
+	cam.position = Vector3(6, 1.35, 14)
+	if mobile:   # telefon: hafif ayarlar (Kurdele bölümüyle aynı)
+		player.lamp_light.shadow_enabled = false
+		get_viewport().scaling_3d_scale = 0.8
+		Engine.max_fps = 60
 	add_child(cam)
 	build_ui()
-	if not test_mode:
+	if "--test=birlikteshot" in OS.get_cmdline_user_args():
+		audio.muted = true
+		run_shots()
+	elif not test_mode:
 		load_progress()
 	else:
 		if "--test=birlikteanim" in OS.get_cmdline_user_args():
@@ -116,7 +130,7 @@ func sign_at(x: float, text: String, y := 2.4) -> Label3D:
 	label.font_size = 36
 	label.pixel_size = 0.012
 	label.position = Vector3(x, y, -1.1)
-	label.modulate = Color(0.8, 0.75, 0.6)
+	label.modulate = Color(0.8, 0.78, 0.7, 0.55)
 	add_child(label)
 	return label
 
@@ -131,48 +145,35 @@ func lever(x: float) -> void:
 	box(Vector3(x + 0.46, 0.98, 0), Vector3(0.12, 0.1, 0.45), wood)
 
 func build_world() -> void:
-	var we := WorldEnvironment.new()
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.25, 0.31, 0.34)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.62, 0.7, 0.75)
-	env.ambient_light_energy = 0.7
-	env.fog_enabled = true
-	env.fog_light_color = Color(0.35, 0.42, 0.44)
-	env.fog_density = 0.012
-	we.environment = env
-	add_child(we)
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-42, -25, 0)
-	sun.light_energy = 1.2
-	sun.shadow_enabled = true
-	add_child(sun)
-	box(Vector3(118, -0.6, -2), Vector3(260, 1.2, 12), stone, true)
-	box(Vector3(461, -0.6, -2), Vector3(406, 1.2, 12), stone, true)
+	ProtoOrtam.env(self, mobile)   # Kurdele bölümüyle aynı sis ve ışık
+	var ground := ProtoOrtam.ground_mat()
+	# zemin: kameradan ufka kadar (çarpışma aynı yüzey, y=0)
+	box(Vector3(118, -0.6, -16), Vector3(260, 1.2, 58), ground, true)
+	box(Vector3(461, -0.6, -16), Vector3(406, 1.2, 58), ground, true)
 	box(Vector3(-8, 2, 0), Vector3(1, 5, 3), stone, true)
 	box(Vector3(662, 2, 0), Vector3(1, 5, 3), stone, true)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 481
-	for i in 220:
-		var x := rng.randf_range(-10, 660)
-		var z := rng.randf_range(-15, -3)
-		var h := rng.randf_range(3, 7)
-		box(Vector3(x, h / 2, z), Vector3(0.25, h, 0.3), wood)
-		box(Vector3(x, h * 0.7, z), Vector3(2.5, 0.16, 0.4), wood)
-		if i % 3 == 0:
-			box(Vector3(x + 1, 0.4, -2.5), Vector3(1.4, 0.8, 1), snow)
+	var on_bos := [[-10.0, 22.0], [640.0, 662.0]]   # ön plan gövdeleri durakları ve başlangıcı kapatmasın
+	for i in STATIONS.size():
+		on_bos.append([STATIONS[i] - 22.0, GATES[i] + 8.0])
+	ProtoOrtam.orman(self, -10.0, 662.0, [[247.0, 259.0]], 0.0, 481, mobile, on_bos)
+	_chasm(248.0, 258.0)
 	for i in STATIONS.size():
 		sign_at(STATIONS[i], "%d · %s" % [i + 1, NAMES[i]], 3.8)
 		var gate := box(Vector3(GATES[i], 1.75, 0), Vector3(0.5, 3.5, 2.4), wood, true, 1 if i == 1 else 9) as StaticBody3D
 		gates.append(gate)
-		for z in [-1.5, 1.5]:
-			box(Vector3(GATES[i], 2, z), Vector3(0.4, 4, 0.4), stone)
+		if i != 1:   # dar geçidin kapısı görünmez bir engel; görseli kaya kapı
+			_dress_gate(gate)
+		if i != 1:   # dar geçit kayaların arasında: taş direk yok
+			for z in [-1.5, 1.5]:
+				box(Vector3(GATES[i], 2, z), Vector3(0.4, 4, 0.4), stone)
 	plate(60)
 	plate(68)
 	# Dar geçidin görsel açıklığı: altı karanlık, üstünde kaya tavanı.
 	gates[1].get_child(0).visible = false
-	box(Vector3(153, 2.3, 0), Vector3(2.4, 2.2, 2.4), stone)
+	# kaya kapı: arkada büyük kaya, iki yanda söve kayaları, üstte kapak taşı; altında çocuk boyu açıklık (1.25 m)
+	for q in [[Vector3(153.1, 0.55, -2.2), Vector3(3.4, 3.0, 2.0)], [Vector3(151.55, 0.3, -0.4), Vector3(1.0, 2.1, 1.9)], [Vector3(154.5, 0.3, -0.5), Vector3(1.0, 2.2, 1.8)],
+			[Vector3(153.0, 1.72, -0.5), Vector3(4.0, 1.5, 2.6)], [Vector3(150.6, 0.15, -1.6), Vector3(1.3, 1.0, 1.2)], [Vector3(155.6, 0.15, -1.3), Vector3(1.2, 0.8, 1.1)]]:
+		ProtoOrtam.rock(self, q[0], q[1], 700 + int((q[0] as Vector3).x * 10.0) % 50)
 	plate(158)
 	plate(240)
 	plate(245)
@@ -201,6 +202,64 @@ func build_world() -> void:
 	target_marker = box(Vector3.ZERO, Vector3(0.65, 0.04, 1.0), brass)
 	target_marker.visible = false
 	sign_at(650, "SİS\nBirinci bölümün sonu", 3.2)
+
+## Kapı görseli: düz kutu yerine dikey kalaslar, yatay kirişler ve demir şeritler (kapıyla birlikte hareket eder)
+func _dress_gate(gate: StaticBody3D) -> void:
+	(gate.get_child(0) as MeshInstance3D).visible = false
+	var iron := material(Color(0.09, 0.075, 0.065))
+	iron.metallic = 0.6
+	iron.roughness = 0.55
+	var parts := []
+	for k in 9:
+		parts.append([Vector3(0, 0, -1.04 + k * 0.26), Vector3(0.16, 3.5, 0.24), wood])
+	for y in [-1.2, 0.0, 1.2]:
+		parts.append([Vector3(0.05, y, 0), Vector3(0.24, 0.18, 2.36), wood])
+		parts.append([Vector3(0.05, y + 0.11, 0), Vector3(0.26, 0.04, 2.38), iron])
+	for q: Array in parts:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = q[1]
+		mi.mesh = bm
+		mi.material_override = q[2]
+		mi.position = q[0]
+		gate.add_child(mi)
+
+## Köprü yarığı: kayalık duvarlar, arkada dolgu kayalar, dipte zifiri karanlık (Kurdele'deki uçurum gibi)
+func _chasm(xa: float, xb: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 91
+	var k := 0
+	var z := -7.5
+	while z < 6.5:
+		z = maxf(z, -7.5)
+		for side in [-1, 1]:
+			var ex := xa if side < 0 else xb
+			for row in 3:
+				ProtoOrtam.rock(self, Vector3(ex + side * rng.randf_range(0.1, 0.25), -0.35 - row * 0.8 - rng.randf_range(0.0, 0.15), z + rng.randf_range(-0.15, 0.15)),
+					Vector3(rng.randf_range(0.6, 0.85), rng.randf_range(0.6, 0.9), rng.randf_range(0.6, 0.9)), 900 + k, false)
+				k += 1
+		z += rng.randf_range(0.5, 0.7)
+	for i in 4:   # dipte dökülmüş kayalar
+		ProtoOrtam.rock(self, Vector3(rng.randf_range(xa + 1.5, xb - 1.5), -3.0 + rng.randf_range(-0.2, 0.2), -5.5 + i * 2.2), Vector3(rng.randf_range(1.6, 3.0), 1.4, 1.6), 950 + i, false)
+	var ab := StandardMaterial3D.new()
+	ab.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ab.albedo_color = Color(0.008, 0.008, 0.01)
+	ab.disable_fog = true
+	var fl := MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(xb - xa + 0.6, 22.0)
+	fl.mesh = pm
+	fl.material_override = ab
+	fl.position = Vector3((xa + xb) * 0.5, -3.2, 2.5)
+	add_child(fl)
+	# yarığın yan duvarları: zemin kutusu yalnız 1.2 m kalın; altı boş kalıp arkadaki sis görünmesin
+	for ex in [xa - 0.5, xb + 0.5]:
+		box(Vector3(ex, -2.2, 2.5), Vector3(1.0, 2.4, 22.0), ProtoOrtam.ground_mat())
+	box(Vector3((xa + xb) * 0.5, -2.2, -8.9), Vector3(xb - xa + 2.0, 2.4, 1.0), ProtoOrtam.ground_mat())   # arka duvar (zeminin altı kapalı)
+	# yarık arkada kaya duvarla biter; ötesinde orman zemini sürer (ufka uzanan açık şerit kalmasın)
+	box(Vector3((xa + xb) * 0.5, -0.6, -26.5), Vector3(xb - xa + 0.2, 1.2, 37.0), ProtoOrtam.ground_mat())
+	for i in 7:
+		ProtoOrtam.rock(self, Vector3(xa + 0.6 + i * 1.5 + rng.randf_range(-0.2, 0.2), -1.5 + rng.randf_range(-0.2, 0.2), -7.6 + rng.randf_range(-0.3, 0.3)), Vector3(rng.randf_range(1.8, 2.4), 3.2, 1.8), 970 + i, i % 2 == 0)
 
 func build_ui() -> void:
 	var layer := CanvasLayer.new()
@@ -357,8 +416,15 @@ func current_station() -> int:
 
 func _process(dt: float) -> void:
 	if player == null or cinar == null: return
-	cam.position = cam.position.lerp(Vector3(player.position.x + 1, 4.4, 17), 1.0 - exp(-dt * 3))
-	cam.look_at(Vector3(player.position.x + 1, 1.1, 0))
+	# yandan sinematik kamera (Kurdele bölümü gibi); bulmaca durağında açılır, iki kardeş yakınsa ortalar
+	var st := current_station()
+	var wide: bool = not solved[st] and absf(player.position.x - STATIONS[st]) < 17.0
+	var mid := player.position.x + 1.0
+	if absf(cinar.position.x - player.position.x) < 10.0:
+		mid = (player.position.x + cinar.position.x) * 0.5 + 0.5
+	cam_dist = lerpf(cam_dist, 20.0 if wide else 14.0, 1.0 - exp(-dt * 1.2))
+	cam.position = cam.position.lerp(Vector3(mid, maxf(player.position.y, 0.0) + 1.35 + (cam_dist - 14.0) * 0.12, cam_dist), 1.0 - exp(-dt * 2.4))
+	cam.rotation = Vector3(deg_to_rad(0.5 - (cam_dist - 14.0) * 0.35), 0, 0)
 	status.text = "BİRLİKTE  ·  %d / 6  ·  Çınar: %s%s" % [solved.count(true), {"follow":"takip", "stay":"bekliyor", "go":"gidiyor"}[cinar.mode], "  ·  DURAKLATILDI" if paused else ""]
 	target_marker.visible = phase == "play" and (selected or cinar.mode == "go")
 	target_marker.position = Vector3(cinar.position.x if selected else cinar.target_x, 0.04, 0)
@@ -692,3 +758,16 @@ func run_animation_tests() -> void:
 	check(cinar.lever_stage == "" and player.interaction_left == 0, "Baştan eski animasyonu temizlemeli")
 	print("BIRLIKTE ANIMASYON hata=", failures)
 	get_tree().quit(1 if failures else 0)
+
+
+## Görüntü kontrolü: başlangıç ve her durakta bir kare (xvfb ile çalıştırılır; PNG'ler proje köküne yazılır).
+func run_shots() -> void:
+	var spots := [6.0, 62.0, 151.0, 243.0, 344.0, 438.0, 572.0, 646.0, 247.0]
+	for i in spots.size():
+		player.position = Vector3(spots[i], 0.08, 0)
+		cinar.position = Vector3(spots[i] - 1.4, 0.08, 0)
+		cam.position = Vector3(spots[i] + 1, 1.35, 14)
+		await get_tree().create_timer(1.2).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("res://../birlikte_%d.png" % i)
+	get_tree().quit()

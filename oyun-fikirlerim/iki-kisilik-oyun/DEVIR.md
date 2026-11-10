@@ -30,6 +30,8 @@
 | `nehir_proto.gd` | **Oyuncu (Nehir):** CharacterBody3D. Hareket, zıplama, tırmanma, kasa itme, kenarda sendeleme, fener (sallanma, yere bırakma, fırlatma, kanca). Ara sahnede `state = "cut"`, `cut_target_x`, `force_anim`, `look_at`, `reach`, `arm_r_target`, `yaw_override`. |
 | `nehir_mocap.gd` | **Karakter gövdesi ve animasyon ağacı (AnimationTree, kodla kurulur).** `who = "nehir"` ya da `"cinar"`. Durumlar: loco, air, push, climb, wake, death, crouch, hug, pickup, any… `set_any(ad)` ile herhangi bir animasyon oynatılır. Kol yönlendirme (IK) ve parmak kapanması burada. |
 | `tutorial.gd` | Uygulamalı öğretici: ekranda kayan parmak (dokunmatik) ya da tuş gösterimi. Adımlar `STEPS` sözlüğünde. |
+| `ortam.gd` | **Ortak orman ortamı (`ProtoOrtam`):** sis ve ışık, zemin/taş/tahta malzemeleri, 3D gövde, siluet ağaç, ot, kaya. Yeni bir sahne `ProtoOrtam.env(self)` ve `ProtoOrtam.orman(self, x0, x1, bosluklar)` ile Kurdele'nin görünümünü alır. |
+| `birlikte.gd` / `cinar_companion.gd` | İkinci sahne "Birlikte": Çınar'la altı eşli bulmaca. Ayrıntı: `BIRINCI-BOLUM-BIRLIKTE.md`. |
 | `cinematic.gd` | Ara sahne kamerası ve zamanlı olaylar. |
 | `proto_audio.gd` | Sesler: `ses/` klasöründeki her wav dosyası adıyla çalınır, ör. `audio.play("kumas")`. |
 | `proto_crate.gd` | İtilebilir kasa. |

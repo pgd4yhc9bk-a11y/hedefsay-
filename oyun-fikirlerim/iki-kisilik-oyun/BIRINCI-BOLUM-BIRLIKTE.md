@@ -1,6 +1,6 @@
 # Birinci bölüm · Buluşma ve Birlikte
 
-Bu dal, mevcut Kurdele bölümündeki sarılma sahnesinin ardından `proto/birlikte.tscn` sahnesine geçer. İlk bölüm iki sahneden oluşur. Mevcut Nehir/Çınar Meshy modelleri ve animasyon kütüphaneleri kullanılır. Yeni çevre şu aşamada kodla üretilen oynanabilir bloklama; nihai Meshy çevre sanatı değildir.
+Bu dal, mevcut Kurdele bölümündeki sarılma sahnesinin ardından `proto/birlikte.tscn` sahnesine geçer. İlk bölüm iki sahneden oluşur. Mevcut Nehir/Çınar Meshy modelleri ve animasyon kütüphaneleri kullanılır. Çevre, Kurdele bölümüyle aynı orman görünümünü kullanır (`proto/ortam.gd`: sis, ışık, 3D gövdeler, uzak orman katmanları, otlar, kayalar). Kapılar, kollar ve plakalar hâlâ kodla üretilen basit modellerdir; nihai Meshy sanatı değildir.
 
 ## Kontroller
 
@@ -82,3 +82,19 @@ Godot_v4.3-stable_linux.x86_64 --headless --path godot res://proto/birlikte.tscn
 ```
 
 `birlikteanim`: animasyon/kemik yolları, döngü sınırları, Nehir etkileşimleri, hareketle iptal, duraklatma, Çınar çek/tut/bırak geçişi, onay, dar geçit, sıçrama ve yeniden başlatma. Ayrıca `birlikte`, `birlikteplay` ve `protoplay` regresyonları kullanılır. Kaynak hareketler iskelet kareleri üzerinden incelendi; bu, oyunun render edilmiş görüntüsü veya gerçek telefon testi değildir.
+
+
+## Görsel geçiş · 10 Kasım 2026
+
+- Sahne artık `ProtoOrtam` ile kurulur: Kurdele bölümünün sisi ve ışığı, gerçek ağaç gövdeleri, dört uzak orman katmanı, otlar ve karlı kayalar. Eski kutu ağaçlar ve düz gri zemin kaldırıldı.
+- Kamera Kurdele'deki gibi yandan ve alçaktan bakar (fov 30). İki kardeş yakınken ikisini ortalar; çözülmemiş bir durağa 17 m kala geri çekilir (14 → 20 m).
+- Kapılar kalas ve demir şeritli; dar geçit kayadan bir kapıdır (altında 1,25 m açıklık); köprü yarığı kayalık duvarlı, dibi karanlık bir uçurumdur.
+- Ön plandaki kalın gövdeler duraklara ve başlangıca konmaz (bulmacayı kapatmasın).
+- Telefonda Kurdele ile aynı hafif ayarlar uygulanır (fener gölgesi kapalı, %80 çözünürlük, seyrek ot).
+- Çarpışmalar, bulmaca mantığı ve testler değişmedi.
+
+Görüntü kontrolü (xvfb ister; `birlikte_0.png … birlikte_8.png` proje köküne yazılır):
+
+```sh
+xvfb-run -a Godot_v4.3-stable_linux.x86_64 --path godot --rendering-driver opengl3 res://proto/birlikte.tscn -- --test=birlikteshot
+```
