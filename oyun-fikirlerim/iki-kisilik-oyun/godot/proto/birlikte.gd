@@ -176,8 +176,10 @@ func build_world() -> void:
 		on_bos.append([STATIONS[i] - 22.0, GATES[i] + 8.0])
 	ProtoOrtam.tani = tani
 	if not tani.contains("sade"):
-		ProtoOrtam.orman(self, -10.0, 662.0, [[247.0, 259.0]], 0.0, 481, mobile, on_bos)
-		_chasm(248.0, 258.0)
+		if not tani.contains("orman0"):
+			ProtoOrtam.orman(self, -10.0, 662.0, [[247.0, 259.0]], 0.0, 481, mobile, on_bos)
+		if not tani.contains("yarik0"):
+			_chasm(248.0, 258.0)
 	for i in STATIONS.size():
 		sign_at(STATIONS[i], "%d · %s" % [i + 1, NAMES[i]], 3.8)
 		var gate := box(Vector3(GATES[i], 1.75, 0), Vector3(0.5, 3.5, 2.4), wood, true, 1 if i == 1 else 9) as StaticBody3D

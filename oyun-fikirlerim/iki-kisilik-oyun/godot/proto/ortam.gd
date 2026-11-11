@@ -234,7 +234,7 @@ static func orman(parent: Node, x0: float, x1: float, bosluklar := [], gy := 0.0
 		return false
 	# yakın arka: gerçek gövdeler (fener ışığını alır)
 	var x := x0
-	while x < x1:
+	while x < x1 and not tani.contains("govdesiz"):
 		x += rng.randf_range(2.4, 5.2)
 		if in_gap.call(x):
 			continue
@@ -243,7 +243,7 @@ static func orman(parent: Node, x0: float, x1: float, bosluklar := [], gy := 0.0
 	var black := StandardMaterial3D.new()
 	black.albedo_color = Color(0.02, 0.02, 0.022)
 	x = x0 + 12.0
-	while x < x1:
+	while x < x1 and not tani.contains("govdesiz"):
 		var blocked: bool = in_gap.call(x)
 		for g: Array in on_bos:
 			if x > float(g[0]) and x < float(g[1]):
@@ -255,14 +255,14 @@ static func orman(parent: Node, x0: float, x1: float, bosluklar := [], gy := 0.0
 	var names := ["agac_ince", "agac_kalin", "agac_kuru_cam", "agac_olu", "agac_cift", "agac_genc"]
 	for layer in [[-7.0, -11.0, 3.2], [-12.0, -18.0, 4.0], [-19.0, -28.0, 5.0], [-29.0, -40.0, 6.5]]:
 		x = x0 - 8.0
-		while x < x1 + 8.0:
+		while x < x1 + 8.0 and not tani.contains("siluetsiz"):
 			x += rng.randf_range(float(layer[2]) * 0.6, float(layer[2]) * 1.4)
 			sprite(parent, names[rng.randi() % names.size()], Vector3(x, gy - 0.3, rng.randf_range(layer[1], layer[0])), rng.randf_range(9.0, 15.0), 1.0, rng.randf() < 0.5)
 	# otlar, çalılar (yolun üstü açık kalır)
 	var kinds := [["ot", 0.55], ["cimen_oku", 0.3], ["egrelti", 0.5], ["cali", 0.6], ["dikenli_cali", 0.7], ["ot", 0.75], ["cicek", 0.45], ["mantar", 0.18]]
 	x = x0
 	var step := 0.9 if mobile else 0.55
-	while x < x1:
+	while x < x1 and not tani.contains("otsuz"):
 		x += rng.randf_range(step * 0.4, step * 1.6)
 		if in_gap.call(x):
 			continue
