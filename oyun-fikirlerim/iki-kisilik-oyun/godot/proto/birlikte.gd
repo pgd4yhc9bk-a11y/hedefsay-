@@ -45,6 +45,14 @@ var snow: StandardMaterial3D
 var mobile := false
 var tani := ""                    # web: adresteki tanılama seçenekleri (?hata, sade, duzenv, kayasiz, sprite0)
 var tani_lbl: Label = null
+const ORMAN_PARCA := 48.0
+const ORMAN_GORUS := 70.0         # kameranın iki yanında bu kadar metre orman çizilir
+var orman_parcalar: Array[Node3D] = []
+
+func _orman_gorunur(cx: float) -> void:
+	for p in orman_parcalar:
+		var a: float = p.get_meta("x0")
+		p.visible = a + ORMAN_PARCA + 10.0 > cx - ORMAN_GORUS and a - 10.0 < cx + ORMAN_GORUS
 var cam_dist := 14.0
 
 func _ready() -> void:
@@ -177,7 +185,18 @@ func build_world() -> void:
 	ProtoOrtam.tani = tani
 	if not tani.contains("sade"):
 		if not tani.contains("orman0"):
-			ProtoOrtam.orman(self, -10.0, 662.0, [[247.0, 259.0]], 0.0, 481, mobile, on_bos)
+			# orman parça parça kurulur; yalnız kameraya yakın parçalar görünür.
+			# (Tek parça 672 m orman ~2500 nesne ediyor; web'de 3D çizim bütünüyle düşüp ekran boş kalıyordu.)
+			var x0 := -10.0
+			var bitis := 120.0 if tani.contains("kisa") else 662.0
+			while x0 < bitis:
+				var parca := Node3D.new()
+				parca.set_meta("x0", x0)
+				add_child(parca)
+				ProtoOrtam.orman(parca, x0, minf(x0 + ORMAN_PARCA, bitis), [[247.0, 259.0]], 0.0, 481 + int(x0), mobile, on_bos)
+				orman_parcalar.append(parca)
+				x0 += ORMAN_PARCA
+			_orman_gorunur(4.0)
 		if not tani.contains("yarik0"):
 			_chasm(248.0, 258.0)
 	for i in STATIONS.size():
@@ -447,6 +466,7 @@ func _process(dt: float) -> void:
 		mid = (player.position.x + cinar.position.x) * 0.5 + 0.5
 	cam_dist = lerpf(cam_dist, 20.0 if wide else 14.0, 1.0 - exp(-dt * 1.2))
 	cam.position = cam.position.lerp(Vector3(mid, maxf(player.position.y, 0.0) + 1.35 + (cam_dist - 14.0) * 0.12, cam_dist), 1.0 - exp(-dt * 2.4))
+	_orman_gorunur(cam.position.x)
 	cam.rotation = Vector3(deg_to_rad(0.5 - (cam_dist - 14.0) * 0.35), 0, 0)
 	if tani.contains("hata"):
 		if tani_lbl == null:
