@@ -83,3 +83,5 @@ Web sürümünde adrese `?hata` eklenince dokunma hata ayıklama satırı görü
 - **Duvarlar ve kayalar** kameraya kadar uzanmasın: yüksek kayalar `_plat()` aralığına alınır, önlerinde alçak patika kalır.
 - **İnce nesneler** (halat, zincir) gölge düşürmesin (`cast_shadow` kapalı). Gölgeleri suda kalın şeritler oluşturuyor.
 - **Ara sahnede** oyuncu yere değince `state` değeri `"ground"`a dönebilir; sahne boyunca `"cut"` tutulmalı.
+- **Uzun sahnede tek parça süsleme:** Birlikte'de 672 m'lik orman tek seferde kurulunca (~2500 nesne) web'de 3D çizim hata vermeden bütünüyle düşüyordu (ekran gri/beyaz). Orman 48 m'lik parçalara bölünür, yalnız kameranın ±70 m yakınındakiler görünür (`_orman_gorunur`). Yeni uzun sahnelerde de böyle yap.
+- **Web tanılama:** Birlikte'de adrese `?hata` (durum satırı), `sade`, `orman0`, `yarik0`, `govdesiz`, `otsuz`, `siluetsiz`, `kayasiz`, `duzenv`, `kisa` eklenerek parçalar tek tek kapatılabilir.
