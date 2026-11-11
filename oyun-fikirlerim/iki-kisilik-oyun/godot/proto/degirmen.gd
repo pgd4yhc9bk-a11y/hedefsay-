@@ -388,10 +388,10 @@ func _build_mill() -> void:
 		x = x1
 	# dış cepheler (ön ve arka duvarın kapı üstü)
 	for gx in [62.0, 264.0]:
-		prop("degirmen_cephe", Vector3(gx, 0.0, -1.2), 7.4, func(p: Node3D) -> void:
-			mesh_box(p, Vector3(0, 5.45, 0.4), Vector3(0.5, 3.9, 5.6), wood)
-			mesh_box(p, Vector3(0, 1.75, -1.75), Vector3(0.5, 3.5, 1.1), wood)
-			mesh_box(p, Vector3(0, 7.5, 0.4), Vector3(1.2, 0.3, 6.4), dark))
+		prop("degirmen_cephe", Vector3(gx, 0.0, 0.0), 7.4, func(p: Node3D) -> void:   # kapı boşluğu yolda (z=0)
+			mesh_box(p, Vector3(0, 5.45, -0.8), Vector3(0.5, 3.9, 5.6), wood)
+			mesh_box(p, Vector3(0, 1.75, -2.95), Vector3(0.5, 3.5, 1.1), wood)
+			mesh_box(p, Vector3(0, 7.5, -0.8), Vector3(1.2, 0.3, 6.4), dark))
 	# süs: çuvallar, fıçılar, değirmen taşı, tomruklar
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 77
