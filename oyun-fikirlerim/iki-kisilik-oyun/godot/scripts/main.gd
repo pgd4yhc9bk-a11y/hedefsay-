@@ -108,12 +108,19 @@ func _build_ui() -> void:
 	title.add_theme_font_size_override("font_size", 96)
 	menu.add_child(title)
 	var pb := Button.new()   # yeni: tek bölümlük 3D prototip (Inside tarzı)
-	pb.text = "▶  PROTOTİP: Kurdele  (3D, Inside tarzı)"
-	pb.position = Vector2(440, 262)
-	pb.size = Vector2(400, 50)
+	pb.text = "▶  1. BÖLÜM: Kurdele"
+	pb.position = Vector2(320, 262)
+	pb.size = Vector2(310, 50)
 	pb.add_theme_font_size_override("font_size", 20)
 	pb.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://proto/proto.tscn"))   # önsöz şimdilik kapalı (proto/onsoz.tscn)
 	menu.add_child(pb)
+	var pb2 := Button.new()   # ikinci sahne: Çınar ile birlikte (birinci bölümü bitirmeden de açılabilir)
+	pb2.text = "▶  2. BÖLÜM: Birlikte"
+	pb2.position = Vector2(650, 262)
+	pb2.size = Vector2(310, 50)
+	pb2.add_theme_font_size_override("font_size", 20)
+	pb2.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://proto/birlikte.tscn"))
+	menu.add_child(pb2)
 	var y := 330.0
 	for group: Array in [["Hikâye", STORY], ["Deneme bölümleri", order.slice(STORY.size())]]:
 		var glb := Label.new()
