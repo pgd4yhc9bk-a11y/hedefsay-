@@ -54,6 +54,7 @@ func _orman_gorunur(cx: float) -> void:
 		var a: float = p.get_meta("x0")
 		p.visible = a + ORMAN_PARCA + 10.0 > cx - ORMAN_GORUS and a - 10.0 < cx + ORMAN_GORUS
 var cam_dist := 14.0
+var done_at := 0
 
 func _ready() -> void:
 	test_mode = "--test=birlikteanim" in OS.get_cmdline_user_args() or "--test=birlikte" in OS.get_cmdline_user_args() or "--test=birlikteplay" in OS.get_cmdline_user_args()
@@ -507,7 +508,8 @@ func _process(dt: float) -> void:
 		player.input_x = 0
 		player.state = "cut"
 		cinar.command("stay")
-		hint.text = "Birlikte çıktınız. Sisin ardındaki köy sizi bekliyor.  ·  Menü ile dön."
+		hint.text = "Birlikte çıktınız. İleride bir derenin sesi var.  ·  Devam için ekrana dokun."
+		done_at = Time.get_ticks_msec()
 
 func tap(pos: Vector2) -> void:
 	var screen := cam.unproject_position(cinar.position + Vector3(0, 0.65, 0))
@@ -530,6 +532,11 @@ func _unhandled_input(ev: InputEvent) -> void:
 			KEY_G: action("go")
 			KEY_E: action("use")
 			KEY_ESCAPE: action("pause")
+	# bölüm bitti: dokununca / tuşa basınca 3. bölüm (Değirmen)
+	if phase == "done" and not test_mode and Time.get_ticks_msec() - done_at > 1500:
+		if (ev is InputEventScreenTouch and ev.pressed) or (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventKey and ev.pressed and not ev.echo):
+			get_tree().change_scene_to_file("res://proto/degirmen.tscn")
+			return
 	if phase != "play": return
 	if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT and ev.pressed:
 		tap(ev.position)

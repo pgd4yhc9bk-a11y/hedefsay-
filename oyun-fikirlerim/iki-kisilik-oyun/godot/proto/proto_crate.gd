@@ -3,6 +3,7 @@ class_name ProtoCrate extends CharacterBody3D
 
 const SIZE := 1.0
 var min_x := -INF
+var max_x := INF
 var home := Vector3.ZERO
 
 func _ready() -> void:
@@ -83,6 +84,8 @@ func _physics_process(dt: float) -> void:
 func slide(dx: float) -> float:
 	if position.x + dx < min_x:
 		dx = min_x - position.x
+	if position.x + dx > max_x:
+		dx = max_x - position.x
 	if absf(dx) < 0.00001:
 		return 0.0
 	var x0 := position.x

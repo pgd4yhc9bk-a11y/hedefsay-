@@ -50,7 +50,7 @@ func _physics_process(dt: float) -> void:
 		wanted = level.player.position.x - 1.3
 	wanted = level.safe_target(position.x, wanted)
 	var dx := wanted - position.x
-	var tunnel := position.x > 150.5 and position.x < 155.5
+	var tunnel: bool = level.tunnel_at(position.x) if level.has_method("tunnel_at") else (position.x > 150.5 and position.x < 155.5)
 	var speed := 3.6 if mode == "follow" and absf(dx) > 3.0 else 2.8
 	if tunnel: speed = 0.9
 	velocity.x = move_toward(velocity.x, clampf(dx * 2.0, -speed, speed) if mode != "stay" else 0.0, dt * 9.0)

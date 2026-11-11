@@ -109,18 +109,25 @@ func _build_ui() -> void:
 	menu.add_child(title)
 	var pb := Button.new()   # yeni: tek bölümlük 3D prototip (Inside tarzı)
 	pb.text = "▶  1. BÖLÜM: Kurdele"
-	pb.position = Vector2(320, 262)
+	pb.position = Vector2(155, 262)
 	pb.size = Vector2(310, 50)
 	pb.add_theme_font_size_override("font_size", 20)
 	pb.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://proto/proto.tscn"))   # önsöz şimdilik kapalı (proto/onsoz.tscn)
 	menu.add_child(pb)
 	var pb2 := Button.new()   # ikinci sahne: Çınar ile birlikte (birinci bölümü bitirmeden de açılabilir)
 	pb2.text = "▶  2. BÖLÜM: Birlikte"
-	pb2.position = Vector2(650, 262)
+	pb2.position = Vector2(485, 262)
 	pb2.size = Vector2(310, 50)
 	pb2.add_theme_font_size_override("font_size", 20)
 	pb2.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://proto/birlikte.tscn"))
 	menu.add_child(pb2)
+	var pb3 := Button.new()   # üçüncü sahne: eski su değirmeni
+	pb3.text = "▶  3. BÖLÜM: Değirmen"
+	pb3.position = Vector2(815, 262)
+	pb3.size = Vector2(310, 50)
+	pb3.add_theme_font_size_override("font_size", 20)
+	pb3.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://proto/degirmen.tscn"))
+	menu.add_child(pb3)
 	var y := 330.0
 	for group: Array in [["Hikâye", STORY], ["Deneme bölümleri", order.slice(STORY.size())]]:
 		var glb := Label.new()

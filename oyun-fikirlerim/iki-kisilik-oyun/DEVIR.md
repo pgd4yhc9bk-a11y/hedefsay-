@@ -32,6 +32,7 @@
 | `tutorial.gd` | Uygulamalı öğretici: ekranda kayan parmak (dokunmatik) ya da tuş gösterimi. Adımlar `STEPS` sözlüğünde. |
 | `ortam.gd` | **Ortak orman ortamı (`ProtoOrtam`):** sis ve ışık, zemin/taş/tahta malzemeleri, 3D gövde, siluet ağaç, ot, kaya. Yeni bir sahne `ProtoOrtam.env(self)` ve `ProtoOrtam.orman(self, x0, x1, bosluklar)` ile Kurdele'nin görünümünü alır. |
 | `birlikte.gd` / `cinar_companion.gd` | İkinci sahne "Birlikte": Çınar'la altı eşli bulmaca. Ayrıntı: `BIRINCI-BOLUM-BIRLIKTE.md`. |
+| `degirmen.gd` / `modeller/` | Üçüncü sahne "Değirmen": beş eşli bulmaca (savak, kayıp dişli, testere, yük asansörü, karanlık kiler). Nesneler `prop(ad, ...)` yuvalarıyla kurulur: `modeller/<ad>.glb` varsa model, yoksa yer tutucu. Model listesi: `DEGIRMEN-MESHY-PROMPTLARI.md`. Testler: `--test=degirmen`, `degirmenplay`, `degirmenshot` (xvfb). |
 | `cinematic.gd` | Ara sahne kamerası ve zamanlı olaylar. |
 | `proto_audio.gd` | Sesler: `ses/` klasöründeki her wav dosyası adıyla çalınır, ör. `audio.play("kumas")`. |
 | `proto_crate.gd` | İtilebilir kasa. |
