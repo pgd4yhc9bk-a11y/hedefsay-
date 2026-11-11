@@ -5,6 +5,7 @@ class_name ProtoOrtam extends RefCounted
 
 const FOG := Color(0.47, 0.5, 0.52)
 
+static var tani := ""   # tanılama seçenekleri (kayasiz, sprite0, govdesiz)
 static var _tex := {}
 static var _rock_mat: StandardMaterial3D = null
 static var _bark_mat: StandardMaterial3D = null
@@ -113,6 +114,8 @@ static func tex_of(n: String) -> Texture2D:
 static func sprite(parent: Node, n: String, pos: Vector3, h: float, dark := 1.0, flip := false) -> Sprite3D:
 	var tx := tex_of(n)
 	var sp := Sprite3D.new()
+	if tani.contains("sprite0"):
+		sp.visible = false
 	sp.texture = tx
 	sp.pixel_size = h / float(tx.get_height())
 	sp.offset = Vector2(0, tx.get_height() / 2.0)
@@ -182,6 +185,9 @@ static func rock(parent: Node, pos: Vector3, size: Vector3, seed: int, snow := t
 	fn.frequency = 1.6
 	var arr := sm.get_mesh_arrays()
 	var mi := MeshInstance3D.new()
+	if tani.contains("kayasiz"):
+		parent.add_child(mi)
+		return mi
 	if arr.is_empty() or arr[Mesh.ARRAY_VERTEX] == null:   # görüntüsüz (headless) çalışmada ağ verisi yok
 		parent.add_child(mi)
 		return mi

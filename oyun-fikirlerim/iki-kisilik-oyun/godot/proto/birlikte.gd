@@ -43,10 +43,16 @@ var stone: StandardMaterial3D
 var brass: StandardMaterial3D
 var snow: StandardMaterial3D
 var mobile := false
+var tani := ""                    # web: adresteki tanılama seçenekleri (?hata, sade, duzenv, kayasiz, sprite0)
+var tani_lbl: Label = null
 var cam_dist := 14.0
 
 func _ready() -> void:
 	test_mode = "--test=birlikteanim" in OS.get_cmdline_user_args() or "--test=birlikte" in OS.get_cmdline_user_args() or "--test=birlikteplay" in OS.get_cmdline_user_args()
+	if OS.has_feature("web"):
+		var q = JavaScriptBridge.eval("window.location.search", true)
+		if q is String: tani = q
+	tani += OS.get_environment("TANI")
 	mobile = OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("web_android") or OS.has_feature("web_ios") or OS.get_environment("MOBIL") != ""
 	wood = ProtoOrtam.wood_mat()
 	stone = ProtoOrtam.stone_mat()
@@ -145,7 +151,20 @@ func lever(x: float) -> void:
 	box(Vector3(x + 0.46, 0.98, 0), Vector3(0.12, 0.1, 0.45), wood)
 
 func build_world() -> void:
-	ProtoOrtam.env(self, mobile)   # Kurdele bölümüyle aynı sis ve ışık
+	if tani.contains("duzenv"):   # tanılama: sissiz düz ortam
+		var e0 := Environment.new()
+		e0.background_mode = Environment.BG_COLOR
+		e0.background_color = Color(0.1, 0.12, 0.2)
+		e0.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		e0.ambient_light_color = Color(0.6, 0.6, 0.6)
+		var w0 := WorldEnvironment.new()
+		w0.environment = e0
+		add_child(w0)
+		var s0 := DirectionalLight3D.new()
+		s0.rotation_degrees = Vector3(-40, 160, 0)
+		add_child(s0)
+	else:
+		ProtoOrtam.env(self, mobile)   # Kurdele bölümüyle aynı sis ve ışık
 	var ground := ProtoOrtam.ground_mat()
 	# zemin: kameradan ufka kadar (çarpışma aynı yüzey, y=0)
 	box(Vector3(118, -0.6, -16), Vector3(260, 1.2, 58), ground, true)
@@ -155,8 +174,10 @@ func build_world() -> void:
 	var on_bos := [[-10.0, 22.0], [640.0, 662.0]]   # ön plan gövdeleri durakları ve başlangıcı kapatmasın
 	for i in STATIONS.size():
 		on_bos.append([STATIONS[i] - 22.0, GATES[i] + 8.0])
-	ProtoOrtam.orman(self, -10.0, 662.0, [[247.0, 259.0]], 0.0, 481, mobile, on_bos)
-	_chasm(248.0, 258.0)
+	ProtoOrtam.tani = tani
+	if not tani.contains("sade"):
+		ProtoOrtam.orman(self, -10.0, 662.0, [[247.0, 259.0]], 0.0, 481, mobile, on_bos)
+		_chasm(248.0, 258.0)
 	for i in STATIONS.size():
 		sign_at(STATIONS[i], "%d · %s" % [i + 1, NAMES[i]], 3.8)
 		var gate := box(Vector3(GATES[i], 1.75, 0), Vector3(0.5, 3.5, 2.4), wood, true, 1 if i == 1 else 9) as StaticBody3D
@@ -425,6 +446,14 @@ func _process(dt: float) -> void:
 	cam_dist = lerpf(cam_dist, 20.0 if wide else 14.0, 1.0 - exp(-dt * 1.2))
 	cam.position = cam.position.lerp(Vector3(mid, maxf(player.position.y, 0.0) + 1.35 + (cam_dist - 14.0) * 0.12, cam_dist), 1.0 - exp(-dt * 2.4))
 	cam.rotation = Vector3(deg_to_rad(0.5 - (cam_dist - 14.0) * 0.35), 0, 0)
+	if tani.contains("hata"):
+		if tani_lbl == null:
+			tani_lbl = Label.new()
+			tani_lbl.position = Vector2(22, 60)
+			tani_lbl.add_theme_font_size_override("font_size", 18)
+			tani_lbl.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
+			status.get_parent().add_child(tani_lbl)
+		tani_lbl.text = "nehir=%s cinar=%s\nkamera=%s rot=%s guncel=%s uzak=%.1f\nfps=%d dt=%.3f mobil=%s dugum=%d cizim=%d nesne=%d" % [str(player.position.snapped(Vector3.ONE * 0.01)), str(cinar.position.snapped(Vector3.ONE * 0.01)), str(cam.position.snapped(Vector3.ONE * 0.01)), str(cam.rotation.snapped(Vector3.ONE * 0.01)), cam.current, cam_dist, Engine.get_frames_per_second(), dt, mobile, get_child_count(), RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME)]
 	status.text = "BİRLİKTE  ·  %d / 6  ·  Çınar: %s%s" % [solved.count(true), {"follow":"takip", "stay":"bekliyor", "go":"gidiyor"}[cinar.mode], "  ·  DURAKLATILDI" if paused else ""]
 	target_marker.visible = phase == "play" and (selected or cinar.mode == "go")
 	target_marker.position = Vector3(cinar.position.x if selected else cinar.target_x, 0.04, 0)
