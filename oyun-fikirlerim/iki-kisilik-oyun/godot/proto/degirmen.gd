@@ -72,6 +72,7 @@ var sun: DirectionalLight3D
 var parcalar := {}                  # süs parçaları: yalnız kameraya yakın olanlar çizilir
 var target_marker: Node3D
 var hold0 := false                  # Nehir savak çarkını tutuyor
+var hold0_t := 0.0
 var water_wheel: Node3D
 var sluice_wheel: Node3D
 var gear_state := "floor"           # floor | carried | mounted
@@ -115,11 +116,13 @@ func _ready() -> void:
 	player.position = Vector3(4, 0.08, 0)
 	add_child(player)
 	player.mocap.tree.add_animation_library("cooperate", preload("res://proto/mocap/birlikte_nehir.res"))
+	player.mocap.tree.add_animation_library("degirmen", preload("res://proto/mocap/degirmen_nehir.res"))
 	player.died.connect(restore_checkpoint)
 	cinar = Companion.new()
 	cinar.level = self
 	cinar.position = Vector3(2.7, 0.08, 0)
 	add_child(cinar)
+	cinar.model.tree.add_animation_library("degirmen", preload("res://proto/mocap/degirmen_cinar.res"))
 	cam = Camera3D.new()
 	cam.fov = 30
 	cam.near = 0.1
@@ -131,7 +134,10 @@ func _ready() -> void:
 		Engine.max_fps = 60
 	add_child(cam)
 	build_ui()
-	if "--test=degirmenshot" in args:
+	if "--test=degirmenanim" in args:
+		audio.muted = true
+		run_anim_shots()
+	elif "--test=degirmenshot" in args:
 		audio.muted = true
 		run_shots()
 	elif "--test=degirmenplay" in args:
@@ -671,19 +677,40 @@ func occupied(x: float, who: Node3D, radius := 0.85) -> bool:
 	return absf(who.position.x - x) < radius and absf(who.position.y) < 0.3
 
 func companion_lever() -> bool:
-	return (not solved[2] and occupied(140, cinar)) or (not solved[3] and occupied(WINCH_X, cinar)) or (not solved[4] and occupied(255, cinar))
+	return (not solved[2] and occupied(140, cinar)) or (not solved[4] and occupied(255, cinar))
+
+func lit_by_lamp(x: float) -> bool:
+	for i in LAMPS.size():
+		if lamp_lit[i] and absf(x - float(LAMPS[i])) < LIGHT_R: return true
+	return false
+
+## Çınar'ın bölüme özel klibi (cinar_companion sorar): dişli taşıma, emekleme, çıkrık, karanlık korkusu
+func companion_clip(tunnel: bool) -> Dictionary:
+	var v := absf(cinar.velocity.x)
+	if tunnel and v > 0.05:
+		return {"clip": "degirmen/Crawl", "rate": maxf(0.2, v / 0.5)}
+	if gear_state == "carried" and cinar.is_on_floor():
+		return {"clip": "degirmen/CarryWalk", "rate": clampf(v / 1.1, 0.0, 2.6)}
+	if not solved[3] and cinar.mode == "stay" and occupied(WINCH_X, cinar):
+		return {"clip": "degirmen/Crank", "rate": 1.0 if lift_y < LOFT_Y - 0.15 else 0.15}
+	if not solved[4] and v < 0.05 and cinar.position.x > DARK_A - 1.0 and cinar.position.x < DARK_B \
+			and not lit_by_lamp(cinar.position.x) and absf(cinar.position.x - player.position.x) > 2.5:
+		return {"clip": "degirmen/Fear", "rate": 1.0}
+	return {}
 
 func interact() -> void:
 	if phase != "play": return
 	var px := player.position.x
 	if not solved[0] and occupied(56, player, 1.3):
 		hold0 = true
-		player.play_interaction("cooperate/LeverPull")
+		hold0_t = 0.0
+		player.play_interaction("degirmen/WheelHold", PI / 2.0)
+		player.interaction_left = 9999.0   # döngü: çarkı bırakana (yürüyene) kadar tutar
 		audio.play("cark")
 		hint.text = "Nehir çarkı tutuyor, kapı açık. Çınar'ı içerideki sarı mandala gönder."
 	elif not solved[1] and occupied(100, player, 1.5):
 		if gear_state == "carried" and absf(cinar.position.x - 100.0) < 3.0:
-			player.play_interaction("cooperate/LeverPull")
+			player.play_interaction("degirmen/GearMount", PI / 2.0)
 			gear_state = "mounted"
 			_place_gear()
 			audio.play("cark")
@@ -699,7 +726,7 @@ func interact() -> void:
 		var i := 0 if absf(px - float(LAMPS[0])) < 1.2 else 1
 		if not lamp_lit[i]:
 			lamp_lit[i] = true
-			player.play_interaction("cooperate/SymbolTouch", PI / 2.0)
+			player.play_interaction("degirmen/LampLight", PI / 2.0)
 			audio.play("kumas")
 			hint.text = "Lamba yandı. Çınar ışığın olduğu yerde tek başına bekleyebilir."
 	elif not solved[4] and occupied(238, player, 1.5):
@@ -777,9 +804,15 @@ func _process(dt: float) -> void:
 	player.grab_held = Input.is_action_pressed("grab")
 	if Input.is_action_just_pressed("jump"): player.jump_pressed = true
 	# 1: savak
-	if hold0 and not occupied(56, player, 1.4):
-		hold0 = false
-		if not solved[0]: hint.text = "Çark bırakılınca kapı iniyor."
+	if hold0:
+		hold0_t += dt
+		if not occupied(56, player, 1.4) or (hold0_t > 0.35 and absf(player.input_x) > 0.25):   # yürüyünce çark bırakılır
+			hold0 = false
+			player.interaction_left = 0.0
+			if not solved[0]: hint.text = "Çark bırakılınca kapı iniyor."
+		elif player.interaction_left <= 0.0:   # basış anındaki ufak kayma tutuşu bozmasın
+			player.play_interaction("degirmen/WheelHold", PI / 2.0)
+			player.interaction_left = 9999.0
 	if not solved[0] and hold0 and occupied(67, cinar): complete(0)
 	if not solved[0] and not door0_open() and cinar.position.x > GATES[0] - 0.3:   # kapı kapanırken eşikte kalmasın
 		cinar.position.x = GATES[0] + 0.9 if cinar.position.x > GATES[0] else cinar.position.x
@@ -789,8 +822,9 @@ func _process(dt: float) -> void:
 		audio.play("kumas")
 		hint.text = "Çınar dişliyi aldı. Onu geri çağır ve mile gelip Kullan'a bas."
 	if gear_state == "carried":
-		gear.position = cinar.position + Vector3(0.0, 0.62, 0.22)
-		gear.rotation = Vector3.ZERO
+		var ileri := 0.26 if cos(cinar.turn.rotation.y) > 0.0 else -0.26   # göğsünde, baktığı yönde
+		gear.position = cinar.position + Vector3(ileri, 0.3 if tunnel_at(cinar.position.x) else 0.66, 0.05)
+		gear.rotation = Vector3(0, PI / 2.0, 0)
 	# 3: testere
 	if saw_running() and absf(player.position.x - SAW_X) < 0.5 and player.position.y < 2.5:
 		_hurt()
@@ -838,7 +872,7 @@ func _animate(dt: float) -> void:
 	# karanlık kiler: ortam kararır, lambalar yanar
 	var cx := cam.position.x
 	var ic := smoothstep(56.0, 66.0, cx) * (1.0 - smoothstep(262.0, 270.0, cx))
-	var kar := smoothstep(DARK_A - 8.0, DARK_A + 2.0, cx) * (1.0 - smoothstep(DARK_B, DARK_B + 6.0, cx))
+	var kar := smoothstep(DARK_A - 4.0, DARK_A + 5.0, cx) * (1.0 - smoothstep(DARK_B, DARK_B + 6.0, cx))
 	var k := maxf(ic * 0.6, kar)
 	var c := ProtoOrtam.FOG.lerp(Color(0.012, 0.012, 0.016), k)
 	env.background_color = c
@@ -1125,4 +1159,60 @@ func run_shots() -> void:
 		cam.position = Vector3(sx + 1, player.position.y + 1.35, 14)
 		await _wait(3.0)
 		get_viewport().get_texture().get_image().save_png("res://../degirmen_%02d.png" % i)
+	get_tree().quit()
+
+## Değirmen kliplerini oyundaki anlarında görüntüler (denetim için).
+func _anim_shot(ad: String, cx: float) -> void:
+	for k in 2:
+		var t := 0.0
+		while t < 0.9:
+			cam.position = Vector3(cx, 1.0, 6.0)
+			await get_tree().process_frame
+			t += get_process_delta_time()
+		get_viewport().get_texture().get_image().save_png("res://../anim_%s_%d.png" % [ad, k])
+
+func run_anim_shots() -> void:
+	await _wait(1.0)
+	# 1: Nehir savak çarkını tutuyor
+	player.position = Vector3(56.0, 0.08, 0)
+	cinar.position = Vector3(54.0, 0.08, 0)
+	cinar.command("stay")
+	await _wait(0.4)
+	interact()
+	await _anim_shot("1_cark", 56.5)
+	# 2: Çınar emekliyor, dişliyi taşıyor; Nehir mile takıyor
+	solved[0] = true
+	player.position = Vector3(100.0, 0.08, 0)
+	cinar.position = Vector3(106.0, 0.08, 0)
+	send_to(116.0)
+	await _wait(1.6)
+	await _anim_shot("2_emekle", cinar.position.x - 1.0)
+	cinar.position.x = 116.0
+	await _wait(0.4)
+	cinar.position.x = 104.5
+	cinar.command("follow")
+	await _wait(0.5)
+	await _anim_shot("3_tasi", 102.0)
+	await _wait(1.5)
+	interact()
+	await _wait(0.9)
+	await _anim_shot("4_tak", 100.5)
+	# 3: çıkrık
+	solved[1] = true
+	solved[2] = true
+	player.position = Vector3(LIFT_X, 0.1, 0)
+	cinar.position = Vector3(WINCH_X - 2.0, 0.08, 0)
+	send_to(WINCH_X)
+	await _wait(1.6)
+	await _anim_shot("5_cikrik", WINCH_X + 1.5)
+	# 4: karanlık korkusu ve lamba
+	solved[3] = true
+	player.position = Vector3(230.0, 0.08, 0)
+	cinar.position = Vector3(DARK_A - 0.5, 0.08, 0)
+	cinar.command("stay")
+	await _wait(2.0)
+	await _anim_shot("6_korku", 221.0)
+	interact()
+	await _wait(0.9)
+	await _anim_shot("7_lamba", 229.5)
 	get_tree().quit()

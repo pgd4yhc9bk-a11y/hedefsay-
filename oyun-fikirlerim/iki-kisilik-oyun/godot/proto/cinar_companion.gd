@@ -90,6 +90,7 @@ func animate_companion(dt: float, tunnel: bool) -> void:
 		clip_left = model.tree.get_animation("cooperate/LeverRelease").length
 	var clip := ""
 	var rate := 1.0
+	var extra: Dictionary = level.companion_clip(tunnel) if level.has_method("companion_clip") else {}
 	if lever_stage != "":
 		clip = {"pull":"LeverPull", "hold":"LeverHold", "release":"LeverRelease"}[lever_stage]
 		turn.rotation.y = move_toward(turn.rotation.y, 0, dt * 7)
@@ -100,6 +101,10 @@ func animate_companion(dt: float, tunnel: bool) -> void:
 	elif not is_on_floor() and hopping:
 		clip = "Hop"
 		rate = 2.4   # Fizik sıçramasına uysun; kaynakta ayrıca yukarı kök kayması yok.
+	elif not extra.is_empty():   # bölüme özel klip (tam adıyla, ör. "degirmen/Crank")
+		clip = extra["clip"]
+		rate = float(extra.get("rate", 1.0))
+		nod_left = 0
 	elif tunnel and absf(velocity.x) > 0.05:
 		clip = "CrouchWalk"
 		rate = maxf(0.1, absf(velocity.x) / 0.45)
@@ -108,7 +113,7 @@ func animate_companion(dt: float, tunnel: bool) -> void:
 		nod_left = maxf(0, nod_left - dt)
 	if is_on_floor(): hopping = false
 	if clip != "":
-		model.set_any("cooperate/" + clip)
+		model.set_any(clip if clip.contains("/") else "cooperate/" + clip)
 		model.drive("any", absf(velocity.x), rate, dt)
 	else:
 		model.drive("loco" if is_on_floor() else "air", absf(velocity.x), 1.0, dt)

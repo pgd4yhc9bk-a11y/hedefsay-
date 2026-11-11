@@ -63,8 +63,20 @@ Yükseklik, oyunun modeli ölçekleyeceği boydur (metre); Meshy'de ayarlamak ge
 **En azından ⭐ olan 7 model** bölümün görüntüsünü değiştirir. Meshy'de önizleme (preview) modeli başına
 yaklaşık 5–20 kredi, doku ile 15–30 kredi tutar; 19 modelin tamamı kabaca 300–550 kredi.
 
-## Sonra istenecek animasyonlar (isteğe bağlı)
-Şimdilik var olan klipler kullanılıyor (kol çekme, eğilerek yürüme, baş sallama). Bölümü zenginleştirecekler
-`MESHY-YAPILACAKLAR.md` listesinde: **N5** (kaldıraç çekme), **Ç2** (karanlıkta korku), **Ç4** (sürünme), **Ç6** (kola asılma).
-Yeni olarak: Nehir için "çark çevirme" zaten var (1. bölümdeki A klibi). Çınar için:
-`A small boy carries a heavy wooden wheel against his chest with both arms, walking slowly, leaning back. Looping, in place.`
+## Durum (11 Kasım)
+- **Modeller:** ⭐ işaretli 7 model geldi ve oyunda (`chatgpt/degirmen-meshy-modeller` dalından alındı). Kalan 12 model yer tutucu.
+- **Animasyonlar:** ⭐ işaretli 7 klip geldi ve bağlandı. Kaynak: Meshy'den indirilen iki "All animation" GLB (depoda değil, büyük);
+  `godot/proto/tools/retarget_degirmen.gd -- nehir.glb cinar.glb` ile `mocap/degirmen_nehir.res` ve `degirmen_cinar.res` üretilir.
+
+| Klip | Kod adı (Meshy) | Oyunda |
+|---|---|---|
+| Nehir `WheelHold` | `_01a1cb88…` | Savak çarkını tutarken (döngü) |
+| Nehir `GearMount` | `_01a1cb8b…` | Dişliyi mile takarken |
+| Nehir `LampLight` | `_01a1cb8c…` | Kilerde lambayı yakarken |
+| Çınar `CarryWalk` | `_01a1cb9c…` | Dişliyi taşırken (döngü) |
+| Çınar `Crank` | `_01a1cbb3…` | Çıkrığı çevirirken (döngü) |
+| Çınar `Fear` | `_01a1cbb6…` | Karanlıkta ışıksız beklerken (döngü) |
+| Çınar `Crawl` | `_01a1cbb9…` | Alçak delikten geçerken (döngü) |
+
+Bekleyenler: Nehir DN4 (irkilme), DN5 (asansörde bekleme), DN6 (büyük kol); Çınar DC5 (dişliyi yerden alma), DC6 (el çarkını tutma), DC7 (korkuyla koşma).
+Çınar'ın bölüme özel klipleri `degirmen.gd` içindeki `companion_clip()` ile seçilir.
